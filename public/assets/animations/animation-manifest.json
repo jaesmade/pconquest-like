@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "columns": 20,
+  "directions": ["south", "west", "east", "north"],
+  "clips": {
+    "idle": { "startColumn": 0, "frameCount": 2, "fps": 3, "loop": true },
+    "move": { "startColumn": 2, "frameCount": 4, "fps": 8, "loop": true },
+    "attack": { "startColumn": 6, "frameCount": 3, "fps": 10, "loop": false },
+    "hurt": { "startColumn": 9, "frameCount": 2, "fps": 12, "loop": false },
+    "buff": { "startColumn": 11, "frameCount": 2, "fps": 8, "loop": false },
+    "debuff": { "startColumn": 13, "frameCount": 2, "fps": 8, "loop": false },
+    "special": { "startColumn": 15, "frameCount": 3, "fps": 8, "loop": false },
+    "faint": { "startColumn": 18, "frameCount": 2, "fps": 6, "loop": false }
+  },
+  "fallbackUnit": "placeholder",
+  "units": {
+    "bulbasaur": "/assets/animations/units/bulbasaur/bulbasaur-battle-32px.png",
+    "squirtle": "/assets/animations/units/squirtle/squirtle-battle-32px.png",
+    "lapras": "/assets/animations/units/lapras/lapras-battle-32px.png",
+    "geodude": "/assets/animations/units/geodude/geodude-battle-32px.png",
+    "pikachu": "/assets/animations/units/pikachu/pikachu-battle-32px.png",
+    "meowth": "/assets/animations/units/meowth/meowth-battle-32px.png",
+    "placeholder": "/assets/animations/units/placeholder/placeholder-battle-32px.png"
+  },
+  "effects": {
+    "attack-impact": "/assets/animations/effects/effect-attack-impact-32px.png",
+    "buff": "/assets/animations/effects/effect-buff-32px.png",
+    "debuff": "/assets/animations/effects/effect-debuff-32px.png",
+    "heal": "/assets/animations/effects/effect-heal-32px.png",
+    "mega": "/assets/animations/effects/effect-mega-32px.png",
+    "status": "/assets/animations/effects/effect-status-32px.png"
+  },
+  "attacks": {
+    "tackle": { "url": "/assets/animations/attacks/attack-tackle-32px.png", "style": "projectile" },
+    "ember": { "url": "/assets/animations/attacks/attack-ember-32px.png", "style": "projectile" },
+    "vineWhip": { "url": "/assets/animations/attacks/attack-vine-whip-32px.png", "style": "projectile" },
+    "waterPulse": { "url": "/assets/animations/attacks/attack-water-pulse-32px.png", "style": "projectile" },
+    "thunderShock": { "url": "/assets/animations/attacks/attack-thunder-shock-32px.png", "style": "projectile" },
+    "rockThrow": { "url": "/assets/animations/attacks/attack-rock-throw-32px.png", "style": "projectile" },
+    "mudSlap": { "url": "/assets/animations/attacks/attack-mud-slap-32px.png", "style": "projectile" },
+    "iceShard": { "url": "/assets/animations/attacks/attack-ice-shard-32px.png", "style": "projectile" },
+    "tailWhip": { "url": "/assets/animations/attacks/attack-tail-whip-32px.png", "style": "area" },
+    "harden": { "url": "/assets/animations/attacks/attack-harden-32px.png", "style": "self" },
+    "howl": { "url": "/assets/animations/attacks/attack-howl-32px.png", "style": "area" },
+    "stealthRock": { "url": "/assets/animations/attacks/attack-stealth-rock-32px.png", "style": "area" },
+    "thunderbolt": { "url": "/assets/animations/attacks/attack-thunderbolt-32px.png", "style": "area" },
+    "sandstorm": { "url": "/assets/animations/attacks/attack-sandstorm-32px.png", "style": "weather" },
+    "sunnyDay": { "url": "/assets/animations/attacks/attack-sunny-day-32px.png", "style": "weather" }
+  },
+  "weather": {
+    "sun": "/assets/animations/weather/weather-sun-32px.png",
+    "rain": "/assets/animations/weather/weather-rain-32px.png",
+    "snow": "/assets/animations/weather/weather-snow-32px.png",
+    "sandstorm": "/assets/animations/weather/weather-sandstorm-32px.png"
+  },
+  "effectFrameCount": 4,
+  "effectFps": 12,
+  "attackFrameCount": 4,
+  "attackFps": 12,
+  "weatherFrameCount": 4,
+  "weatherFps": 5
+}

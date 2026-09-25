@@ -1,0 +1,52 @@
+# Extending the early build
+
+This guide describes the code that exists now and the contracts to keep stable as the game grows. The first run still has a small roster, four encounters, and simple enemy decisions.
+
+## Where changes belong
+
+| Area | Current home | Additions |
+| --- | --- | --- |
+| Types and multipliers | `src/content/typeChart.ts` | Keep the imported 18-type chart and dual-type multiplication here. |
+| Abilities | `src/content/abilities.ts` | Add a stable ability name, description, and supported effect settings. Species and Mega forms reference these names. |
+| Move definitions | `src/content/moves.ts` | Add a stable move key, type, category, power, range, target mode, AP cost, optional area and effects, and description. |
+| Species, stats, learnsets, evolution | `src/content/species.ts` | Add species keyed by stable ID; put new starter and recruit IDs in their lists. |
+| Held items | `src/content/items.ts` | Add a stable item name, description, and supported passive or Special effect settings. |
+| Terrain and spawn layouts | `src/content/maps.ts` | Use `createMap` with any rectangular square-grid layout and explicit player and enemy spawn coordinates. |
+| Run order and rewards | `src/content/encounters.ts` | Add an encounter ID, `nextId`, map ID, enemy species IDs, enemy level, objective, and XP reward. |
+| Cross-reference checks | `src/content/catalog.ts` | Extend `validateCatalog` when a new content relationship is introduced. |
+| Battle state and rules | `src/game/types.ts`, `src/game/engine.ts` | Define a rule once and call it from player, enemy, and preview paths. |
+| Menus and battle display | `src/main.tsx`, `src/ui/`, `src/battle/Board.tsx` | Keep React controls separate from Phaser grid rendering. The battle screen loads on demand. |
+| Run persistence | `src/persistence/save.ts` | Bump the schema version and migrate older saves when the saved state shape changes. |
+| Visual assets | `public/assets/animations/` | Follow [the animation asset guide](ANIMATION_ASSETS.md) and add manifest entries for new art. |
+
+`src/content/data.ts` is a barrel for existing imports. New content can live in its focused file; rule changes should remain in `src/game/engine.ts` or a future engine module.
+
+## Adding a Pokémon or move
+
+1. Give the species and moves stable IDs. Existing IDs are stored in browser saves, so rename them only with a migration.
+2. Add moves in `moves.ts` and the species' seven stats, types, ability, starting moves, and level learnset in `species.ts`. Stats are HP, Attack, Defense, Special Attack, Special Defense, Speed, and Movement, in that order. Add `mobility: { fly: true }` or `{ swim: true }` for a form that needs it beyond the Flying/Water type defaults. Register any new ability in `abilities.ts` before assigning it to a species.
+3. Add the species ID to `STARTERS`, `RECRUITS`, or an encounter only when it should appear there. A defined species can exist without joining either list.
+4. Add battle art or let the renderer use the shared placeholder. Add move-specific effect art to the manifest when available; missing effects use the shared impact cue.
+5. Set an AP cost and choose an existing target area and effect in the move definition. The engine handles status, displacement, tile effects, chain damage, stat stages, and weather from those definitions. One move use, including a Status move, consumes that Pokémon's Attack command for the turn; movement and Special can still spend remaining AP. For a new effect family, extend `MoveEffect` and its resolver and preview together. Existing ability hooks cover weather-based Speed and evasion, conditional damage, move absorption, and contact reactions. Existing item hooks cover round healing and threshold healing, Special Defense, Status move restrictions, Attack boosts, and Mega Evolution.
+
+To add a held item, give it a stable name in `items.ts` and choose an existing effect shape. Consumables set `consume: true`; the battle unit keeps an Attack multiplier after X Attack is consumed. A Mega Stone is usable only when the holder's species defines that stone in its `mega` entry. Item names and temporary battle effects are saved, so renaming an item or changing the saved battle fields requires a migration.
+
+Startup validation reports missing types, moves, evolutions, Mega Stones, encounter species, maps, objectives, spawn capacity, unusable deep-water spawns, and encounter-link cycles. It does not validate gameplay balance.
+
+## Adding a map or encounter
+
+`createMap` accepts terrain rows (`.` plain, `~` deep water, `^` lava, `#` wall) and matching elevation rows (`0`–`2`). All rows must have the same width. Every spawn and capture coordinate must be in bounds and off walls; spawns must be unique. Spawn and capture tiles must be connected without crossing walls. Coordinates are zero based `[x, y]`. Player spawn tiles should be safe for any deployable team, including Pokémon that cannot enter deep water.
+
+Add the map to `MAPS`, then reference its ID from an entry in `ENCOUNTERS`. The encounter determines enemy species, objective (`defeat` or `defeat-and-capture`), and XP. An encounter using the capture objective needs a map capture tile. The engine and Phaser board use the map's actual width and height for movement, attack areas, rendering, and weather cues. Existing example maps use 8×8 layouts; they are examples rather than a board-size requirement.
+
+An encounter's stable ID, `nextId`, and `enemyLevel` determine progression and difficulty. The numeric `run.encounter` only tracks progress for the UI. Branching routes can choose a different next ID without reordering existing definitions.
+
+## Saves and future rule families
+
+The current browser key is `pokemon-tactics-save-v5`. It stores `{ schemaVersion, savedAt, run }`. Loading still accepts v4, v3, v2, and the older `pokemon-tactics-prototype-v1` shape. An older mid-battle save cannot reveal whether its active Pokémon already attacked under the new rule, so it resumes at preparation for the same encounter. A v5 battle is validated before loading. Transient animation events are cleared on load and save. Older keys are left intact.
+
+When changing persisted fields, raise the schema version, keep a migration for existing versions, and preserve content IDs or map them explicitly. If a removed species, move, or encounter can occur in an old run, migrate it to an available replacement or reset that run deliberately; a type assertion alone cannot make old data valid.
+
+Ability and item definitions and their supported effect settings live in `abilities.ts` and `items.ts`. Move effects and areas live in `moves.ts`, with their resolution in `engine.ts`; pathfinding and line of sight live in `grid.ts`. Mobility capability and current state live in `mobility.ts` and on each battle unit. The Phaser board reads that state to draw a flight shadow or swim ripple. When more effect families are added, split resolution into registries with explicit hooks for preview, apply, and visual event generation. Keep the AP scheduler independent of those handlers so Speed controls AP gained each round.
+
+The board creates a Phaser sprite and HP bar for each unit, draws static terrain once, and redraws dynamic overlays when state changes. Movement search stores predecessor keys and reconstructs only the requested route; board highlights use reachable tile IDs. Enemy targeting skips moves whose damage preview is zero, including type immunity and absorption. Before tuning larger maps or many units further, profile the render and save paths. Keep combat outcomes in game state; animations only consume visual events and do not decide hits or damage. Game choices use a saved seeded RNG state so combat and tie breaks can be reproduced.

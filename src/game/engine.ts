@@ -1,9 +1,10 @@
-import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, effectiveness, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemPeriodicHeal, itemSpecial, itemSpecialDefenseMultiplier, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
+import { abilityAbsorption, abilityContactReaction, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
 import { canEnter, hasLineOfSight, pathToward, routeTo, stepCost } from './grid';
 import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
+import { calculateDamage, damageRange } from './damage';
 
 export { reachable, reachableTiles } from './grid';
 
@@ -11,7 +12,6 @@ const max = (n: number) => Math.max(1, Math.ceil(n));
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const log = (battle: Battle, message: string) => { battle.log = [message, ...battle.log].slice(0, 24); };
 const alive = (unit: Unit) => unit.hp > 0;
-const hasType = (unit: Unit, type: string) => unit.types.includes(type);
 const MAX_CARRY_AP = Math.max(1, ...Object.values(MOVES).map(move => move.apCost), ...Object.values(ITEM_DEFINITIONS).map(item => ('special' in item ? item.special.apCost : 0)));
 const encounterFor = (run: Run) => ENCOUNTERS.find(encounter => encounter.id === run.encounterId);
 export const unitAt = (battle: Battle, x: number, y: number) => battle.units.find(unit => alive(unit) && unit.x === x && unit.y === y);
@@ -33,7 +33,7 @@ export function newRun(starter: string, unlocks = 0): Run {
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: mon.hp, maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: mon.hp, maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
 }
 export function startBattle(run: Run): Run {
   const next = structuredClone(run);
@@ -138,25 +138,8 @@ export function moveUnit(battle: Battle, x: number, y: number): string | undefin
   unit.visual = 'move'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;
   log(battle, `${unit.name} moved to ${unit.x + 1}, ${unit.y + 1} for ${spent} AP.`);
 }
-function statValue(unit: Unit, index: number, battle: Battle) {
-  let value = unit.stats[index];
-  if (index === 1) value *= Math.pow(1.25, unit.stages.attack) * unit.itemAttackMultiplier;
-  if (index === 2) value *= Math.pow(1.25, unit.stages.defense) * (battle.weather === 'snow' && hasType(unit, 'Ice') ? 1.5 : 1);
-  if (index === 4) value *= (battle.weather === 'sandstorm' && hasType(unit, 'Rock') ? 1.5 : 1) * itemSpecialDefenseMultiplier(unit);
-  return value;
-}
 export function damagePreview(battle: Battle, source: Unit, target: Unit, moveId: string) {
-  const move = MOVES[moveId];
-  const type = effectiveness(move.type, target.types);
-  if (!move.power || !type || abilityAbsorption(target.ability, move.type)) return { damage: 0, crit: 0, type };
-  const attack = statValue(source, move.category === 'Physical' ? 1 : 3, battle);
-  const defense = statValue(target, move.category === 'Physical' ? 2 : 4, battle);
-  let multiplier = type * (source.types.includes(move.type) ? 1.2 : 1);
-  if (battle.weather === 'sun') multiplier *= move.type === 'Fire' ? 1.5 : move.type === 'Water' ? 0.5 : 1;
-  if (battle.weather === 'rain') multiplier *= move.type === 'Water' ? 1.5 : move.type === 'Fire' ? 0.5 : 1;
-  multiplier *= abilityDamageMultiplier(source, move);
-  const damage = max((move.power * attack / Math.max(1, defense) * 0.37 + 2) * multiplier);
-  return { damage, crit: max(damage * 1.5), type };
+  return damageRange(battle, source, target, MOVES[moveId]);
 }
 export function inMoveRange(battle: Battle, unit: Unit, moveId: string, x: number, y: number) {
   const move = MOVES[moveId];
@@ -213,8 +196,10 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   const preview = damagePreview(battle, source, target, moveId);
   if (!preview.type) { log(battle, `${target.name} is immune to ${move.type}.`); return; }
   const critical = random(battle) < 1 / 24;
+  const randomPercent = 85 + Math.floor(random(battle) * 16);
+  const damage = calculateDamage(battle, source, target, move, { critical, randomPercent });
   visual.targetIds.push(target.id);
-  hit(battle, target, critical ? preview.crit : preview.damage, `${move.name}${critical ? ' (critical)' : ''} · ${preview.type}×`);
+  hit(battle, target, damage, `${move.name}${critical ? ' (critical)' : ''} · ${preview.type}×`);
   if (!alive(target)) return;
   const reaction = move.contact && abilityContactReaction(target.ability);
   if (reaction && random(battle) < reaction.chance) { source.status[reaction.status] = battle.time + reaction.duration; log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
@@ -241,7 +226,7 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
     } else if (effect.kind === 'tile') battle.map.tiles[target.y][target.x][effect.field] = battle.time + effect.duration;
     else if (effect.kind === 'chain' && random(battle) < effect.chance) {
       const chained = battle.units.find(unit => unit.side === target.side && unit.id !== target.id && alive(unit) && distance(unit, target) <= effect.radius);
-      if (chained) { visual.tiles.push([chained.x, chained.y]); visual.targetIds.push(chained.id); hit(battle, chained, max(preview.damage * effect.damageFraction), `${move.name} chain`); }
+      if (chained) { visual.tiles.push([chained.x, chained.y]); visual.targetIds.push(chained.id); hit(battle, chained, max(damage * effect.damageFraction), `${move.name} chain`); }
     }
   }
 }
@@ -266,7 +251,7 @@ export function useMove(battle: Battle, moveId: string, x: number, y: number): s
       if (!tiles.some(([tileX, tileY]) => other.x === tileX && other.y === tileY)) continue;
       if (effect.recipients === 'self' && other.id !== unit.id) continue;
       if (effect.recipients === 'allies' && other.side !== unit.side) continue;
-      other.stages[effect.stat] = Math.max(-2, Math.min(2, other.stages[effect.stat] + effect.delta));
+      other.stages[effect.stat] = Math.max(-6, Math.min(6, other.stages[effect.stat] + effect.delta));
     }
   }
   if (move.power) for (const target of battle.units.filter(other => alive(other) && other.side !== unit.side && tiles.some(([tileX, tileY]) => other.x === tileX && other.y === tileY))) applyDamage(battle, unit, target, moveId, visual);
@@ -320,7 +305,7 @@ function enemyTurn(battle: Battle): boolean {
         if (effect.kind !== 'stage') return false;
         return battle.units.some(unit => alive(unit) && area.some(([tx, ty]) => unit.x === tx && unit.y === ty)
           && (effect.recipients === 'self' ? unit.id === enemy.id : effect.recipients === 'allies' ? unit.side === enemy.side : unit.side !== enemy.side)
-          && (effect.delta > 0 ? unit.stages[effect.stat] < 2 : unit.stages[effect.stat] > -2));
+          && (effect.delta > 0 ? unit.stages[effect.stat] < 6 : unit.stages[effect.stat] > -6));
       });
       if (useful) { useMove(battle, moveId, enemy.x, enemy.y); return true; }
     }

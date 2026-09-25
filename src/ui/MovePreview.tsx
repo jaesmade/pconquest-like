@@ -12,7 +12,7 @@ function matchup(battle: Battle, attacker: Unit, defender: Unit, moveId: string)
   const value = effectiveness(move.type, defender.types);
   const label = value === 0 ? 'Immune' : value === 0.25 || value === 0.5 ? 'Not very effective' : value >= 4 ? 'Extremely effective' : value >= 2 ? 'Super effective' : 'Neutral';
   const preview = damagePreview(battle, attacker, defender, moveId);
-  return `${value}× ${label} · ${preview.damage} damage${preview.damage ? `, ${preview.crit} crit` : ''}`;
+  return `${value}× ${label} · ${preview.min}–${preview.max} damage${preview.max ? `, ${preview.critMin}–${preview.critMax} crit` : ''}`;
 }
 
 export default function MovePreview({ battle, attacker, moveId, target }: Props) {

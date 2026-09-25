@@ -3,10 +3,10 @@ import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
 import type { Run } from '../game/types';
 
-const CURRENT_KEY = 'pokemon-tactics-save-v5';
-const OLD_KEYS = [['pokemon-tactics-save-v4', 4], ['pokemon-tactics-save-v3', 3], ['pokemon-tactics-save-v2', 2]] as const;
+const CURRENT_KEY = 'pokemon-tactics-save-v6';
+const OLD_KEYS = [['pokemon-tactics-save-v5', 5], ['pokemon-tactics-save-v4', 4], ['pokemon-tactics-save-v3', 3], ['pokemon-tactics-save-v2', 2]] as const;
 const LEGACY_KEY = 'pokemon-tactics-prototype-v1';
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 type SaveEnvelope = { schemaVersion: number; savedAt: string; run: Run };
 const phases = new Set<Run['phase']>(['starter', 'route', 'prepare', 'battle', 'intermission', 'result']);
@@ -41,7 +41,7 @@ function migrateRun(run: Run, version: number): Run {
   next.selected = [...new Set(next.selected.filter(id => next.party.some(mon => mon.id === id && mon.hp > 0)))].slice(0, 3);
 
   // The old battle cannot reveal whether its active unit already spent its attack.
-  if (version < SCHEMA_VERSION && next.battle) {
+  if (version < 5 && next.battle) {
     if (next.phase === 'battle') {
       next.phase = 'prepare';
       next.report = ['Battle resumed at preparation after the one-attack rule update.'];
@@ -51,6 +51,13 @@ function migrateRun(run: Run, version: number): Run {
   if (next.phase === 'battle' && !next.battle) next.phase = 'prepare';
   if (next.battle) {
     const battle = next.battle, authored = MAPS[battle.map?.id];
+    if (version === 5 && Array.isArray(battle.units)) {
+      const enemyLevel = ENCOUNTERS.find(encounter => encounter.id === next.encounterId)?.enemyLevel ?? 2;
+      for (const unit of battle.units) {
+        unit.level = unit.side === 'player' ? next.party.find(mon => mon.id === unit.partyId)?.level ?? 2 : enemyLevel;
+        unit.stages = { attack: unit.stages?.attack ?? 0, defense: unit.stages?.defense ?? 0, specialAttack: 0, specialDefense: 0 };
+      }
+    }
     const capturePending = battle.objective === 'defeat-and-capture' && !!battle.map?.capture
       && !battle.units?.some(unit => unit.hp > 0 && unit.side === 'player'
         && unit.x === battle.map.capture![0] && unit.y === battle.map.capture![1]);
@@ -61,6 +68,8 @@ function migrateRun(run: Run, version: number): Run {
       && Number.isInteger(unit.x) && Number.isInteger(unit.y) && Number.isFinite(unit.hp)
       && Number.isFinite(unit.ap) && unit.ap >= 0 && Number.isFinite(unit.maxAp) && unit.maxAp >= 0
       && Number.isFinite(unit.maxHp) && unit.maxHp > 0 && unit.hp >= 0 && unit.hp <= unit.maxHp
+      && Number.isInteger(unit.level) && unit.level >= 1 && unit.level <= 100
+      && ['attack', 'defense', 'specialAttack', 'specialDefense'].every(stat => Number.isInteger(unit.stages?.[stat as keyof typeof unit.stages]) && Math.abs(unit.stages[stat as keyof typeof unit.stages]) <= 6)
       && typeof unit.attackedThisTurn === 'boolean' && typeof unit.mobility?.canFly === 'boolean'
       && typeof unit.mobility?.canSwim === 'boolean'
       && battle.map.tiles[unit.y]?.[unit.x] && Array.isArray(unit.moves) && unit.moves.every(id => !!MOVES[id]));

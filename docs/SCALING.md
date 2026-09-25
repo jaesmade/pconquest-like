@@ -43,7 +43,13 @@ An encounter's stable ID, `nextId`, and `enemyLevel` determine progression and d
 
 ## Saves and future rule families
 
-The current browser key is `pokemon-tactics-save-v5`. It stores `{ schemaVersion, savedAt, run }`. Loading still accepts v4, v3, v2, and the older `pokemon-tactics-prototype-v1` shape. An older mid-battle save cannot reveal whether its active Pokémon already attacked under the new rule, so it resumes at preparation for the same encounter. A v5 battle is validated before loading. Transient animation events are cleared on load and save. Older keys are left intact.
+The current browser key is `pokemon-tactics-save-v6`. It stores `{ schemaVersion, savedAt, run }`. Loading accepts v5, v4, v3, v2, and the older `pokemon-tactics-prototype-v1` shape. A v5 battle gains unit levels and Special stat stages in place. Battles from before v5 resume at preparation because their active Pokémon's attack use cannot be recovered. Battles are validated before loading. Transient animation events are cleared on load and save. Older keys are left intact.
+
+## Damage calculation
+
+`src/game/damage.ts` is the single source for combat damage and UI ranges. It uses the attacking Pokémon's level, move power, the relevant Attack/Defense pair, the modern stat stage ratios (−6 to +6), and integer base damage. Weather, a 1.5× critical hit, one of 16 equally likely random rolls from 85% to 100%, 1.5× same-type attack bonus, type effectiveness, and physical burn are applied in that order. Critical hits ignore negative offensive stages and positive defensive stages. The UI reports the possible normal and critical damage ranges; it does not consume battle RNG. The engine rolls critical chance (1 in 24) and damage variation when each target is hit.
+
+Ability power bonuses are applied to base power, item Attack and Special Defense bonuses to the relevant stat, and snow/sandstorm defensive bonuses to Defense/Special Defense. Grid range, AP costs, terrain hazards, and secondary effects remain independent of direct move damage. New move-specific damage rules should be added as explicit calculator hooks rather than folded into a single final multiplier. Species stat growth in this fangame is still custom, so matching this damage pipeline does not imply complete main-series battle simulation.
 
 When changing persisted fields, raise the schema version, keep a migration for existing versions, and preserve content IDs or map them explicitly. If a removed species, move, or encounter can occur in an old run, migrate it to an available replacement or reset that run deliberately; a type assertion alone cannot make old data valid.
 

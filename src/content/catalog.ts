@@ -11,8 +11,16 @@ export function validateCatalog(): string[] {
   const errors: string[] = [];
   for (const [id, move] of Object.entries(MOVES)) {
     if (!TYPES.includes(move.type)) errors.push(`Move ${id}: unknown type ${move.type}`);
-    if (move.range < 0 || move.power < 0 || !Number.isInteger(move.apCost) || move.apCost < 1) errors.push(`Move ${id}: range and power must be nonnegative, and AP cost must be positive`);
-    if (move.area && (move.area.width < 1 || move.area.height < 1)) errors.push(`Move ${id}: area must have positive dimensions`);
+    if (!Number.isInteger(move.range) || move.range < 0 || !Number.isInteger(move.power) || move.power < 0 || !Number.isInteger(move.apCost) || move.apCost < 1) errors.push(`Move ${id}: range and power must be nonnegative integers, and AP cost must be a positive integer`);
+    if (move.category === 'Status' ? move.power !== 0 : move.power <= 0) errors.push(`Move ${id}: Status moves need zero power and damaging moves need positive power`);
+    if (move.area && (!Number.isInteger(move.area.width) || !Number.isInteger(move.area.height) || move.area.width < 1 || move.area.height < 1)) errors.push(`Move ${id}: area must have positive integer dimensions`);
+    for (const effect of move.effects ?? []) {
+      if ('chance' in effect && (!Number.isFinite(effect.chance) || effect.chance < 0 || effect.chance > 1)) errors.push(`Move ${id}: effect chance must be between 0 and 1`);
+      if ('duration' in effect && (!Number.isInteger(effect.duration) || effect.duration < 1)) errors.push(`Move ${id}: effect duration must be a positive integer`);
+      if (effect.kind === 'chain' && (!Number.isFinite(effect.damageFraction) || effect.damageFraction <= 0)) errors.push(`Move ${id}: chain damage fraction must be positive`);
+      if (effect.kind === 'stage' && (!Number.isInteger(effect.delta) || effect.delta === 0)) errors.push(`Move ${id}: stage change must be a nonzero integer`);
+      if (effect.kind === 'displace' && (!Number.isInteger(effect.tiles) || effect.tiles < 1)) errors.push(`Move ${id}: displacement must be a positive tile count`);
+    }
   }
   for (const [id, species] of Object.entries(SPECIES)) {
     if (!ABILITIES[species.ability]) errors.push(`Species ${id}: unknown ability ${species.ability}`);
@@ -21,7 +29,8 @@ export function validateCatalog(): string[] {
     for (const move of [...species.moves, ...Object.values(species.learn)]) if (!MOVES[move]) errors.push(`Species ${id}: unknown move ${move}`);
     if (species.evolves && !SPECIES[species.evolves.into]) errors.push(`Species ${id}: unknown evolution ${species.evolves.into}`);
     if (species.mega && (!ITEMS.includes(species.mega.stone) || itemFor(species.mega.stone)?.special?.kind !== 'mega-evolve')) errors.push(`Species ${id}: invalid Mega Stone ${species.mega.stone}`);
-    if (species.stats.length !== 7 || species.stats.some(value => !Number.isFinite(value) || value <= 0)) errors.push(`Species ${id}: expected seven positive stats`);
+    if (species.stats.length !== 7 || species.stats.some(value => !Number.isInteger(value) || value <= 0)) errors.push(`Species ${id}: expected seven positive integer stats`);
+    if (species.mega && (species.mega.stats.length !== 7 || species.mega.stats.some(value => !Number.isInteger(value) || value <= 0))) errors.push(`Species ${id}: expected seven positive integer Mega stats`);
   }
   for (const id of [...STARTERS, ...RECRUITS]) if (!SPECIES[id]) errors.push(`Roster: unknown species ${id}`);
   const encounterIds = new Set<string>();
@@ -29,7 +38,7 @@ export function validateCatalog(): string[] {
     if (encounterIds.has(encounter.id)) errors.push(`Encounter: duplicate ID ${encounter.id}`);
     encounterIds.add(encounter.id);
     if (!encounter.enemies.length) errors.push(`Encounter ${encounter.id}: at least one enemy is required`);
-    if (encounter.enemyLevel < 1 || encounter.xp < 0) errors.push(`Encounter ${encounter.id}: invalid level or XP`);
+    if (!Number.isInteger(encounter.enemyLevel) || encounter.enemyLevel < 1 || encounter.enemyLevel > 100 || !Number.isInteger(encounter.xp) || encounter.xp < 0) errors.push(`Encounter ${encounter.id}: invalid level or XP`);
     if (encounter.nextId && !ENCOUNTERS.some(next => next.id === encounter.nextId)) errors.push(`Encounter ${encounter.id}: unknown next encounter ${encounter.nextId}`);
     const map = MAPS[encounter.mapId];
     if (!map) { errors.push(`Encounter ${encounter.id}: unknown map ${encounter.mapId}`); continue; }

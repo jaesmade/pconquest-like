@@ -29,22 +29,27 @@ class BattleScene extends Phaser.Scene {
   pendingAttacks: AttackVisualEvent[] = [];
   playingAttack?: AttackVisualEvent;
   draining = false;
+  movingUnits = new Set<string>();
   constructor() { super('battle'); }
   preload() {
-    for (const [id, url] of Object.entries(manifest.units)) this.load.spritesheet(id, url, { frameWidth: 32, frameHeight: 32 });
+    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.map(unit => unit.species)]);
+    const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
+    for (const [id, url] of Object.entries(manifest.units)) if (unitIds.has(id)) this.load.spritesheet(id, url, { frameWidth: 32, frameHeight: 32 });
     for (const [id, url] of Object.entries(manifest.effects)) this.load.spritesheet(`effect-${id}`, url, { frameWidth: 32, frameHeight: 32 });
-    for (const [id, asset] of Object.entries(manifest.attacks)) this.load.spritesheet(`attack-${id}`, asset.url, { frameWidth: 32, frameHeight: 32 });
+    for (const [id, asset] of Object.entries(manifest.attacks)) if (moveIds.has(id)) this.load.spritesheet(`attack-${id}`, asset.url, { frameWidth: 32, frameHeight: 32 });
   }
   create() {
     this.terrain = this.add.graphics().setDepth(0);
     this.ground = this.add.graphics().setDepth(1);
     this.drawTerrain();
-    for (const id of Object.keys(manifest.units)) for (let direction = 0; direction < 4; direction++) for (const [clip, data] of Object.entries(clips)) {
+    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.map(unit => unit.species)]);
+    const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
+    for (const id of Object.keys(manifest.units).filter(id => unitIds.has(id))) for (let direction = 0; direction < 4; direction++) for (const [clip, data] of Object.entries(clips)) {
       const start = direction * manifest.columns + data.startColumn;
       this.anims.create({ key: `${id}-${direction}-${clip}`, frames: this.anims.generateFrameNumbers(id, { start, end: start + data.frameCount - 1 }), frameRate: data.fps, repeat: data.loop ? -1 : 0 });
     }
     for (const id of Object.keys(manifest.effects)) this.anims.create({ key: `effect-${id}`, frames: this.anims.generateFrameNumbers(`effect-${id}`, { start: 0, end: 3 }), frameRate: manifest.effectFps });
-    for (const id of Object.keys(manifest.attacks)) {
+    for (const id of Object.keys(manifest.attacks).filter(id => moveIds.has(id))) {
       const frames = this.anims.generateFrameNumbers(`attack-${id}`, { start: 0, end: manifest.attackFrameCount - 1 });
       this.anims.create({ key: `attack-${id}`, frames, frameRate: manifest.attackFps });
       this.anims.create({ key: `attack-${id}-travel`, frames, frameRate: manifest.attackFps, repeat: -1 });
@@ -52,6 +57,7 @@ class BattleScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.onTile(Math.floor(pointer.x / TILE), Math.floor(pointer.y / TILE)));
     this.renderBattle();
     void this.playNextAttack();
+    this.updateAnimationState();
   }
   drawTerrain() {
     for (let y = 0; y < mapHeight(this.battle.map); y++) for (let x = 0; x < mapWidth(this.battle.map); x++) {
@@ -64,9 +70,13 @@ class BattleScene extends Phaser.Scene {
     }
   }
   setProps(props: Props) {
+    const changed = this.battle !== props.battle || this.mode !== props.mode || this.chosenMove !== props.chosenMove
+      || this.target?.[0] !== props.target?.[0] || this.target?.[1] !== props.target?.[1];
     this.battle = props.battle; this.mode = props.mode; this.chosenMove = props.chosenMove; this.target = props.target; this.onTile = props.onTile; this.onAnimationState = props.onAnimationState;
     for (const event of props.battle.visualEvents ?? []) if (!this.seenAttacks.has(event.id)) { this.seenAttacks.add(event.id); this.pendingAttacks.push(event); }
-    if (this.ground) { this.renderBattle(); void this.playNextAttack(); }
+    const recentIds = new Set((props.battle.visualEvents ?? []).map(event => event.id));
+    for (const id of this.seenAttacks) if (!recentIds.has(id)) this.seenAttacks.delete(id);
+    if (this.ground) { if (changed) this.renderBattle(); void this.playNextAttack(); }
   }
   private tileCenter([x, y]: [number, number]): [number, number] { return [x * TILE + TILE / 2, y * TILE + TILE / 2 - 4]; }
   private unitCenter(unit: Unit, [x, y]: [number, number]): [number, number] {
@@ -81,9 +91,10 @@ class BattleScene extends Phaser.Scene {
     markers.ripple.setVisible(state === 'swimming');
   }
   private wait(ms: number): Promise<void> { return new Promise(resolve => this.time.delayedCall(ms, resolve)); }
+  private updateAnimationState() { this.onAnimationState?.(this.draining || this.movingUnits.size > 0); }
   private async playNextAttack() {
     if (this.draining || !this.pendingAttacks.length || !this.ground) return;
-    this.draining = true; this.onAnimationState?.(true);
+    this.draining = true; this.updateAnimationState();
     while (this.pendingAttacks.length && this.scene.isActive()) {
       const event = this.pendingAttacks.shift()!;
       this.playingAttack = event;
@@ -91,7 +102,7 @@ class BattleScene extends Phaser.Scene {
       this.playingAttack = undefined;
       this.renderBattle();
     }
-    this.draining = false; this.onAnimationState?.(false);
+    this.draining = false; this.updateAnimationState();
     if (this.pendingAttacks.length) void this.playNextAttack();
   }
   private async playAttackEvent(event: AttackVisualEvent) {
@@ -184,6 +195,7 @@ class BattleScene extends Phaser.Scene {
     for (const unit of this.battle.units) this.drawUnit(unit);
     const protectedIds = new Set([...(this.playingAttack ? [this.playingAttack] : []), ...this.pendingAttacks].flatMap(event => [event.sourceId, ...event.targetIds]));
     for (const [id, sprite] of this.sprites) if (!this.battle.units.some(u => u.id === id && u.hp > 0) && !protectedIds.has(id)) {
+      this.movingUnits.delete(id); this.updateAnimationState();
       sprite.destroy(); this.sprites.delete(id);
       const markers = this.markers.get(id); markers?.shadow.destroy(); markers?.ripple.destroy(); this.markers.delete(id);
       this.hp.get(id)?.destroy(); this.hp.delete(id);
@@ -194,9 +206,10 @@ class BattleScene extends Phaser.Scene {
     this.tweens.killTweensOf(markers.shadow);
     this.tweens.killTweensOf(markers.ripple);
     sprite.play(`${texture}-${facing}-move`, true);
+    this.movingUnits.add(unit.id); this.updateAnimationState();
     const step = (index: number) => {
-      if (!sprite.active) return;
-      if (index >= path.length) { sprite.play(`${texture}-${facing}-idle`, true); return; }
+      if (!sprite.active) { this.movingUnits.delete(unit.id); this.updateAnimationState(); return; }
+      if (index >= path.length) { sprite.play(`${texture}-${facing}-idle`, true); this.movingUnits.delete(unit.id); this.updateAnimationState(); return; }
       const point = path[index];
       this.showMarkers(unit, markers, point);
       const [x, y] = this.unitCenter(unit, point), [markerX, markerY] = this.markerCenter(point);

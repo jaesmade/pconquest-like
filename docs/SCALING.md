@@ -2,6 +2,8 @@
 
 This guide describes the code that exists now and the contracts to keep stable as the game grows. The first run still has a small roster, four encounters, and simple enemy decisions.
 
+The [scalability review](SCALABILITY_AUDIT.md) records the current growth limits and priorities for larger battles and content packs.
+
 ## Where changes belong
 
 | Area | Current home | Additions |
@@ -55,4 +57,4 @@ When changing persisted fields, raise the schema version, keep a migration for e
 
 Ability and item definitions and their supported effect settings live in `abilities.ts` and `items.ts`. Move effects and areas live in `moves.ts`, with their resolution in `engine.ts`; pathfinding and line of sight live in `grid.ts`. Mobility capability and current state live in `mobility.ts` and on each battle unit. The Phaser board reads that state to draw a flight shadow or swim ripple. When more effect families are added, split resolution into registries with explicit hooks for preview, apply, and visual event generation. Keep the AP scheduler independent of those handlers so Speed controls AP gained each round.
 
-The board creates a Phaser sprite and HP bar for each unit, draws static terrain once, and redraws dynamic overlays when state changes. Movement search stores predecessor keys and reconstructs only the requested route; board highlights use reachable tile IDs. Enemy targeting skips moves whose damage preview is zero, including type immunity and absorption. Before tuning larger maps or many units further, profile the render and save paths. Keep combat outcomes in game state; animations only consume visual events and do not decide hits or damage. Game choices use a saved seeded RNG state so combat and tie breaks can be reproduced.
+The board creates a Phaser sprite and HP bar for each unit, draws static terrain once, and redraws dynamic overlays when state changes. Movement search stores predecessor keys and reconstructs only the requested route; board highlights use reachable tile IDs. Enemy targeting skips moves whose damage preview is zero, including type immunity and absorption. `EnemyPlanner` checks decisions and attack-position path nodes in bounded batches, yielding to the browser between batches. The UI commits one action at a time and waits for attack or movement animation before continuing. Remaining route steps can be reused during the same enemy turn; changed targets or occupancy invalidate them. A saved battle may resume on an enemy turn and reconstruct the planner. Planning never rolls RNG, so combat and tie breaks remain reproducible from the saved battle state. Before tuning larger maps or many units further, profile render and save paths. Keep combat outcomes in game state; animations only consume visual events and do not decide hits or damage.

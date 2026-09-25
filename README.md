@@ -20,6 +20,7 @@ For local development: `npm install` and `npm run dev`, then open the Vite URL p
 - Round-based Action Points: each living Pokémon takes one turn per round, ordered by effective Speed with random ties. At its turn it gains AP equal to its effective Speed rounded down (minimum 1). Movement spends AP for every tile along its route; moves and usable held items have AP costs. It may use one Attack command per turn, including a Status move, while movement and Special remain available with leftover AP. Up to the largest move or item AP cost can carry into its next turn.
 - Selecting a move highlights its range and affected area. Reachable enemies show type-effectiveness labels on the grid and matchup details in the action panel before confirmation.
 - The supplied 18-type chart, dual-type multiplication, STAB, a 1-in-24 critical chance, abilities, terrain hazards, weather effects, basic statuses, line of sight, and enemy actions.
+- Enemy decisions and pathfinding yield between bounded work batches; one enemy action resolves at a time so the board can render its animation before the next action.
 - XP goes to the whole party after a win. Eligible Pokémon learn moves and can evolve between encounters. Held items include Leftovers, Sitrus Berry, Assault Vest, X Attack, and Charmander's compatible Mega Stone.
 - Browser local storage preserves the current run and the win count after refresh. Saves use a versioned envelope. Earlier mid-battle saves resume at preparation for the same encounter after the attack-limit update.
 

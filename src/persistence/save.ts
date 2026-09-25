@@ -1,4 +1,5 @@
-import { ENCOUNTERS, itemFor, MAPS, MOVES, SPECIES } from '../content/data';
+import { abilityFor, ENCOUNTERS, itemFor, MAPS, MOVES, SPECIES, TYPES } from '../content/data';
+import { MAX_LEVEL, maxCarryAp, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
 import type { Run } from '../game/types';
@@ -30,11 +31,17 @@ function migrateRun(run: Run, version: number): Run {
   if (!ENCOUNTERS.some(encounter => encounter.id === next.encounterId)) return freshRun(next.unlocks);
   if (!Number.isInteger(next.seed)) next.seed = newSeed();
   if (!Number.isInteger(next.rngState)) next.rngState = next.seed;
-  if (next.party.some(mon => !SPECIES[mon.species])) return freshRun(next.unlocks);
+  if (next.party.length > 6 || next.party.some(mon => !mon || typeof mon.id !== 'string' || !mon.id || !SPECIES[mon.species])
+    || new Set(next.party.map(mon => mon.id)).size !== next.party.length) return freshRun(next.unlocks);
   for (const mon of next.party) {
+    mon.level = Number.isInteger(mon.level) ? Math.max(1, Math.min(MAX_LEVEL, mon.level)) : 2;
+    mon.xp = Number.isFinite(mon.xp) ? Math.max(xpForLevel(mon.level), Math.min(xpForLevel(MAX_LEVEL), Math.floor(mon.xp))) : xpForLevel(mon.level);
+    const maxHp = statsAtLevel(mon.species, mon.level)[0];
+    mon.hp = Number.isFinite(mon.hp) ? Math.max(0, Math.min(maxHp, Math.floor(mon.hp))) : maxHp;
     if (!itemFor(mon.item)) mon.item = 'None';
-    mon.learned = mon.learned.filter(id => !!MOVES[id]);
-    mon.equipped = mon.equipped.filter(id => mon.learned.includes(id)).slice(0, 2);
+    mon.learned = [...new Set((Array.isArray(mon.learned) ? mon.learned : SPECIES[mon.species].moves).filter(id => !!MOVES[id]))];
+    if (!mon.learned.length) mon.learned = [...SPECIES[mon.species].moves];
+    mon.equipped = (Array.isArray(mon.equipped) ? mon.equipped : []).filter(id => mon.learned.includes(id)).slice(0, 2);
     while (mon.equipped.length < Math.min(2, mon.learned.length)) mon.equipped.push(mon.learned.find(id => !mon.equipped.includes(id))!);
   }
   next.bag = next.bag.filter(item => !!itemFor(item));
@@ -64,9 +71,18 @@ function migrateRun(run: Run, version: number): Run {
     const validMap = authored && Array.isArray(battle.map.tiles) && battle.map.tiles.length === authored.tiles.length
       && battle.map.tiles.every((row, y) => Array.isArray(row) && row.length === authored.tiles[y].length
         && row.every(tile => !!tile && ['plain', 'water', 'lava', 'wall'].includes(tile.kind) && Number.isInteger(tile.height)));
-    const validUnits = validMap && Array.isArray(battle.units) && battle.units.every(unit => SPECIES[unit.species]
+    const validUnits = validMap && Array.isArray(battle.units) && battle.units.every(unit => unit && SPECIES[unit.species]
+      && (unit.side === 'player' || unit.side === 'enemy')
+      && (unit.side !== 'player' || next.party.some(mon => mon.id === unit.partyId))
+      && Array.isArray(unit.stats) && unit.stats.length === 7 && unit.stats.every(value => Number.isInteger(value) && value > 0)
+      && Array.isArray(unit.types) && unit.types.length >= 1 && unit.types.length <= 2 && unit.types.every(type => TYPES.includes(type))
+      && !!abilityFor(unit.ability) && !!itemFor(unit.item)
+      && Number.isFinite(unit.itemAttackMultiplier) && unit.itemAttackMultiplier > 0
+      && unit.status && typeof unit.status === 'object' && !Array.isArray(unit.status)
+      && Object.values(unit.status).every(value => Number.isFinite(value) && value >= 0)
       && Number.isInteger(unit.x) && Number.isInteger(unit.y) && Number.isFinite(unit.hp)
       && Number.isFinite(unit.ap) && unit.ap >= 0 && Number.isFinite(unit.maxAp) && unit.maxAp >= 0
+      && unit.ap <= unit.maxAp + maxCarryAp
       && Number.isFinite(unit.maxHp) && unit.maxHp > 0 && unit.hp >= 0 && unit.hp <= unit.maxHp
       && Number.isInteger(unit.level) && unit.level >= 1 && unit.level <= 100
       && ['attack', 'defense', 'specialAttack', 'specialDefense'].every(stat => Number.isInteger(unit.stages?.[stat as keyof typeof unit.stages]) && Math.abs(unit.stages[stat as keyof typeof unit.stages]) <= 6)
@@ -84,7 +100,7 @@ function migrateRun(run: Run, version: number): Run {
       && battle.turnIndex >= 0 && (battle.result || battle.turnIndex < battle.turnOrder.length)
       && battle.units.some(unit => unit.id === battle.current) && battle.encounterId === next.encounterId
       && (battle.result || (battle.turnOrder[battle.turnIndex] === battle.current
-        && battle.units.some(unit => unit.id === battle.current && unit.side === 'player' && unit.hp > 0)
+        && battle.units.some(unit => unit.id === battle.current && unit.hp > 0)
         && (battle.units.some(unit => unit.side === 'enemy' && unit.hp > 0) || capturePending)));
     if (!validMap || !validUnits || !validQueue) {
       next.phase = 'prepare';
@@ -126,7 +142,7 @@ export function loadRun(): Run {
   return freshRun();
 }
 
-export function saveRun(run: Run): void {
+export function saveRun(run: Run): boolean {
   try {
     const copy: Run = run.battle ? { ...run, battle: { ...run.battle, visualEvents: [], units: run.battle.units.map(unit => {
       const persisted = { ...unit };
@@ -137,5 +153,6 @@ export function saveRun(run: Run): void {
     }) } } : run;
     const envelope: SaveEnvelope = { schemaVersion: SCHEMA_VERSION, savedAt: new Date().toISOString(), run: copy };
     localStorage.setItem(CURRENT_KEY, JSON.stringify(envelope));
-  } catch { /* Keep playing in memory if local storage is unavailable. */ }
+    return true;
+  } catch { return false; }
 }

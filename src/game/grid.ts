@@ -110,31 +110,40 @@ export function routeTo(battle: Battle, unit: Unit, x: number, y: number): Movem
   return destination && { cost: destination.cost, points: pathFrom(destination.key, start, previous) };
 }
 
-/** Route toward a tile from which an opponent can be attacked. */
-export function pathToward(battle: Battle, unit: Unit, canAttackFrom: (x: number, y: number) => boolean): GridPoint[] {
-  const start = `${unit.x},${unit.y}`;
-  const best = new Map<string, number>([[start, 0]]);
-  const previous = new Map<string, string>();
-  const occupied = occupiedTiles(battle);
-  const frontier = new MinHeap();
-  frontier.push({ x: unit.x, y: unit.y, steps: 0, cost: 0, key: start });
-  while (frontier.size) {
-    const node = frontier.pop()!;
-    if (node.cost !== best.get(node.key)) continue;
-    if (canAttackFrom(node.x, node.y)) return pathFrom(node.key, start, previous);
-    for (const [dx, dy] of directions) {
-      const x = node.x + dx, y = node.y + dy;
-      if (!canEnter(battle, unit, x, y, node.x, node.y, occupied)) continue;
-      const cost = node.cost + stepCost(battle, unit, x, y, node.x, node.y), key = `${x},${y}`;
-      if (cost >= (best.get(key) ?? Infinity)) continue;
-      best.set(key, cost);
-      previous.set(key, node.key);
-      frontier.push({ x, y, steps: node.steps + 1, cost, key });
-    }
+/** Derived search state can be resumed across animation frames; it never changes the battle or RNG. */
+export class AttackPositionSearch {
+  private readonly start: string;
+  private readonly best: Map<string, number>;
+  private readonly previous = new Map<string, string>();
+  private readonly occupied: Set<string>;
+  private readonly frontier = new MinHeap();
+
+  constructor(private readonly battle: Battle, private readonly unit: Unit, private readonly canAttackFrom: (x: number, y: number) => boolean) {
+    this.start = `${unit.x},${unit.y}`;
+    this.best = new Map([[this.start, 0]]);
+    this.occupied = occupiedTiles(battle);
+    this.frontier.push({ x: unit.x, y: unit.y, steps: 0, cost: 0, key: this.start });
   }
-  // A content pack may give an enemy no attack position on this side of a wall.
-  // Return no path and let the AI pass instead of looping forever.
-  return [];
+
+  advance(maxNodes: number): { done: false } | { done: true; path: GridPoint[] } {
+    let processed = 0;
+    while (this.frontier.size && processed < maxNodes) {
+      const node = this.frontier.pop()!;
+      processed++;
+      if (node.cost !== this.best.get(node.key)) continue;
+      if (this.canAttackFrom(node.x, node.y)) return { done: true, path: pathFrom(node.key, this.start, this.previous) };
+      for (const [dx, dy] of directions) {
+        const x = node.x + dx, y = node.y + dy;
+        if (!canEnter(this.battle, this.unit, x, y, node.x, node.y, this.occupied)) continue;
+        const cost = node.cost + stepCost(this.battle, this.unit, x, y, node.x, node.y), key = `${x},${y}`;
+        if (cost >= (this.best.get(key) ?? Infinity)) continue;
+        this.best.set(key, cost);
+        this.previous.set(key, node.key);
+        this.frontier.push({ x, y, steps: node.steps + 1, cost, key });
+      }
+    }
+    return this.frontier.size ? { done: false } : { done: true, path: [] };
+  }
 }
 
 /** Supercover line prevents shots through walls and diagonal wall corners. */

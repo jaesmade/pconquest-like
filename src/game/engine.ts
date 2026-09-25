@@ -1,7 +1,7 @@
 import { abilityAbsorption, abilityContactReaction, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
-import { canEnter, hasLineOfSight, pathToward, routeTo, stepCost } from './grid';
+import { canEnter, hasLineOfSight, routeTo, stepCost } from './grid';
 import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
 import { calculateDamage, damageRange } from './damage';
@@ -12,14 +12,18 @@ const max = (n: number) => Math.max(1, Math.ceil(n));
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const log = (battle: Battle, message: string) => { battle.log = [message, ...battle.log].slice(0, 24); };
 const alive = (unit: Unit) => unit.hp > 0;
-const MAX_CARRY_AP = Math.max(1, ...Object.values(MOVES).map(move => move.apCost), ...Object.values(ITEM_DEFINITIONS).map(item => ('special' in item ? item.special.apCost : 0)));
+export const MAX_LEVEL = 100;
+const MAX_CARRY_AP = Math.max(1,
+  Object.values(MOVES).reduce((cost, move) => Math.max(cost, move.apCost), 0),
+  Object.values(ITEM_DEFINITIONS).reduce((cost, item) => Math.max(cost, 'special' in item ? item.special.apCost : 0), 0));
 const encounterFor = (run: Run) => ENCOUNTERS.find(encounter => encounter.id === run.encounterId);
 export const unitAt = (battle: Battle, x: number, y: number) => battle.units.find(unit => alive(unit) && unit.x === x && unit.y === y);
 export const active = (battle: Battle) => battle.units.find(unit => unit.id === battle.current)!;
 export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
 export const apGain = (unit: Unit, battle: Battle) => Math.max(1, Math.floor(effectiveSpeed(unit, battle)));
 export const maxCarryAp = MAX_CARRY_AP;
-const statsAtLevel = (species: string, level: number) => SPECIES[species].stats.map((n, i) => i === 5 || i === 6 ? n : Math.round(n * (1 + 0.07 * (level - 2)))) as Unit['stats'];
+const scaleStats = (stats: Unit['stats'], level: number) => stats.map((n, i) => i === 5 || i === 6 ? n : Math.round(n * (1 + 0.07 * (level - 2)))) as Unit['stats'];
+export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
 export const xpForLevel = (level: number) => (level - 1) * 65;
 const learnedAtLevel = (species: string, level: number) => [...new Set([...SPECIES[species].moves, ...Object.entries(SPECIES[species].learn).filter(([required]) => Number(required) <= level).map(([, move]) => move)])];
 const makePartyMon = (species: string, level = 2, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: learnedAtLevel(species, level).slice(0, 2), item });
@@ -122,9 +126,12 @@ export function moveUnit(battle: Battle, x: number, y: number): string | undefin
   if (battle.result || !unit || !alive(unit) || !Number.isInteger(x) || !Number.isInteger(y)) return 'Movement is unavailable.';
   const route = routeTo(battle, unit, x, y);
   if (!route) return 'Tile is out of reach or costs too much AP.';
+  travelPath(battle, unit, route.points);
+}
+function travelPath(battle: Battle, unit: Unit, points: GridPoint[]) {
   const travelled: GridPoint[] = [];
   let spent = 0;
-  for (const [nextX, nextY] of route.points) {
+  for (const [nextX, nextY] of points) {
     const cost = stepCost(battle, unit, nextX, nextY, unit.x, unit.y);
     unit.ap -= cost; spent += cost;
     unit.facing = nextX > unit.x ? 2 : nextX < unit.x ? 1 : nextY < unit.y ? 3 : 0;
@@ -137,6 +144,18 @@ export function moveUnit(battle: Battle, x: number, y: number): string | undefin
   unit.visualPath = travelled;
   unit.visual = 'move'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;
   log(battle, `${unit.name} moved to ${unit.x + 1}, ${unit.y + 1} for ${spent} AP.`);
+}
+function moveUnitAlongPath(battle: Battle, unit: Unit, points: GridPoint[]): boolean {
+  if (!points.length || points.length > unit.stats[6]) return false;
+  let x = unit.x, y = unit.y, cost = 0;
+  for (const [nextX, nextY] of points) {
+    if (distance({ x, y }, { x: nextX, y: nextY }) !== 1 || !canEnter(battle, unit, nextX, nextY, x, y)) return false;
+    cost += stepCost(battle, unit, nextX, nextY, x, y);
+    if (cost > unit.ap) return false;
+    x = nextX; y = nextY;
+  }
+  travelPath(battle, unit, points);
+  return true;
 }
 export function damagePreview(battle: Battle, source: Unit, target: Unit, moveId: string) {
   return damageRange(battle, source, target, MOVES[moveId]);
@@ -274,77 +293,30 @@ export function useSpecial(battle: Battle): string | undefined {
       syncMobility(unit, battle.map.tiles[unit.y][unit.x]);
     }
     const oldMax = unit.maxHp;
-    unit.stats = mega.stats; unit.maxHp = mega.stats[0]; unit.hp += unit.maxHp - oldMax;
+    unit.stats = scaleStats(mega.stats, unit.level); unit.maxHp = unit.stats[0]; unit.hp += unit.maxHp - oldMax;
     log(battle, `${unit.name} Mega Evolved!`);
   }
   unit.visual = 'special'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;
 }
-function enemyTurn(battle: Battle): boolean {
-  const enemy = active(battle);
-  const targets = battle.units.filter(unit => unit.side === 'player' && alive(unit)).sort((a, b) => distance(enemy, a) - distance(enemy, b));
-  const viableTargets = targets.filter(target => enemy.moves.some(moveId => MOVES[moveId]?.power && damagePreview(battle, enemy, target, moveId).damage > 0));
-  if (!enemy.attackedThisTurn) for (const target of viableTargets) for (const moveId of [...enemy.moves].sort((a, b) => damagePreview(battle, enemy, target, b).damage - damagePreview(battle, enemy, target, a).damage)) {
-    const move = MOVES[moveId];
-    if (!move || !move.power || enemy.ap < move.apCost || damagePreview(battle, enemy, target, moveId).damage <= 0) continue;
-    const radiusX = move.area?.width ?? 1, radiusY = move.area?.height ?? 1;
-    for (let y = Math.max(0, target.y - radiusY); y <= Math.min(mapHeight(battle.map) - 1, target.y + radiusY); y++)
-      for (let x = Math.max(0, target.x - radiusX); x <= Math.min(mapWidth(battle.map) - 1, target.x + radiusX); x++) {
-        if (canUseMove(battle, enemy, moveId, x, y) && affectedTiles(battle.map, moveId, x, y).some(([px, py]) => px === target.x && py === target.y)) {
-          useMove(battle, moveId, x, y);
-          return true;
-        }
-      }
-  }
-  if (!enemy.attackedThisTurn) for (const moveId of enemy.moves) {
-    const move = MOVES[moveId];
-    if (!move || move.category !== 'Status' || enemy.ap < move.apCost || itemBlocksMove(enemy, move)) continue;
-    if (move.effects?.some(effect => effect.kind === 'weather' && effect.weather === battle.weather)) continue;
-    if (move.target === 'self' && canUseMove(battle, enemy, moveId)) {
-      const area = affectedTiles(battle.map, moveId, enemy.x, enemy.y);
-      const useful = !move.effects?.some(effect => effect.kind === 'stage') || move.effects.some(effect => {
-        if (effect.kind !== 'stage') return false;
-        return battle.units.some(unit => alive(unit) && area.some(([tx, ty]) => unit.x === tx && unit.y === ty)
-          && (effect.recipients === 'self' ? unit.id === enemy.id : effect.recipients === 'allies' ? unit.side === enemy.side : unit.side !== enemy.side)
-          && (effect.delta > 0 ? unit.stages[effect.stat] < 6 : unit.stages[effect.stat] > -6));
-      });
-      if (useful) { useMove(battle, moveId, enemy.x, enemy.y); return true; }
-    }
-    if (move.target === 'tile') {
-      const target = targets.find(unit => inMoveRange(battle, enemy, moveId, unit.x, unit.y));
-      if (target && canUseMove(battle, enemy, moveId, target.x, target.y)
-        && !move.effects?.some(effect => effect.kind === 'tile' && (battle.map.tiles[target.y][target.x][effect.field] ?? 0) > battle.time)) {
-        useMove(battle, moveId, target.x, target.y); return true;
-      }
-    }
-  }
-  const target = viableTargets[0];
-  if (!target || enemy.ap < 1) return false;
-  const usefulMoves = enemy.moves.filter(moveId => MOVES[moveId]?.power && damagePreview(battle, enemy, target, moveId).damage > 0);
-  const route = pathToward(battle, enemy, (x, y) => usefulMoves.some(moveId => canHitWithMove(battle, { ...enemy, x, y }, moveId, target)));
-  let x = enemy.x, y = enemy.y, cost = 0, steps = 0;
-  for (const [nextX, nextY] of route) {
-    const nextCost = stepCost(battle, enemy, nextX, nextY, x, y);
-    if (steps >= enemy.stats[6] || cost + nextCost > enemy.ap) break;
-    cost += nextCost; steps++; x = nextX; y = nextY;
-  }
-  if (!steps) return false;
-  return !moveUnit(battle, x, y);
-}
-export function advanceEnemies(battle: Battle) {
-  while (!battle.result && active(battle).side === 'enemy') {
-    const unit = active(battle), before = unit.ap;
-    const acted = enemyTurn(battle);
-    if (battle.result) return;
-    if (!acted || !alive(unit) || unit.ap < 1) endCurrentTurn(battle);
-    else if (unit.ap >= before) throw new Error(`Enemy ${unit.id} acted without spending AP.`);
-  }
+export type EnemyAction = { kind: 'move'; points: GridPoint[] } | { kind: 'move-use'; moveId: string; x: number; y: number } | { kind: 'pass' };
+
+/** Commit exactly one enemy action. Planning and animation never consume the battle RNG. */
+export function commitEnemyAction(battle: Battle, action: EnemyAction): boolean {
+  if (battle.result || active(battle).side !== 'enemy') return false;
+  const unit = active(battle), before = unit.ap;
+  let acted = false;
+  if (action.kind === 'move-use') acted = !useMove(battle, action.moveId, action.x, action.y);
+  else if (action.kind === 'move') acted = moveUnitAlongPath(battle, unit, action.points);
+  if (battle.result) return acted;
+  if (!acted || !alive(unit) || unit.ap < 1) endCurrentTurn(battle);
+  else if (unit.ap >= before) throw new Error(`Enemy ${unit.id} acted without spending AP.`);
+  return acted;
 }
 export function finishTurn(battle: Battle) {
   if (battle.result) return;
   if (!alive(active(battle)) || active(battle).ap < 1) endCurrentTurn(battle);
-  advanceEnemies(battle);
 }
-export function passTurn(battle: Battle) { if (!battle.result) { endCurrentTurn(battle); advanceEnemies(battle); } }
+export function passTurn(battle: Battle) { if (!battle.result) endCurrentTurn(battle); }
 export function upcoming(battle: Battle) {
   const remaining = battle.turnOrder.slice(battle.turnIndex).map(id => battle.units.find(unit => unit.id === id)).filter((unit): unit is Unit => !!unit && alive(unit));
   return remaining.slice(0, 6);
@@ -353,17 +325,18 @@ export function completeBattle(run: Run): Run {
   if (!run.battle?.result) return run;
   const next = structuredClone(run), battle = next.battle!;
   next.rngState = battle.rngState;
-  for (const mon of next.party) { const unit = battle.units.find(u => u.partyId === mon.id); if (unit) { mon.hp = unit.hp; mon.item = unit.item; } }
+  for (const mon of next.party) { const unit = battle.units.find(u => u.partyId === mon.id); if (unit) { mon.hp = Math.min(unit.hp, statsAtLevel(mon.species, mon.level)[0]); mon.item = unit.item; } }
   if (battle.result === 'loss') { next.phase = 'result'; next.result = 'loss'; return next; }
   const report: string[] = [];
   const earnedXp = ENCOUNTERS.find(encounter => encounter.id === battle.encounterId)!.xp;
   for (const mon of next.party) {
     mon.xp += earnedXp; report.push(`${SPECIES[mon.species].name} gained ${earnedXp} XP.`);
-    while (mon.xp >= xpForLevel(mon.level + 1)) {
+    while (mon.level < MAX_LEVEL && mon.xp >= xpForLevel(mon.level + 1)) {
       const oldMax = statsAtLevel(mon.species, mon.level)[0]; mon.level++;
       if (mon.hp > 0) mon.hp += statsAtLevel(mon.species, mon.level)[0] - oldMax;
       report.push(`${SPECIES[mon.species].name} reached level ${mon.level}.`);
     }
+    mon.xp = Math.min(mon.xp, xpForLevel(MAX_LEVEL));
     for (const [level, move] of Object.entries(SPECIES[mon.species].learn)) if (mon.level >= Number(level) && !mon.learned.includes(move)) {
       mon.learned.push(move); report.push(`${SPECIES[mon.species].name} learned ${MOVES[move].name}.`);
     }

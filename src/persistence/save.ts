@@ -2,14 +2,19 @@ import { abilityFor, ENCOUNTERS, itemFor, MAPS, MOVES, SPECIES, TYPES } from '..
 import { MAX_LEVEL, maxCarryAp, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
-import type { Run } from '../game/types';
+import type { Battle, BattleMap, Run, TileChange, Unit } from '../game/types';
 
-const CURRENT_KEY = 'pokemon-tactics-save-v6';
-const OLD_KEYS = [['pokemon-tactics-save-v5', 5], ['pokemon-tactics-save-v4', 4], ['pokemon-tactics-save-v3', 3], ['pokemon-tactics-save-v2', 2]] as const;
+const OLD_KEYS = [['pokemon-tactics-save-v6', 6], ['pokemon-tactics-save-v5', 5], ['pokemon-tactics-save-v4', 4], ['pokemon-tactics-save-v3', 3], ['pokemon-tactics-save-v2', 2]] as const;
 const LEGACY_KEY = 'pokemon-tactics-prototype-v1';
-const SCHEMA_VERSION = 6;
+const DATABASE = 'pokemon-tactics-saves';
+const STORE = 'snapshots';
 
 type SaveEnvelope = { schemaVersion: number; savedAt: string; run: Run };
+type MapSnapshot = { id: string; signature: string; changes: TileChange[] };
+type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualPath'>;
+type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
+type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
+type SaveV7 = { schemaVersion: 7; savedAt: string; run: RunSnapshot };
 const phases = new Set<Run['phase']>(['starter', 'route', 'prepare', 'battle', 'intermission', 'result']);
 
 export function freshRun(unlocks = 0): Run {
@@ -102,11 +107,15 @@ function migrateRun(run: Run, version: number): Run {
       && (battle.result || (battle.turnOrder[battle.turnIndex] === battle.current
         && battle.units.some(unit => unit.id === battle.current && unit.hp > 0)
         && (battle.units.some(unit => unit.side === 'enemy' && unit.hp > 0) || capturePending)));
-    if (!validMap || !validUnits || !validQueue) {
+    const changedAuthoredMap = !!validMap && version < 7 && mapSignature(battle.map) !== mapSignature(authored);
+    if (!validMap || !validUnits || !validQueue || changedAuthoredMap) {
       next.phase = 'prepare';
       next.battle = undefined;
+      if (changedAuthoredMap) next.report = ['The map changed since this battle was saved. Prepare your team to restart it.'];
     } else {
       if (!Number.isInteger(battle.rngState)) battle.rngState = next.rngState;
+      if (!Number.isFinite(battle.weatherUntil)) battle.weatherUntil = 0;
+      if (!battle.tileChanges) battle.tileChanges = deriveChanges(battle.map, authored!);
       battle.captureHeld = !!battle.map.capture && battle.units.some(unit => unit.hp > 0 && unit.side === 'player'
         && unit.x === battle.map.capture![0] && unit.y === battle.map.capture![1]);
       battle.visualEvents = [];
@@ -123,8 +132,146 @@ function migrateRun(run: Run, version: number): Run {
   return next;
 }
 
-export function loadRun(): Run {
-  for (const [key, version] of [[CURRENT_KEY, SCHEMA_VERSION] as const, ...OLD_KEYS]) {
+const signatureCache = new WeakMap<BattleMap, string>();
+function mapSignature(map: BattleMap): string {
+  const cached = signatureCache.get(map);
+  if (cached) return cached;
+  // Include only authored geometry and encounter markers. Temporary effects live in changes.
+  const source = JSON.stringify([map.id, map.name, map.weather, map.playerSpawns, map.enemySpawns, map.capture,
+    map.tiles.map(row => row.map(tile => [tile.kind, tile.height]))]);
+  let hash = 2166136261;
+  for (let i = 0; i < source.length; i++) hash = Math.imul(hash ^ source.charCodeAt(i), 16777619);
+  const signature = (hash >>> 0).toString(16);
+  signatureCache.set(map, signature);
+  return signature;
+}
+
+function deriveChanges(map: BattleMap, authored: BattleMap): Record<string, TileChange> {
+  const changes: Record<string, TileChange> = {};
+  for (let y = 0; y < map.tiles.length; y++) for (let x = 0; x < map.tiles[y].length; x++) {
+    const tile = map.tiles[y][x], base = authored.tiles[y][x];
+    const change: TileChange = { x, y };
+    if (tile.kind !== base.kind) change.kind = tile.kind;
+    if (tile.height !== base.height) change.height = tile.height;
+    for (const field of ['hazardUntil', 'coverUntil', 'mudUntil'] as const) if (tile[field] !== undefined) change[field] = tile[field];
+    if (Object.keys(change).length > 2) changes[`${x},${y}`] = change;
+  }
+  return changes;
+}
+
+function snapshotMap(battle: Battle): MapSnapshot {
+  const { map, time } = battle;
+  const authored = MAPS[map.id];
+  if (!authored || map.tiles.length !== authored.tiles.length
+    || map.tiles[0]?.length !== authored.tiles[0]?.length) throw new Error('Battle map differs from authored layout.');
+  const changes = Object.values(battle.tileChanges).map(change => {
+    const copy: TileChange = { x: change.x, y: change.y };
+    if (change.kind !== undefined) copy.kind = change.kind;
+    if (change.height !== undefined) copy.height = change.height;
+    for (const field of ['hazardUntil', 'coverUntil', 'mudUntil'] as const) if ((change[field] ?? 0) > time) copy[field] = change[field];
+    return copy;
+  }).filter(change => Object.keys(change).length > 2);
+  return { id: map.id, signature: mapSignature(authored), changes };
+}
+
+export function snapshotRun(run: Run): SaveV7 {
+  const battle = run.battle;
+  const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, tileChanges: _changes, ...state }) => ({
+    ...state,
+    map: snapshotMap(battle),
+    units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualPath: _visualPath, ...unit }) => unit),
+  }))(battle);
+  return { schemaVersion: 7, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+}
+
+function restoreRun(value: unknown): Run | undefined {
+  if (!value || typeof value !== 'object') return;
+  const envelope = value as Partial<SaveV7>;
+  if (envelope.schemaVersion !== 7 || !envelope.run || !isRun(envelope.run)) return;
+  const run = envelope.run as RunSnapshot;
+  if (!run.battle) return migrateRun(run as Run, 7);
+  const saved = run.battle;
+  const authored = MAPS[saved.map?.id];
+  if (!authored || saved.map.signature !== mapSignature(authored) || !Array.isArray(saved.map.changes)) {
+    return migrateRun({ ...run, phase: 'prepare', battle: undefined,
+      report: ['The map changed since this battle was saved. Prepare your team to restart it.'] } as Run, 7);
+  }
+  const map = structuredClone(authored);
+  for (const change of saved.map.changes) {
+    if (!Number.isInteger(change.x) || !Number.isInteger(change.y) || !map.tiles[change.y]?.[change.x]
+      || !['plain', 'water', 'lava', 'wall', undefined].includes(change.kind)
+      || (change.height !== undefined && (!Number.isInteger(change.height) || change.height < 0 || change.height > 2))) return;
+    const tile = map.tiles[change.y][change.x];
+    if (change.kind !== undefined) tile.kind = change.kind;
+    if (change.height !== undefined) tile.height = change.height;
+    for (const field of ['hazardUntil', 'coverUntil', 'mudUntil'] as const) {
+      const until = change[field];
+      if (until !== undefined) {
+        if (!Number.isFinite(until) || until < 0) return;
+        tile[field] = until;
+      }
+    }
+  }
+  const tileChanges = Object.fromEntries(saved.map.changes.map(change => [`${change.x},${change.y}`, change]));
+  return migrateRun({ ...run, battle: { ...saved, map, tileChanges, visualEvents: [] } } as Run, 7);
+}
+
+function openDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DATABASE, 1);
+    request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE); };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function readSlot(db: IDBDatabase, key: string): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(STORE, 'readonly').objectStore(STORE).get(key);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function writeSlots(db: IDBDatabase, current: string, backup: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE, 'readwrite');
+    const store = transaction.objectStore(STORE);
+    store.put(backup, 'backup');
+    store.put(current, 'current');
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+function writeWithBackup(db: IDBDatabase, payload: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE, 'readwrite');
+    const store = transaction.objectStore(STORE);
+    const previous = store.get('current');
+    previous.onsuccess = () => {
+      store.put(typeof previous.result === 'string' ? previous.result : payload, 'backup');
+      store.put(payload, 'current');
+    };
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+function parseSnapshot(raw: unknown): Run | undefined {
+  if (typeof raw !== 'string') return;
+  try {
+    const envelope = JSON.parse(raw) as Partial<SaveV7>;
+    const loaded = restoreRun(envelope);
+    if (envelope.run?.phase !== 'starter' && loaded?.phase === 'starter') return;
+    return loaded;
+  } catch { return; }
+}
+
+function loadLegacyRun(): Run | undefined {
+  for (const [key, version] of OLD_KEYS) {
     try {
       const saved = localStorage.getItem(key);
       if (!saved) continue;
@@ -139,20 +286,39 @@ export function loadRun(): Run {
       if (isRun(run)) return migrateRun(run, 1);
     }
   } catch { /* Storage is unavailable or this save is malformed. */ }
-  return freshRun();
+  return;
 }
 
-export function saveRun(run: Run): boolean {
+export async function loadRun(): Promise<Run> {
   try {
-    const copy: Run = run.battle ? { ...run, battle: { ...run.battle, visualEvents: [], units: run.battle.units.map(unit => {
-      const persisted = { ...unit };
-      delete persisted.visual;
-      delete persisted.visualNonce;
-      delete persisted.visualPath;
-      return persisted;
-    }) } } : run;
-    const envelope: SaveEnvelope = { schemaVersion: SCHEMA_VERSION, savedAt: new Date().toISOString(), run: copy };
-    localStorage.setItem(CURRENT_KEY, JSON.stringify(envelope));
-    return true;
-  } catch { return false; }
+    const db = await openDatabase();
+    try {
+      const current = await readSlot(db, 'current');
+      const loaded = parseSnapshot(current);
+      if (loaded) return loaded;
+      const backup = await readSlot(db, 'backup');
+      const recovered = parseSnapshot(backup);
+      if (recovered) {
+        await writeSlots(db, backup as string, backup as string);
+        return recovered;
+      }
+    } finally { db.close(); }
+  } catch { /* IndexedDB unavailable; legacy data may still be readable. */ }
+  return loadLegacyRun() ?? freshRun();
+}
+
+let pendingSave: Promise<boolean> = Promise.resolve(true);
+export function saveRun(run: Run): Promise<boolean> {
+  // Serialize the latest committed state at the boundary, then preserve write order.
+  pendingSave = pendingSave.catch(() => false).then(async () => {
+    try {
+      const payload = JSON.stringify(snapshotRun(run));
+      const db = await openDatabase();
+      try {
+        await writeWithBackup(db, payload);
+      } finally { db.close(); }
+      return true;
+    } catch { return false; }
+  });
+  return pendingSave;
 }

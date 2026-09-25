@@ -45,7 +45,9 @@ An encounter's stable ID, `nextId`, and `enemyLevel` determine progression and d
 
 ## Saves and future rule families
 
-The current browser key is `pokemon-tactics-save-v6`. It stores `{ schemaVersion, savedAt, run }`. Loading accepts v5, v4, v3, v2, and the older `pokemon-tactics-prototype-v1` shape. A v5 battle gains unit levels and Special stat stages in place. Battles from before v5 resume at preparation because their active Pokémon's attack use cannot be recovered. Battles are validated before loading. Transient animation events are cleared on load and save. Older keys are left intact.
+The current format is v7 in the browser's IndexedDB database `pokemon-tactics-saves`. The `current` slot holds `{ schemaVersion, savedAt, run }` as JSON; the `backup` slot holds the previous complete snapshot. Battle maps save an authored map ID and signature plus changed tiles. Units retain combat state and seeded RNG, while transient animation events are omitted. Loading restores the authored map, applies changed tiles, validates the battle, and falls back to the backup if the current slot is malformed. A changed authored map restarts that battle at preparation with a report message.
+
+On first load, v6 localStorage saves are migrated explicitly, including temporary tile effects, then saved in v7 format at the next state boundary. Loading also accepts v5, v4, v3, v2, and the older `pokemon-tactics-prototype-v1` shape. A v5 battle gains unit levels and Special stat stages in place. Battles from before v5 resume at preparation because their active Pokémon's attack use cannot be recovered. Legacy localStorage keys are retained as a fallback. React batches normal writes for 700 ms during battle and 150 ms outside battle, and requests a final write when the page is hidden or closed; an abrupt browser termination can still lose the latest unsaved command. Storage failure appears in the top bar.
 
 ## Damage calculation
 

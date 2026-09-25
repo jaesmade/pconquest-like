@@ -5,6 +5,7 @@ import { canEnter, hasLineOfSight, routeTo, stepCost } from './grid';
 import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
 import { calculateDamage, damageRange } from './damage';
+import { setTileEffects } from './clone';
 
 export { reachable, reachableTiles } from './grid';
 
@@ -40,7 +41,7 @@ function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile:
   return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: mon.hp, maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
 }
 export function startBattle(run: Run): Run {
-  const next = structuredClone(run);
+  const next = { ...run };
   const definition = encounterFor(next);
   if (!definition) throw new Error(`Unknown encounter ${next.encounterId}`);
   const map = structuredClone(MAPS[definition.mapId]);
@@ -48,7 +49,7 @@ export function startBattle(run: Run): Run {
   if (!selected.length) return { ...next, phase: 'result', result: 'loss' };
   const players = selected.map((mon, i) => { const [x, y] = map.playerSpawns[i]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
   const enemies = definition.enemies.map((id, i) => { const [x, y] = map.enemySpawns[i]; return makeUnit(makePartyMon(id, definition.enemyLevel), 'enemy', x, y, map.tiles[y][x]); });
-  const battle: Battle = { map, objective: definition.objective, units: [...players, ...enemies], weather: map.weather, weatherUntil: map.weather === 'clear' ? Infinity : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], captureHeld: false, encounterId: definition.id };
+  const battle: Battle = { map, tileChanges: {}, objective: definition.objective, units: [...players, ...enemies], weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], captureHeld: false, encounterId: definition.id };
   next.battle = battle;
   next.phase = 'battle';
   beginRound(battle, true);
@@ -242,7 +243,7 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
         if (!alive(target) || battle.result) break;
       }
       log(battle, `${target.name} was ${effect.direction === 'push' ? 'pushed' : 'pulled'}.`);
-    } else if (effect.kind === 'tile') battle.map.tiles[target.y][target.x][effect.field] = battle.time + effect.duration;
+    } else if (effect.kind === 'tile') setTileEffects(battle, [[target.x, target.y]], effect.field, battle.time + effect.duration);
     else if (effect.kind === 'chain' && random(battle) < effect.chance) {
       const chained = battle.units.find(unit => unit.side === target.side && unit.id !== target.id && alive(unit) && distance(unit, target) <= effect.radius);
       if (chained) { visual.tiles.push([chained.x, chained.y]); visual.targetIds.push(chained.id); hit(battle, chained, max(damage * effect.damageFraction), `${move.name} chain`); }
@@ -265,7 +266,7 @@ export function useMove(battle: Battle, moveId: string, x: number, y: number): s
   for (const effect of move.effects ?? []) {
     if (effect.on !== 'cast') continue;
     if (effect.kind === 'weather') { battle.weather = effect.weather; battle.weatherUntil = battle.time + effect.duration; }
-    else if (effect.kind === 'tile') for (const [tileX, tileY] of tiles) battle.map.tiles[tileY][tileX][effect.field] = battle.time + effect.duration;
+    else if (effect.kind === 'tile') setTileEffects(battle, tiles, effect.field, battle.time + effect.duration);
     else if (effect.kind === 'stage') for (const other of battle.units.filter(alive)) {
       if (!tiles.some(([tileX, tileY]) => other.x === tileX && other.y === tileY)) continue;
       if (effect.recipients === 'self' && other.id !== unit.id) continue;
@@ -323,10 +324,11 @@ export function upcoming(battle: Battle) {
 }
 export function completeBattle(run: Run): Run {
   if (!run.battle?.result) return run;
-  const next = structuredClone(run), battle = next.battle!;
+  const battle = run.battle;
+  const next: Run = { ...run, party: run.party.map(mon => ({ ...mon, learned: [...mon.learned], equipped: [...mon.equipped] })) };
   next.rngState = battle.rngState;
   for (const mon of next.party) { const unit = battle.units.find(u => u.partyId === mon.id); if (unit) { mon.hp = Math.min(unit.hp, statsAtLevel(mon.species, mon.level)[0]); mon.item = unit.item; } }
-  if (battle.result === 'loss') { next.phase = 'result'; next.result = 'loss'; return next; }
+  if (battle.result === 'loss') { next.phase = 'result'; next.result = 'loss'; next.battle = undefined; return next; }
   const report: string[] = [];
   const earnedXp = ENCOUNTERS.find(encounter => encounter.id === battle.encounterId)!.xp;
   for (const mon of next.party) {

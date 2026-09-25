@@ -4,6 +4,7 @@ import Sprite from './ui/Sprite';
 import { ENCOUNTERS, itemCanEquip, itemFor, ITEMS, MAPS, MOVES, SPECIES, STARTERS } from './content/data';
 import { active, applyRouteChoice, commitEnemyAction, completeBattle, evolve, finishTurn, moveUnit, newRun, nextEncounter, passTurn, startBattle, statsAtLevel, useMove, useSpecial, unitAt } from './game/engine';
 import { EnemyPlanner } from './game/enemyPlanner';
+import { cloneBattleForCommand } from './game/clone';
 import type { PartyMon, Run } from './game/types';
 import type { ItemId } from './content/items';
 import { freshRun, loadRun, saveRun } from './persistence/save';
@@ -14,8 +15,8 @@ const BattleScreen = lazy(() => import('./ui/BattleScreen'));
 const pretty = (id: string) => MOVES[id]?.name ?? id;
 const maxHp = (mon: PartyMon) => statsAtLevel(mon.species, mon.level)[0];
 
-function App() {
-  const [run, setRun] = useState<Run>(loadRun);
+function App({ initialRun }: { initialRun: Run }) {
+  const [run, setRun] = useState<Run>(initialRun);
   const [mode, setMode] = useState<'inspect' | 'move' | 'attack'>('inspect');
   const [chosenMove, setChosenMove] = useState('');
   const [target, setTarget] = useState<[number, number] | undefined>();
@@ -24,7 +25,21 @@ function App() {
   const [boardReady, setBoardReady] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const enemyPlanner = useRef<EnemyPlanner>(new EnemyPlanner());
-  useEffect(() => { setSaveFailed(!saveRun(run)); }, [run]);
+  const latestRun = useRef(run);
+  latestRun.current = run;
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void saveRun(run).then(ok => { if (latestRun.current === run) setSaveFailed(!ok); });
+    }, run.phase === 'battle' ? 700 : 150);
+    return () => window.clearTimeout(timer);
+  }, [run]);
+  useEffect(() => {
+    const flush = () => { if (document.visibilityState === 'hidden') void saveRun(latestRun.current); };
+    const pagehide = () => { void saveRun(latestRun.current); };
+    document.addEventListener('visibilitychange', flush);
+    window.addEventListener('pagehide', pagehide);
+    return () => { document.removeEventListener('visibilitychange', flush); window.removeEventListener('pagehide', pagehide); };
+  }, []);
   const battle = run.battle;
   useEffect(() => {
     if (run.phase !== 'battle' || !battle || battle.result || active(battle).side !== 'enemy') { enemyPlanner.current.reset(); return; }
@@ -35,7 +50,7 @@ function App() {
       if (cancelled) return;
       const planned = enemyPlanner.current.plan(battle);
       if (planned.pending) { frame = requestAnimationFrame(step); return; }
-      const nextBattle = structuredClone(battle);
+      const nextBattle = cloneBattleForCommand(battle);
       const acted = commitEnemyAction(nextBattle, planned.action);
       enemyPlanner.current.afterCommit(planned.action, acted);
       if (cancelled) return;
@@ -49,10 +64,10 @@ function App() {
   }, [run.phase, battle, animating, boardReady]);
   const encounter = ENCOUNTERS.find(entry => entry.id === run.encounterId)!;
   const current = battle && !battle.result ? active(battle) : undefined;
-  const patch = (change: (next: Run) => void) => setRun(previous => { const next = structuredClone(previous); change(next); return next; });
+  const patch = (change: (next: Run) => void) => setRun(previous => { const next = { ...previous, selected: [...previous.selected], bag: [...previous.bag], party: previous.party.map(mon => ({ ...mon, learned: [...mon.learned], equipped: [...mon.equipped] })) }; change(next); return next; });
   const battleAction = (change: (next: Run) => string | undefined) => {
     if (animating) return false;
-    const next: Run = { ...run, battle: run.battle ? structuredClone(run.battle) : undefined };
+    const next: Run = { ...run, battle: run.battle ? cloneBattleForCommand(run.battle) : undefined };
     const message = change(next);
     if (message) { setNotice(message); return false; }
     if (next.battle?.visualEvents.at(-1)?.id !== run.battle?.visualEvents.at(-1)?.id) setAnimating(true);
@@ -120,6 +135,15 @@ function App() {
 function PartyList({ run }: { run: Run }) { return <section className="party-list"><span className="eyebrow">YOUR PARTY</span>{run.party.map(mon => <div key={mon.id}><Sprite id={mon.species} /><b>{SPECIES[mon.species].name}</b><span>Lv {mon.level}</span><span>{mon.hp}/{maxHp(mon)} HP</span><small>{mon.item}</small></div>)}</section>; }
 
 const contentErrors = validateCatalog();
+function AppLoader() {
+  const [initialRun, setInitialRun] = useState<Run>();
+  useEffect(() => {
+    let mounted = true;
+    void loadRun().then(loaded => { if (mounted) setInitialRun(loaded); });
+    return () => { mounted = false; };
+  }, []);
+  return initialRun ? <App initialRun={initialRun} /> : <main className="narrow"><section className="hero"><h2>Loading run…</h2></section></main>;
+}
 createRoot(document.getElementById('root')!).render(contentErrors.length
   ? <main className="narrow"><h1>Content needs attention</h1><p>Fix these catalog references before starting a run:</p><ul>{contentErrors.map(error => <li key={error}>{error}</li>)}</ul></main>
-  : <React.StrictMode><App /></React.StrictMode>);
+  : <React.StrictMode><AppLoader /></React.StrictMode>);

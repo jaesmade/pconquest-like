@@ -1,0 +1,849 @@
+{
+  "date": "2026-09-26T02:52:00.404Z",
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+    "dpr": 1,
+    "viewport": [
+      929,
+      925
+    ],
+    "canvas": [
+      2048,
+      2048
+    ],
+    "renderer": 2,
+    "webgl": true,
+    "hardwareConcurrency": 8,
+    "scene": {
+      "gameObjects": 181,
+      "terrainCommands": 12775,
+      "overlayCommands": 950,
+      "targetCommands": 0,
+      "labels": 0,
+      "sprites": 16,
+      "hpBars": 16
+    }
+  },
+  "scenarios": {
+    "idle": [
+      {
+        "pass": 1,
+        "elapsedMs": 1201.3,
+        "frameMs": {
+          "count": 73,
+          "p50": 16.7,
+          "p95": 16.8,
+          "p99": 18.4,
+          "max": 18.4
+        },
+        "drawCallsPerFrame": {
+          "count": 73,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "renderTargetMs": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 19725899,
+          "jsHeapAfterBytes": 18199419,
+          "jsHeapTotalBytes": 35077759
+        },
+        "scene": {
+          "gameObjects": 181,
+          "terrainCommands": 12775,
+          "overlayCommands": 950,
+          "targetCommands": 0,
+          "labels": 0,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 2,
+        "elapsedMs": 1202.4,
+        "frameMs": {
+          "count": 73,
+          "p50": 16.7,
+          "p95": 16.8,
+          "p99": 17.8,
+          "max": 17.8
+        },
+        "drawCallsPerFrame": {
+          "count": 73,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "renderTargetMs": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 19522447,
+          "jsHeapAfterBytes": 23560863,
+          "jsHeapTotalBytes": 35077759
+        },
+        "scene": {
+          "gameObjects": 181,
+          "terrainCommands": 12775,
+          "overlayCommands": 950,
+          "targetCommands": 0,
+          "labels": 0,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 3,
+        "elapsedMs": 1200.2,
+        "frameMs": {
+          "count": 72,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 16.8,
+          "max": 16.8
+        },
+        "drawCallsPerFrame": {
+          "count": 72,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "renderTargetMs": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 18365163,
+          "jsHeapAfterBytes": 22108527,
+          "jsHeapTotalBytes": 35339903
+        },
+        "scene": {
+          "gameObjects": 181,
+          "terrainCommands": 12775,
+          "overlayCommands": 950,
+          "targetCommands": 0,
+          "labels": 0,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      }
+    ],
+    "battleChanges": [
+      {
+        "pass": 1,
+        "elapsedMs": 913.2,
+        "frameMs": {
+          "count": 54,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 16.8,
+          "max": 16.8
+        },
+        "drawCallsPerFrame": {
+          "count": 54,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 30,
+          "p50": 0.5,
+          "p95": 0.8,
+          "p99": 0.8,
+          "max": 0.8
+        },
+        "renderTargetMs": {
+          "count": 30,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 23567447,
+          "jsHeapAfterBytes": 19353652,
+          "jsHeapTotalBytes": 33239404
+        },
+        "scene": {
+          "gameObjects": 181,
+          "terrainCommands": 12775,
+          "overlayCommands": 950,
+          "targetCommands": 0,
+          "labels": 0,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 2,
+        "elapsedMs": 914.7,
+        "frameMs": {
+          "count": 54,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 16.9,
+          "max": 16.9
+        },
+        "drawCallsPerFrame": {
+          "count": 54,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 30,
+          "p50": 0.4,
+          "p95": 0.6,
+          "p99": 0.7,
+          "max": 0.7
+        },
+        "renderTargetMs": {
+          "count": 30,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0.1,
+          "max": 0.1
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 20812316,
+          "jsHeapAfterBytes": 17846925,
+          "jsHeapTotalBytes": 33501581
+        },
+        "scene": {
+          "gameObjects": 181,
+          "terrainCommands": 12775,
+          "overlayCommands": 950,
+          "targetCommands": 0,
+          "labels": 0,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 3,
+        "elapsedMs": 914.6,
+        "frameMs": {
+          "count": 54,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 17.1,
+          "max": 17.1
+        },
+        "drawCallsPerFrame": {
+          "count": 54,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 30,
+          "p50": 0.4,
+          "p95": 0.5,
+          "p99": 0.5,
+          "max": 0.5
+        },
+        "renderTargetMs": {
+          "count": 30,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 19312977,
+          "jsHeapAfterBytes": 22734430,
+          "jsHeapTotalBytes": 33501614
+        },
+        "scene": {
+          "gameObjects": 181,
+          "terrainCommands": 12775,
+          "overlayCommands": 950,
+          "targetCommands": 0,
+          "labels": 0,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      }
+    ],
+    "targeting": [
+      {
+        "pass": 1,
+        "elapsedMs": 916.6,
+        "frameMs": {
+          "count": 55,
+          "p50": 16.7,
+          "p95": 16.8,
+          "p99": 17.1,
+          "max": 17.1
+        },
+        "drawCallsPerFrame": {
+          "count": 55,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 1,
+          "p50": 3.6,
+          "p95": 3.6,
+          "p99": 3.6,
+          "max": 3.6
+        },
+        "renderTargetMs": {
+          "count": 30,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.2,
+          "max": 0.2
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 24195870,
+          "jsHeapAfterBytes": 19377095,
+          "jsHeapTotalBytes": 33501647
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 2,
+        "elapsedMs": 901.6,
+        "frameMs": {
+          "count": 55,
+          "p50": 16.6,
+          "p95": 16.8,
+          "p99": 16.9,
+          "max": 16.9
+        },
+        "drawCallsPerFrame": {
+          "count": 55,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 2,
+          "p50": 1.2,
+          "p95": 1.9,
+          "p99": 1.9,
+          "max": 1.9
+        },
+        "renderTargetMs": {
+          "count": 31,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.1
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 20713787,
+          "jsHeapAfterBytes": 22615432,
+          "jsHeapTotalBytes": 33501680
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 3,
+        "elapsedMs": 901.9,
+        "frameMs": {
+          "count": 55,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 16.8,
+          "max": 16.8
+        },
+        "drawCallsPerFrame": {
+          "count": 55,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 2,
+          "p50": 1,
+          "p95": 1.9,
+          "p99": 1.9,
+          "max": 1.9
+        },
+        "renderTargetMs": {
+          "count": 31,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.1
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 23954304,
+          "jsHeapAfterBytes": 19249553,
+          "jsHeapTotalBytes": 33501713
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      }
+    ],
+    "weather": [
+      {
+        "pass": 1,
+        "elapsedMs": 1368.3,
+        "frameMs": {
+          "count": 83,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 17.2,
+          "max": 17.2
+        },
+        "drawCallsPerFrame": {
+          "count": 83,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 12,
+          "p50": 1.7,
+          "p95": 2.1,
+          "p99": 2.1,
+          "max": 2.1
+        },
+        "renderTargetMs": {
+          "count": 12,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.1
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 20587625,
+          "jsHeapAfterBytes": 21939272,
+          "jsHeapTotalBytes": 33763932
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 2,
+        "elapsedMs": 1352.7,
+        "frameMs": {
+          "count": 82,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 16.8,
+          "max": 16.8
+        },
+        "drawCallsPerFrame": {
+          "count": 82,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 12,
+          "p50": 1.2,
+          "p95": 2,
+          "p99": 2,
+          "max": 2
+        },
+        "renderTargetMs": {
+          "count": 12,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 23278384,
+          "jsHeapAfterBytes": 23578683,
+          "jsHeapTotalBytes": 34288295
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 3,
+        "elapsedMs": 1352,
+        "frameMs": {
+          "count": 82,
+          "p50": 16.7,
+          "p95": 16.8,
+          "p99": 17,
+          "max": 17
+        },
+        "drawCallsPerFrame": {
+          "count": 82,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 12,
+          "p50": 1.1,
+          "p95": 1.3,
+          "p99": 1.3,
+          "max": 1.3
+        },
+        "renderTargetMs": {
+          "count": 12,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.1
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 24918231,
+          "jsHeapAfterBytes": 24866794,
+          "jsHeapTotalBytes": 34288370
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      }
+    ],
+    "animation": [
+      {
+        "pass": 1,
+        "elapsedMs": 1603.2,
+        "frameMs": {
+          "count": 97,
+          "p50": 16.7,
+          "p95": 16.7,
+          "p99": 16.8,
+          "max": 16.8
+        },
+        "drawCallsPerFrame": {
+          "count": 97,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 4,
+          "p50": 1.1,
+          "p95": 1.6,
+          "p99": 1.6,
+          "max": 1.6
+        },
+        "renderTargetMs": {
+          "count": 4,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 19625390,
+          "jsHeapAfterBytes": 21139863,
+          "jsHeapTotalBytes": 34288415
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 2,
+        "elapsedMs": 1602.3,
+        "frameMs": {
+          "count": 97,
+          "p50": 16.7,
+          "p95": 16.8,
+          "p99": 17,
+          "max": 17
+        },
+        "drawCallsPerFrame": {
+          "count": 97,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 4,
+          "p50": 1.3,
+          "p95": 2,
+          "p99": 2,
+          "max": 2
+        },
+        "renderTargetMs": {
+          "count": 4,
+          "p50": 0,
+          "p95": 0.1,
+          "p99": 0.1,
+          "max": 0.1
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 22481255,
+          "jsHeapAfterBytes": 23981092,
+          "jsHeapTotalBytes": 34288460
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      },
+      {
+        "pass": 3,
+        "elapsedMs": 1613.2,
+        "frameMs": {
+          "count": 96,
+          "p50": 16.7,
+          "p95": 16.8,
+          "p99": 17,
+          "max": 17
+        },
+        "drawCallsPerFrame": {
+          "count": 96,
+          "p50": 8,
+          "p95": 8,
+          "p99": 8,
+          "max": 8
+        },
+        "renderBattleMs": {
+          "count": 4,
+          "p50": 1.2,
+          "p95": 1.4,
+          "p99": 1.4,
+          "max": 1.4
+        },
+        "renderTargetMs": {
+          "count": 4,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "longTasks": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null,
+          "max": null,
+          "totalMs": 0
+        },
+        "memory": {
+          "jsHeapBeforeBytes": 18618888,
+          "jsHeapAfterBytes": 19656281,
+          "jsHeapTotalBytes": 34288505
+        },
+        "scene": {
+          "gameObjects": 182,
+          "terrainCommands": 12775,
+          "overlayCommands": 1314,
+          "targetCommands": 68,
+          "labels": 1,
+          "sprites": 16,
+          "hpBars": 16
+        }
+      }
+    ]
+  }
+}

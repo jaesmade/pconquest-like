@@ -58,7 +58,7 @@ Battle result → current XP and evolution flow → Title when run ends
 - Replace the text queue with a horizontal portrait strip **inside the battle stage**. Show the current actor and the next five entries from the authoritative `upcoming(battle)` result. Portrait frame color and labels distinguish ally and enemy; highlight the current actor and show its AP gain. A repeated Pokémon appears only if the turn scheduler actually returns another entry.
 - Reuse the current unit sheet's idle frame as a temporary portrait; later swap in named portrait images without changing turn-order data. Use species/form ID and a fallback portrait, so evolutions and future 8v8 rosters do not require hardcoded UI conditions.
 - Put map name, weather and remaining duration, round/time, capture objective, selected unit HP/AP/status, and a compact expandable action log in fixed HUD positions. Critical combat messages may appear as short in-world callouts, but the log remains available to inspect missed events.
-- During visual playback, disable game commands and keep the queue/HUD synchronized with committed battle state. Present animations sequentially as they are now; visual timing must not roll RNG or change outcomes.
+- During visual playback, disable game commands and keep the queue/HUD synchronized with committed battle state. Retained visual cues play in order through the bounded renderer queue; coalescing must not roll RNG or change outcomes.
 
 ## Public asset plan and replacement rules
 

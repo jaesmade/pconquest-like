@@ -5,6 +5,7 @@ import { abilityAbsorption, effectiveness, mapHeight, mapWidth, MOVES } from '..
 import type { AttackVisualEvent, Battle, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange, reachableTiles, unitAt } from '../game/engine';
 import { mobilityState } from '../game/mobility';
+import { enqueueAttackCues } from './visualQueue';
 
 const TILE = 64;
 const colors: Record<string, number> = { plain: 0x42776d, water: 0x336c9b, lava: 0xbb5844, wall: 0x263c48 };
@@ -20,6 +21,7 @@ class BattleScene extends Phaser.Scene {
   onAnimationState: Props['onAnimationState'] = () => {};
   terrain!: Phaser.GameObjects.Graphics;
   ground!: Phaser.GameObjects.Graphics;
+  targetOverlay!: Phaser.GameObjects.Graphics;
   labels: Phaser.GameObjects.Text[] = [];
   sprites = new Map<string, Phaser.GameObjects.Sprite>();
   markers = new Map<string, { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }>();
@@ -29,6 +31,7 @@ class BattleScene extends Phaser.Scene {
   pendingAttacks: AttackVisualEvent[] = [];
   playingAttack?: AttackVisualEvent;
   draining = false;
+  catchingUp = false;
   movingUnits = new Set<string>();
   constructor() { super('battle'); }
   preload() {
@@ -41,6 +44,7 @@ class BattleScene extends Phaser.Scene {
   create() {
     this.terrain = this.add.graphics().setDepth(0);
     this.ground = this.add.graphics().setDepth(1);
+    this.targetOverlay = this.add.graphics().setDepth(2);
     this.drawTerrain();
     const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.map(unit => unit.species)]);
     const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
@@ -72,13 +76,19 @@ class BattleScene extends Phaser.Scene {
     }
   }
   setProps(props: Props) {
-    const changed = this.battle !== props.battle || this.mode !== props.mode || this.chosenMove !== props.chosenMove
-      || this.target?.[0] !== props.target?.[0] || this.target?.[1] !== props.target?.[1];
+    const boardChanged = this.battle !== props.battle || this.mode !== props.mode || this.chosenMove !== props.chosenMove;
+    const targetChanged = this.target?.[0] !== props.target?.[0] || this.target?.[1] !== props.target?.[1];
     this.battle = props.battle; this.mode = props.mode; this.chosenMove = props.chosenMove; this.target = props.target; this.onTile = props.onTile; this.onAnimationState = props.onAnimationState;
-    for (const event of props.battle.visualEvents ?? []) if (!this.seenAttacks.has(event.id)) { this.seenAttacks.add(event.id); this.pendingAttacks.push(event); }
+    const incoming = (props.battle.visualEvents ?? []).filter(event => !this.seenAttacks.has(event.id));
+    for (const event of incoming) this.seenAttacks.add(event.id);
+    if (incoming.length) {
+      const { queue, skipped } = enqueueAttackCues(this.pendingAttacks, incoming);
+      this.pendingAttacks = queue;
+      if (skipped || incoming.length > 1 || queue.length > 1) this.catchingUp = true;
+    }
     const recentIds = new Set((props.battle.visualEvents ?? []).map(event => event.id));
     for (const id of this.seenAttacks) if (!recentIds.has(id)) this.seenAttacks.delete(id);
-    if (this.ground) { if (changed) this.renderBattle(); void this.playNextAttack(); }
+    if (this.ground) { if (boardChanged) this.renderBattle(); else if (targetChanged) this.renderTarget(); void this.playNextAttack(); }
   }
   private tileCenter([x, y]: [number, number]): [number, number] { return [x * TILE + TILE / 2, y * TILE + TILE / 2 - 4]; }
   private unitCenter(unit: Unit, [x, y]: [number, number]): [number, number] {
@@ -100,21 +110,22 @@ class BattleScene extends Phaser.Scene {
     while (this.pendingAttacks.length && this.scene.isActive()) {
       const event = this.pendingAttacks.shift()!;
       this.playingAttack = event;
-      await this.playAttackEvent(event);
+      await this.playAttackEvent(event, this.catchingUp);
       this.playingAttack = undefined;
       this.renderBattle();
     }
     this.draining = false; this.updateAnimationState();
-    if (this.pendingAttacks.length) void this.playNextAttack();
+    this.catchingUp = false;
+    if (this.pendingAttacks.length && this.scene.isActive()) void this.playNextAttack();
   }
-  private async playAttackEvent(event: AttackVisualEvent) {
+  private async playAttackEvent(event: AttackVisualEvent, fast: boolean) {
     const asset = manifest.attacks[event.moveId as keyof typeof manifest.attacks];
     if (!asset) {
       const [x, y] = this.tileCenter(event.to);
       const fallback = this.add.sprite(x, y, 'effect-attack-impact').setScale(1.55).setDepth(11);
       fallback.play('effect-attack-impact');
       fallback.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => fallback.destroy());
-      await this.wait(Math.round(1000 * manifest.effectFrameCount / manifest.effectFps));
+      await this.wait(fast ? 160 : Math.round(1000 * manifest.effectFrameCount / manifest.effectFps));
       return;
     }
     const attacker = this.battle.units.find(unit => unit.id === event.sourceId);
@@ -133,12 +144,14 @@ class BattleScene extends Phaser.Scene {
       const texture = Object.hasOwn(manifest.units, attacker.species) ? attacker.species : manifest.fallbackUnit;
       attackerSprite.play(`${texture}-${facing}-${asset.style === 'weather' || asset.style === 'self' ? 'special' : 'attack'}`, true);
     }
-    await this.wait(100);
+    await this.wait(fast ? 50 : 100);
     if (asset.style === 'projectile') {
       const [sx, sy] = attacker ? this.unitCenter(attacker, event.from) : this.tileCenter(event.from), [tx, ty] = this.tileCenter(event.to);
       const projectile = this.add.sprite(sx, sy, `attack-${event.moveId}`).setScale(1.5).setDepth(10);
       projectile.play(`attack-${event.moveId}-travel`);
-      await new Promise<void>(resolve => this.tweens.add({ targets: projectile, x: tx, y: ty, duration: Math.max(150, Math.abs(tx - sx) + Math.abs(ty - sy)) * 1.1, ease: 'Sine.easeInOut', onComplete: () => { projectile.destroy(); resolve(); } }));
+      const distance = Math.abs(tx - sx) + Math.abs(ty - sy);
+      const duration = fast ? Math.min(160, Math.max(75, distance * 0.4)) : Math.max(150, distance) * 1.1;
+      await new Promise<void>(resolve => this.tweens.add({ targets: projectile, x: tx, y: ty, duration, ease: 'Sine.easeInOut', onComplete: () => { projectile.destroy(); resolve(); } }));
     }
     const width = mapWidth(this.battle.map), height = mapHeight(this.battle.map);
     const tiles: [number, number][] = asset.style === 'weather'
@@ -157,7 +170,7 @@ class BattleScene extends Phaser.Scene {
       const texture = Object.hasOwn(manifest.units, target.species) ? target.species : manifest.fallbackUnit;
       sprite.play(`${texture}-${target.facing}-${target.hp <= 0 ? 'faint' : 'hurt'}`, true);
     }
-    await this.wait(Math.round(1000 * manifest.attackFrameCount / manifest.attackFps));
+    await this.wait(fast ? 160 : Math.round(1000 * manifest.attackFrameCount / manifest.attackFps));
     if (attacker && attackerSprite?.active && attacker.hp > 0) {
       const texture = Object.hasOwn(manifest.units, attacker.species) ? attacker.species : manifest.fallbackUnit;
       attackerSprite.play(`${texture}-${attacker.facing}-idle`, true);
@@ -170,7 +183,6 @@ class BattleScene extends Phaser.Scene {
     const current = active(this.battle);
     const moveHighlights = this.mode === 'move' && current.side === 'player' && current.ap > 0 ? reachableTiles(this.battle, current) : new Set<string>();
     const attackMove = this.mode === 'attack' && this.chosenMove && current.side === 'player' ? MOVES[this.chosenMove] : undefined;
-    const impact = attackMove && this.target ? new Set(affectedTiles(this.battle.map, this.chosenMove!, this.target[0], this.target[1]).map(tile => tile.join(','))) : new Set<string>();
     for (let y = 0; y < mapHeight(this.battle.map); y++) for (let x = 0; x < mapWidth(this.battle.map); x++) {
       const tile = this.battle.map.tiles[y][x], left = x * TILE, top = y * TILE;
       if (tile.hazardUntil && tile.hazardUntil > this.battle.time) { this.ground.lineStyle(3, 0xd4b5a5, 0.9); this.ground.strokeRect(left + 5, top + 5, TILE - 10, TILE - 10); }
@@ -188,8 +200,6 @@ class BattleScene extends Phaser.Scene {
         this.ground.lineStyle(3, color); this.ground.strokeRect(left + 4, top + 4, TILE - 8, TILE - 8);
         this.labels.push(this.add.text(left + 36, top + 4, absorbed ? 'ABS' : `${multiplier}×`, { fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', backgroundColor: '#183033' }).setDepth(8));
       }
-      if (impact.has(`${x},${y}`)) { this.ground.fillStyle(0xffd576, 0.25); this.ground.fillRect(left + 4, top + 4, TILE - 8, TILE - 8); }
-      if (this.target?.[0] === x && this.target[1] === y) { this.ground.lineStyle(4, 0xffd576); this.ground.strokeRect(left + 3, top + 3, TILE - 6, TILE - 6); }
       if (this.battle.map.capture?.[0] === x && this.battle.map.capture[1] === y) {
         this.ground.lineStyle(3, this.battle.captureHeld ? 0x7be0a3 : 0xe7d477); this.ground.strokeCircle(left + 32, top + 32, 22);
       }
@@ -202,6 +212,21 @@ class BattleScene extends Phaser.Scene {
       const markers = this.markers.get(id); markers?.shadow.destroy(); markers?.ripple.destroy(); this.markers.delete(id);
       this.hp.get(id)?.destroy(); this.hp.delete(id);
     }
+    this.renderTarget();
+  }
+  renderTarget() {
+    if (!this.targetOverlay) return;
+    this.targetOverlay.clear();
+    if (!this.target) return;
+    const [x, y] = this.target;
+    if (this.mode === 'attack' && this.chosenMove && MOVES[this.chosenMove]) {
+      for (const [tx, ty] of affectedTiles(this.battle.map, this.chosenMove, x, y)) {
+        this.targetOverlay.fillStyle(0xffd576, 0.25);
+        this.targetOverlay.fillRect(tx * TILE + 4, ty * TILE + 4, TILE - 8, TILE - 8);
+      }
+    }
+    this.targetOverlay.lineStyle(4, 0xffd576);
+    this.targetOverlay.strokeRect(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6);
   }
   private animateRoute(sprite: Phaser.GameObjects.Sprite, markers: { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }, path: [number, number][], unit: Unit, texture: string, facing: number) {
     this.tweens.killTweensOf(sprite);
@@ -266,7 +291,8 @@ export default function Board(props: Props) {
     if (!holder.current) return;
     const boardScene = new BattleScene(); scene.current = boardScene; boardScene.setProps(props);
     const game = new Phaser.Game({ type: Phaser.AUTO, width: TILE * width, height: TILE * height, parent: holder.current, backgroundColor: '#14262d', pixelArt: true, antialias: false, scene: boardScene, scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH } });
-    return () => { game.destroy(true); scene.current = null; };
+    if (import.meta.env.MODE === 'profile') (window as Window & { __profileBattleScene?: BattleScene }).__profileBattleScene = boardScene;
+    return () => { game.destroy(true); scene.current = null; if (import.meta.env.MODE === 'profile') delete (window as Window & { __profileBattleScene?: BattleScene }).__profileBattleScene; };
   }, [width, height]);
   useEffect(() => { scene.current?.setProps(props); }, [props]);
   return <div className="board" ref={holder} style={{ aspectRatio: `${width} / ${height}` }} aria-label={`${width} by ${height} battle board`} />;

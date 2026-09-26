@@ -1,5 +1,10 @@
 node_modules/
 dist/
+dist-profile/
+.profile-chrome*/
+.profile-edge*/
+profile-chrome.log
+profile-edge.log
 .docker-config/
 *.tsbuildinfo
 .rovodev/

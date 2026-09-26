@@ -279,7 +279,8 @@ export function useMove(battle: Battle, moveId: string, x: number, y: number): s
   const tiles = affectedTiles(battle.map, moveId, x, y);
   const visual: AttackVisualEvent = { id: crypto.randomUUID(), moveId, sourceId: unit.id, from: [unit.x, unit.y], to: [x, y], tiles: [...tiles], targetIds: [] };
   battle.visualEvents.push(visual);
-  battle.visualEvents = battle.visualEvents.slice(-80);
+  // Recent presentation cues are disposable; battle rules, RNG, and log live elsewhere.
+  battle.visualEvents = battle.visualEvents.slice(-24);
   log(battle, `${unit.name} used ${move.name} for ${move.apCost} AP.`);
   for (const effect of move.effects ?? []) {
     if (effect.on !== 'cast') continue;

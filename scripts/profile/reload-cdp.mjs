@@ -1,0 +1,10 @@
+const port = Number(process.env.CDP_PORT ?? 9226);
+const pages = await fetch(`http://127.0.0.1:${port}/json/list`).then(r => r.json());
+const page = pages.find(p => p.type === 'page' && p.url.includes('/scripts/profile/index.html'));
+if (!page) throw new Error('Profile page unavailable');
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+await new Promise((resolve, reject) => { ws.addEventListener('open', resolve, { once: true }); ws.addEventListener('error', reject, { once: true }); });
+ws.send(JSON.stringify({ id: 1, method: 'Page.reload', params: { ignoreCache: true } }));
+await new Promise(resolve => { ws.addEventListener('message', event => { if (JSON.parse(event.data).id === 1) resolve(); }); });
+ws.close();
+console.log('Reloaded profile page');

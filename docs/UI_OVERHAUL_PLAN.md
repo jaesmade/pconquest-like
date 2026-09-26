@@ -1,5 +1,13 @@
 # UI overhaul plan
 
+## Implementation progress (first slice)
+
+- The title now appears after loading a save, with Continue, Start Game/New Run, Options (sound), and Exit information. The battle has a pause overlay with Resume and Title. New Run asks before replacing an active save.
+- Battle uses a viewport stage, a six-entry portrait turn strip from the authoritative turn order, a unit-anchored action panel, a compact actor HUD, status/stat icons, and a collapsible log. Narrow viewports place the action panel as a bottom sheet. Existing unit sheets supply temporary portraits and model animations.
+- Ability and held-item triggers emit bounded cosmetic events. The renderer displays short in-world callouts and plays named ability or item sounds. These cues are omitted from saves and do not consume battle RNG. Passive Leftovers and Sitrus Berry recovery now have activation cues.
+- Named SVG item and status placeholders live under `public/assets/ui/icons/`; the animation and audio guides describe replacement.
+- Still planned: camera pan/zoom and world-to-tile conversion for 32×32 maps, minimap, terrain asset pass, broader Options controls, and measured 60 FPS profiling. The current Phaser canvas still fits the whole map.
+
 ## Goal and current baseline
 
 Make the battle feel like the main game screen: the map fills the browser viewport, the active Pokémon's commands appear beside it, and the next turns are readable as portraits over the battlefield. Add a title screen with **Start Game**, **Options**, and **Exit** before the existing run flow.

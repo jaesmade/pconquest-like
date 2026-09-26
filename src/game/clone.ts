@@ -24,6 +24,7 @@ export function cloneBattleForCommand(battle: Battle): Battle {
       tiles: event.tiles.map(([x, y]): GridPoint => [x, y]),
       targetIds: [...event.targetIds],
     })),
+    feedbackEvents: battle.feedbackEvents?.map(event => ({ ...event })),
   };
 }
 

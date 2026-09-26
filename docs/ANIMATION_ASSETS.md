@@ -1,5 +1,11 @@
 # Animation asset guide
 
+## UI overhaul placeholders
+
+The battle uses each unit sheet's first idle frame as a temporary 40-pixel turn portrait. Replace portraits later with `public/assets/ui/portraits/portrait-<species-or-form-id>-48px.png` and keep the species/form lookup plus a named fallback; the battle model sheet can remain separate. Idle loops while waiting, attack clips play when moves begin, and hurt clips play on a damaging hit. Ability and item activation callouts are short presentation cues above the unit.
+
+Named UI SVG placeholders are in `public/assets/ui/icons/`: `item-none.svg`, `item-leftovers.svg`, `item-sitrus-berry.svg`, `item-assault-vest.svg`, `item-x-attack.svg`, `item-charizardite-x.svg`, `status-burned.svg`, `status-paralyzed.svg`, `status-charged.svg`, `stage-buff.svg`, and `stage-debuff.svg`. The item icon lookup converts an item name to lowercase kebab case. Status and stage icons stay static once applied; short battle-sheet buff and hurt effects still announce the change. Replace a named SVG in place, or change the extension and URL in the UI. Keep a transparent 32×32 canvas and a readable silhouette at 21 CSS pixels. `scripts/generate_placeholder_ui.py` fills missing icons without overwriting replacements.
+
 The playable build uses original, generic pixel placeholders in `public/assets/animations/`. They identify each Pokémon with a color and initial; they are not Pokémon artwork. The Phaser battle scene reads `animation-manifest.json` for unit clips, shared effects, and move-specific attack effects. Combat rules record visual events by move ID; the renderer chooses the corresponding sheet.
 
 ## Files and names

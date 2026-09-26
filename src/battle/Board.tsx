@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import manifest from '../../public/assets/animations/animation-manifest.json';
 import { abilityAbsorption, effectiveness, mapHeight, mapWidth, MOVES } from '../content/data';
-import type { AttackVisualEvent, Battle, Unit } from '../game/types';
+import type { AttackVisualEvent, Battle, FeedbackEvent, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange, reachableTiles, unitAt } from '../game/engine';
 import { mobilityState } from '../game/mobility';
 import { enqueueAttackCues } from './visualQueue';
@@ -29,6 +29,8 @@ class BattleScene extends Phaser.Scene {
   hp = new Map<string, Phaser.GameObjects.Graphics>();
   seen = new Map<string, number>();
   seenAttacks = new Set<string>();
+  seenFeedback = new Set<string>();
+  pendingFeedback: FeedbackEvent[] = [];
   pendingAttacks: AttackVisualEvent[] = [];
   playingAttack?: AttackVisualEvent;
   draining = false;
@@ -61,6 +63,7 @@ class BattleScene extends Phaser.Scene {
     }
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.onTile(Math.floor(pointer.x / TILE), Math.floor(pointer.y / TILE)));
     this.renderBattle();
+    this.playFeedback();
     void this.playNextAttack();
     this.updateAnimationState();
   }
@@ -89,7 +92,26 @@ class BattleScene extends Phaser.Scene {
     }
     const recentIds = new Set((props.battle.visualEvents ?? []).map(event => event.id));
     for (const id of this.seenAttacks) if (!recentIds.has(id)) this.seenAttacks.delete(id);
-    if (this.ground) { if (boardChanged) this.renderBattle(); else if (targetChanged) this.renderTarget(); void this.playNextAttack(); }
+    const cues = (props.battle.feedbackEvents ?? []).filter(event => !this.seenFeedback.has(event.id));
+    for (const event of cues) this.seenFeedback.add(event.id);
+    this.pendingFeedback = [...this.pendingFeedback, ...cues].slice(-4);
+    const currentFeedback = new Set((props.battle.feedbackEvents ?? []).map(event => event.id));
+    for (const id of this.seenFeedback) if (!currentFeedback.has(id)) this.seenFeedback.delete(id);
+    if (this.ground) { if (boardChanged) this.renderBattle(); else if (targetChanged) this.renderTarget(); this.playFeedback(); void this.playNextAttack(); }
+  }
+  private playFeedback() {
+    if (!this.ground) return;
+    for (const event of this.pendingFeedback.splice(0)) {
+      const unit = this.battle.units.find(candidate => candidate.id === event.unitId);
+      if (!unit) continue;
+      if (event.kind === 'ability') gameAudio.playAbility(event.key);
+      else gameAudio.playItem(event.key);
+      const label = this.add.text(unit.x * TILE + TILE / 2, unit.y * TILE - 5, event.key, {
+        fontFamily: 'monospace', fontSize: '13px', color: event.kind === 'ability' ? '#fff0a7' : '#b4f5d0',
+        backgroundColor: '#10262ddd', padding: { x: 5, y: 3 },
+      }).setOrigin(0.5, 1).setDepth(20);
+      this.tweens.add({ targets: label, y: label.y - 17, alpha: 0, duration: 850, onComplete: () => label.destroy() });
+    }
   }
   private tileCenter([x, y]: [number, number]): [number, number] { return [x * TILE + TILE / 2, y * TILE + TILE / 2 - 4]; }
   private unitCenter(unit: Unit, [x, y]: [number, number]): [number, number] {

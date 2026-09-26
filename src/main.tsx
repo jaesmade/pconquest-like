@@ -12,6 +12,7 @@ import { freshRun, loadRun, saveRun } from './persistence/save';
 import { validateCatalog } from './content/catalog';
 import { gameAudio } from './audio/audio';
 import './style.css';
+import './overhaul.css';
 
 const BattleScreen = lazy(() => import('./ui/BattleScreen'));
 const pretty = (id: string) => MOVES[id]?.name ?? id;
@@ -19,6 +20,8 @@ const maxHp = (mon: PartyMon) => statsAtLevel(mon.species, mon.level)[0];
 
 function App({ initialRun }: { initialRun: Run }) {
   const [run, setRun] = useState<Run>(initialRun);
+  const [screen, setScreen] = useState<'title' | 'game' | 'options' | 'exit'>('title');
+  const [paused, setPaused] = useState(false);
   const [mode, setMode] = useState<'inspect' | 'move' | 'attack'>('inspect');
   const [chosenMove, setChosenMove] = useState('');
   const [target, setTarget] = useState<[number, number] | undefined>();
@@ -42,8 +45,8 @@ function App({ initialRun }: { initialRun: Run }) {
     return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
   }, []);
   useEffect(() => {
-    gameAudio.setMusic(run.phase === 'battle' ? 'battle' : run.phase === 'starter' || run.phase === 'result' ? 'menu' : 'route');
-  }, [run.phase]);
+    gameAudio.setMusic(screen !== 'game' ? 'menu' : run.phase === 'battle' ? 'battle' : run.phase === 'starter' || run.phase === 'result' ? 'menu' : 'route');
+  }, [run.phase, screen]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void saveRun(run).then(ok => { if (latestRun.current === run) setSaveFailed(!ok); });
@@ -59,7 +62,7 @@ function App({ initialRun }: { initialRun: Run }) {
   }, []);
   const battle = run.battle;
   useEffect(() => {
-    if (run.phase !== 'battle' || !battle || battle.result || active(battle).side !== 'enemy') { enemyPlanner.current.reset(); return; }
+    if (screen !== 'game' || paused || run.phase !== 'battle' || !battle || battle.result || active(battle).side !== 'enemy') { enemyPlanner.current.reset(); return; }
     if (animating || !boardReady) return;
     let cancelled = false;
     let frame = 0;
@@ -78,12 +81,12 @@ function App({ initialRun }: { initialRun: Run }) {
     };
     frame = requestAnimationFrame(step);
     return () => { cancelled = true; cancelAnimationFrame(frame); };
-  }, [run.phase, battle, animating, boardReady]);
+  }, [screen, paused, run.phase, battle, animating, boardReady]);
   const encounter = ENCOUNTERS.find(entry => entry.id === run.encounterId)!;
   const current = battle && !battle.result ? active(battle) : undefined;
   const patch = (change: (next: Run) => void) => setRun(previous => { const next = { ...previous, selected: [...previous.selected], deployment: { ...previous.deployment }, bag: [...previous.bag], party: previous.party.map(mon => ({ ...mon, learned: [...mon.learned], equipped: [...mon.equipped] })) }; change(next); return next; });
   const battleAction = (change: (next: Run) => string | undefined) => {
-    if (animating) return false;
+    if (animating || paused) return false;
     const next: Run = { ...run, battle: run.battle ? cloneBattleForCommand(run.battle) : undefined };
     const message = change(next);
     if (message) { setNotice(message); return false; }
@@ -93,7 +96,7 @@ function App({ initialRun }: { initialRun: Run }) {
   };
   const resetSelection = () => { setMode('inspect'); setChosenMove(''); setTarget(undefined); };
   const selectTile = (x: number, y: number) => {
-    if (!battle || battle.result || animating || current?.side !== 'player') return;
+    if (!battle || battle.result || animating || paused || current?.side !== 'player') return;
     if (mode === 'move') {
       const success = battleAction(next => { const error = moveUnit(next.battle!, x, y); if (!error) finishTurn(next.battle!); return error; });
       if (success) resetSelection();
@@ -107,9 +110,8 @@ function App({ initialRun }: { initialRun: Run }) {
     if (success) resetSelection();
   };
   const special = () => {
-    const heldItem = current?.item;
     const success = battleAction(next => { const error = useSpecial(next.battle!); if (!error) finishTurn(next.battle!); return error; });
-    if (success) { if (heldItem && heldItem !== 'None') gameAudio.playItem(heldItem); resetSelection(); }
+    if (success) resetSelection();
   };
   const start = () => {
     const next = startBattle(run);
@@ -148,15 +150,28 @@ function App({ initialRun }: { initialRun: Run }) {
     if (item !== 'None') gameAudio.playItem(item);
   };
 
-  return <div className={animating ? "app-shell animating" : "app-shell"}>
-    <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" data-audio-toggle aria-pressed={!soundMuted} onClick={() => { const next = !soundMuted; gameAudio.setMuted(next); setSoundMuted(next); if (!next) void gameAudio.unlock(); }}>Sound: {soundMuted ? 'Off' : 'On'}</button>{run.phase !== 'starter' && <> · Encounter {Math.min(run.encounter + 1, ENCOUNTERS.length)} / {ENCOUNTERS.length} · Party {run.party.length} / 6 <button className="reset-run" onClick={() => { setRun(freshRun(run.unlocks)); resetSelection(); setAnimating(false); }}>New run</button></>}</div></header>
+  return <div className={`${animating ? 'app-shell animating' : 'app-shell'} ${screen === 'game' && run.phase === 'battle' ? 'in-battle' : ''}`}>
+    {screen !== 'game' && <main className="title-screen"><div className="title-card"><span className="eyebrow">GRID TACTICS · ROGUELIKE</span><h1>Pokémon Tactics</h1><p>Command your team across changing terrain. Make every action point count.</p>
+      {screen === 'title' && <div className="title-actions">
+        {run.phase !== 'starter' && <button className="primary" onClick={() => setScreen('game')}>Continue · Encounter {run.encounter + 1}</button>}
+        <button onClick={() => { if (run.phase !== 'starter' && !window.confirm('Start a new run? This replaces the current saved run.')) return; setRun(freshRun(run.unlocks)); resetSelection(); setAnimating(false); setScreen('game'); }}>{run.phase === 'starter' ? 'Start game' : 'New run'}</button>
+        <button onClick={() => setScreen('options')}>Options</button><button onClick={() => setScreen('exit')}>Exit</button>
+      </div>}
+      {screen === 'options' && <div className="title-actions"><h2>Options</h2><button data-audio-toggle aria-pressed={!soundMuted} onClick={() => { const next = !soundMuted; gameAudio.setMuted(next); setSoundMuted(next); if (!next) void gameAudio.unlock(); }}>Sound: {soundMuted ? 'Off' : 'On'}</button><button onClick={() => setScreen('title')}>Back</button></div>}
+      {screen === 'exit' && <div className="title-actions"><h2>Exit</h2><p>Your run is saved in this browser. Close the tab when you are ready.</p><button onClick={() => setScreen('title')}>Back to title</button></div>}
+      {saveFailed && <p role="alert">Progress could not be saved in this browser.</p>}
+    </div></main>}
+    {screen === 'game' && run.phase !== 'battle' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button>{run.phase !== 'starter' && <> · Encounter {Math.min(run.encounter + 1, ENCOUNTERS.length)} / {ENCOUNTERS.length} · Party {run.party.length} / 6</>}</div></header>}
+    {screen === 'game' && <>
     {run.phase === 'starter' && <main className="narrow"><section className="hero"><span className="eyebrow">NEW RUN</span><h2>Choose your lead Pokémon</h2><p>Two companions join your starting party. Pick three before each tactical battle and grow your team along the route.</p></section><div className="starter-grid">{STARTERS.map(id => <button className="starter-card" key={id} onClick={() => setRun(newRun(id, run.unlocks))}><Sprite id={id} /><strong>{SPECIES[id].name}</strong><span>{SPECIES[id].types.join(' / ')}</span><small>{SPECIES[id].ability} · {SPECIES[id].moves.map(pretty).join(' / ')}</small></button>)}</div></main>}
     {run.phase === 'route' && <main className="narrow"><section className="hero"><span className="eyebrow">ROUTE {run.encounter + 1}</span><h2>{MAPS[encounter.mapId].name}</h2><p>Choose a stop before the next encounter. Rest restores 40% max HP to the whole party. Recruit adds a Pokémon until the party reaches six.</p></section><div className="route-choice"><button className="choice" onClick={() => setRun(applyRouteChoice(run, 'rest'))}><b>✚ Rest camp</b><span>Restore and revive your party.</span></button><button className="choice" disabled={run.party.length >= 6} onClick={() => setRun(applyRouteChoice(run, 'recruit'))}><b>◇ Recruit trail</b><span>Meet another Pokémon for your run.</span></button></div><PartyList run={run} /></main>}
     {run.phase === 'prepare' && <PrepareScreen run={run} onToggle={toggleDeploy} onEquipMove={equipMove} onEquipItem={chooseItem} onDeploymentChange={deployment => patch(next => { next.deployment = deployment; })} onStart={start} />}
-    {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} onTile={selectTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); if (nextMode === 'move') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next.battle!); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} /></Suspense>}
+    {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} onTile={selectTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next.battle!); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></Suspense>}
     {run.phase === 'intermission' && <main className="narrow"><section className="hero"><span className="eyebrow">ENCOUNTER CLEARED</span><h2>Party growth</h2><p>Every party member gained XP, including reserves. You can evolve eligible Pokémon now and adjust learned moves before the next battle.</p></section><div className="report">{run.report.map((item, i) => <p key={i}>{item}</p>)}</div><div className="prep-list">{run.party.map(mon => { const evolution = SPECIES[mon.species].evolves; return <article className="prep-card" key={mon.id}><div className="prep-head"><Sprite id={mon.species} /><div><strong>{SPECIES[mon.species].name}</strong><small> Lv {mon.level} · {mon.hp}/{maxHp(mon)} HP</small></div></div><p>Learned: {mon.learned.map(pretty).join(', ')}</p>{evolution && mon.level >= evolution.level && <button onClick={() => setRun(evolve(run, mon.id))}>Evolve into {SPECIES[evolution.into].name}</button>}</article>; })}</div><div className="sticky-actions"><button className="primary" onClick={() => setRun(nextEncounter(run))}>{!encounter.nextId ? 'Complete run →' : 'Continue route →'}</button></div></main>}
     {run.phase === 'result' && <main className="narrow"><section className="hero result"><span className="eyebrow">RUN COMPLETE</span><h2>{run.result === 'win' ? 'Citadel secured' : 'Your team fell'}</h2><p>{run.result === 'win' ? 'The next run is ready. Your first victory has been saved locally.' : 'The route ends here. Try a different lead, moves, or terrain approach.'}</p><button className="primary" onClick={() => setRun(freshRun(run.unlocks))}>Start a new run</button></section></main>}
-    <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>
+    {paused && <div className="pause-backdrop" role="dialog" aria-modal="true" aria-label="Paused"><div className="pause-panel"><h2>Paused</h2><button className="primary" onClick={() => setPaused(false)}>Resume</button><button onClick={() => { setPaused(false); setScreen('title'); }}>Title screen</button></div></div>}
+    </>}
+    {screen === 'game' && run.phase !== 'battle' && <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>}
   </div>;
 }
 function PartyList({ run }: { run: Run }) { return <section className="party-list"><span className="eyebrow">YOUR PARTY</span>{run.party.map(mon => <div key={mon.id}><Sprite id={mon.species} /><b>{SPECIES[mon.species].name}</b><span>Lv {mon.level}</span><span>{mon.hp}/{maxHp(mon)} HP</span><small>{mon.item}</small></div>)}</section>; }

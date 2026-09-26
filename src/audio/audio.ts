@@ -56,7 +56,7 @@ class GameAudio {
     try { await this.context.resume(); }
     catch { return; }
     void this.syncMusic();
-    for (const url of [...Object.values(manifest.moves), ...Object.values(manifest.items), ...Object.values(manifest.cues)]) {
+    for (const url of [...Object.values(manifest.moves), ...Object.values(manifest.items), ...Object.values(manifest.abilities), ...Object.values(manifest.cues)]) {
       void this.load(url);
     }
   }
@@ -76,6 +76,11 @@ class GameAudio {
   playItem(itemId: string) {
     const url = (manifest.items as Record<string, string>)[itemId] ?? manifest.cues.itemFallback;
     void this.playEffect(url);
+  }
+
+  playAbility(abilityId: string) {
+    const url = (manifest.abilities as Record<string, string>)[abilityId];
+    if (url) void this.playEffect(url);
   }
 
   playCue(cue: CueId) { void this.playEffect(manifest.cues[cue]); }

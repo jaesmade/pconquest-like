@@ -29,6 +29,17 @@
     "X Attack": "/assets/audio/items/item-x-attack.wav",
     "Charizardite X": "/assets/audio/items/item-charizardite-x.wav"
   },
+  "abilities": {
+    "Chlorophyll": "/assets/audio/abilities/ability-chlorophyll.wav",
+    "Torrent": "/assets/audio/abilities/ability-torrent.wav",
+    "Water Absorb": "/assets/audio/abilities/ability-water-absorb.wav",
+    "Sand Veil": "/assets/audio/abilities/ability-sand-veil.wav",
+    "Static": "/assets/audio/abilities/ability-static.wav",
+    "Technician": "/assets/audio/abilities/ability-technician.wav",
+    "Flash Fire": "/assets/audio/abilities/ability-flash-fire.wav",
+    "Blaze": "/assets/audio/abilities/ability-blaze.wav",
+    "Tough Claws": "/assets/audio/abilities/ability-tough-claws.wav"
+  },
   "cues": {
     "moveFallback": "/assets/audio/cues/cue-move-fallback.wav",
     "itemFallback": "/assets/audio/cues/cue-item-fallback.wav",

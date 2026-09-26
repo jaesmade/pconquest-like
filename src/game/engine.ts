@@ -1,4 +1,4 @@
-import { abilityAbsorption, abilityContactReaction, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
+import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
 import { canEnter, hasLineOfSight, routeTo, stepCost } from './grid';
@@ -14,6 +14,9 @@ export { reachable, reachableTiles } from './grid';
 const max = (n: number) => Math.max(1, Math.ceil(n));
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const log = (battle: Battle, message: string) => { battle.log = [message, ...battle.log].slice(0, 24); };
+const feedback = (battle: Battle, kind: 'ability' | 'item', key: string, unit: Unit) => {
+  battle.feedbackEvents = [...(battle.feedbackEvents ?? []), { id: crypto.randomUUID(), kind, key, unitId: unit.id }].slice(-24);
+};
 const alive = (unit: Unit) => unit.hp > 0;
 export const MAX_LEVEL = 100;
 export const RUN_START_LEVEL = 10;
@@ -55,7 +58,7 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   if (selected.some(mon => !deployment[mon.id])) throw new Error(`Map ${map.id}: no legal ally deployment for the selected team.`);
   next.deployment = deployment;
   const players = selected.map(mon => { const [x, y] = deployment[mon.id]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
-  const battle: Battle = { map, tileChanges: {}, objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], captureHeld: false, encounterId: definition.id };
+  const battle: Battle = { map, tileChanges: {}, objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], captureHeld: false, encounterId: definition.id };
   const occupied = new Set(players.map(unit => `${unit.x},${unit.y}`));
   if (enemyDeployment && enemyDeployment.length !== definition.enemies.length) throw new Error(`Map ${map.id}: enemy deployment count does not match the team.`);
   for (const [index, id] of definition.enemies.entries()) {
@@ -100,6 +103,7 @@ function activateNext(battle: Battle) {
     if (!unit || !alive(unit)) { battle.turnIndex++; continue; }
     battle.current = unit.id;
     unit.maxAp = apGain(unit, battle);
+    if (abilitySpeedMultiplier(unit, battle.weather) > 1) feedback(battle, 'ability', unit.ability, unit);
     unit.ap = unit.maxAp + Math.min(unit.ap, MAX_CARRY_AP);
     unit.attackedThisTurn = false;
     log(battle, `${unit.name}'s turn · ${unit.ap} AP (${unit.maxAp} gained)`);
@@ -122,7 +126,7 @@ function hit(battle: Battle, unit: Unit, amount: number, source: string) {
 function heal(battle: Battle, unit: Unit, amount: number, source: string) {
   if (!alive(unit)) return;
   const restored = Math.min(amount, unit.maxHp - unit.hp);
-  if (restored > 0) { unit.hp += restored; unit.visual = 'buff'; unit.visualNonce = (unit.visualNonce ?? 0) + 1; log(battle, `${unit.name} recovered ${restored} HP with ${source}.`); }
+  if (restored > 0) { unit.hp += restored; unit.visual = 'buff'; unit.visualNonce = (unit.visualNonce ?? 0) + 1; log(battle, `${unit.name} recovered ${restored} HP with ${source}.`); if (itemFor(source)) feedback(battle, 'item', source, unit); }
 }
 function checkResult(battle: Battle) {
   const wasHeld = battle.captureHeld;
@@ -227,20 +231,24 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   const move = MOVES[moveId];
   const hitChance = abilityHitChance(target.ability, battle.weather);
   const miss = hitChance < 1 && random(battle) >= hitChance;
-  if (miss) { log(battle, `${source.name}'s ${move.name} missed ${target.name}.`); return; }
+  if (miss) { feedback(battle, 'ability', target.ability, target); log(battle, `${source.name}'s ${move.name} missed ${target.name}.`); return; }
   const absorption = abilityAbsorption(target.ability, move.type);
-  if (absorption?.kind === 'heal') { heal(battle, target, max(target.maxHp * (absorption.healFraction ?? 0)), target.ability); return; }
-  if (absorption?.kind === 'charge') { if (absorption.status) target.status[absorption.status] = 1; log(battle, `${target.name} absorbed ${move.type} with ${target.ability}.`); return; }
+  if (absorption?.kind === 'heal') { feedback(battle, 'ability', target.ability, target); heal(battle, target, max(target.maxHp * (absorption.healFraction ?? 0)), target.ability); return; }
+  if (absorption?.kind === 'charge') { feedback(battle, 'ability', target.ability, target); if (absorption.status) target.status[absorption.status] = 1; log(battle, `${target.name} absorbed ${move.type} with ${target.ability}.`); return; }
   const preview = damagePreview(battle, source, target, moveId);
   if (!preview.type) { log(battle, `${target.name} is immune to ${move.type}.`); return; }
   const critical = random(battle) < 1 / 24;
   const randomPercent = 85 + Math.floor(random(battle) * 16);
   const damage = calculateDamage(battle, source, target, move, { critical, randomPercent });
+  if (!visual.abilityTriggered && abilityDamageMultiplier(source, move) > 1) {
+    feedback(battle, 'ability', source.ability, source);
+    visual.abilityTriggered = true;
+  }
   visual.targetIds.push(target.id);
   hit(battle, target, damage, `${move.name}${critical ? ' (critical)' : ''} · ${preview.type}×`);
   if (!alive(target)) return;
   const reaction = hasMoveTag(move, 'contact') && abilityContactReaction(target.ability);
-  if (reaction && random(battle) < reaction.chance) { source.status[reaction.status] = battle.time + reaction.duration; log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
+  if (reaction && random(battle) < reaction.chance) { feedback(battle, 'ability', target.ability, target); source.status[reaction.status] = battle.time + reaction.duration; log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
   for (const effect of move.effects ?? []) {
     if (effect.on !== 'hit' || !alive(target)) continue;
     if (effect.kind === 'status' && random(battle) < effect.chance) {
@@ -301,6 +309,7 @@ export function useSpecial(battle: Battle): string | undefined {
   if (battle.result || !unit || !alive(unit)) return 'No usable Special action.';
   const special = itemSpecial(unit);
   if (!special) return 'No usable Special action or insufficient AP.';
+  const usedItem = unit.item;
   unit.ap -= special.apCost;
   if (special.kind === 'attack-boost') { unit.itemAttackMultiplier = special.attackMultiplier; if (special.consume) unit.item = 'None'; log(battle, `${unit.name}'s Attack is now ×${special.attackMultiplier}.`); }
   else {
@@ -317,6 +326,7 @@ export function useSpecial(battle: Battle): string | undefined {
     log(battle, `${unit.name} Mega Evolved!`);
   }
   unit.visual = 'special'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;
+  feedback(battle, 'item', usedItem, unit);
 }
 export type EnemyAction = { kind: 'move'; points: GridPoint[] } | { kind: 'move-use'; moveId: string; x: number; y: number } | { kind: 'pass' };
 

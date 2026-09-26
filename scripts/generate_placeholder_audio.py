@@ -114,6 +114,15 @@ EFFECTS = {
     "items/item-assault-vest.wav": (0.42, 280, 560, "triangle", 0.1, 2),
     "items/item-x-attack.wav": (0.55, 340, 1080, "square", 0.04, 3),
     "items/item-charizardite-x.wav": (0.85, 220, 1100, "triangle", 0.12, 4),
+    "abilities/ability-chlorophyll.wav": (0.37, 610, 1020, "triangle", 0.03, 3),
+    "abilities/ability-torrent.wav": (0.39, 300, 690, "triangle", 0.14, 4),
+    "abilities/ability-water-absorb.wav": (0.49, 480, 240, "triangle", 0.09, 5),
+    "abilities/ability-sand-veil.wav": (0.46, 390, 130, "triangle", 0.55, 5),
+    "abilities/ability-static.wav": (0.29, 1220, 390, "square", 0.38, 7),
+    "abilities/ability-technician.wav": (0.26, 700, 850, "square", 0.05, 3),
+    "abilities/ability-flash-fire.wav": (0.52, 450, 990, "square", 0.25, 6),
+    "abilities/ability-blaze.wav": (0.44, 310, 900, "square", 0.18, 4),
+    "abilities/ability-tough-claws.wav": (0.35, 720, 170, "triangle", 0.25, 2),
     "cues/cue-move-fallback.wav": (0.3, 430, 180, "triangle", 0.1, 1),
     "cues/cue-item-fallback.wav": (0.38, 400, 760, "triangle", 0.05, 2),
     "cues/cue-pokemon-enter.wav": (0.42, 330, 660, "triangle", 0.03, 2),
@@ -143,7 +152,7 @@ def main() -> None:
     parser.add_argument("--force", action="store_true", help="Overwrite previously generated or replacement audio")
     args = parser.parse_args()
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    listed = {url.removeprefix("/assets/audio/") for category in ("music", "moves", "items", "cues")
+    listed = {url.removeprefix("/assets/audio/") for category in ("music", "moves", "items", "abilities", "cues")
               for url in manifest[category].values()}
     expected = set(EFFECTS) | set(SONGS)
     if listed != expected:

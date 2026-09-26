@@ -1,6 +1,6 @@
 # Placeholder audio asset guide
 
-The playable build includes **29 original, synthetic retro WAV placeholders** in `public/assets/audio/`. They are generated in this workspace with Python's standard library; no Pokémon music, cries, or third-party recordings are included. `audio-manifest.json` maps stable move IDs, held-item names, music states, and shared cues to public URLs. Sound is cosmetic and never changes AP, damage, timing, battle RNG, or saved combat state.
+The playable build includes **38 original, synthetic retro WAV placeholders** in `public/assets/audio/`. They are generated in this workspace with Python's standard library; no Pokémon music, cries, or third-party recordings are included. `audio-manifest.json` maps stable move IDs, held items, abilities, music states, and shared cues to public URLs. Sound is cosmetic and never changes AP, damage, timing, battle RNG, or saved combat state.
 
 ## Files and names
 
@@ -9,6 +9,7 @@ The playable build includes **29 original, synthetic retro WAV placeholders** in
 | Music | `music/bgm-<scene>-loop.wav` | `bgm-menu-loop.wav`, `bgm-route-loop.wav`, `bgm-battle-loop.wav` |
 | Move sound | `moves/move-<move-id-in-kebab-case>.wav` | One named file for each of the 15 initial moves, from `move-tackle.wav` through `move-sunny-day.wav` |
 | Held item | `items/item-<item-id-in-kebab-case>.wav` | `item-leftovers.wav`, `item-sitrus-berry.wav`, `item-assault-vest.wav`, `item-x-attack.wav`, `item-charizardite-x.wav` |
+| Ability trigger | `abilities/ability-<ability-id-in-kebab-case>.wav` | One distinct sound for each of the nine current abilities |
 | Shared cue | `cues/cue-<event>.wav` | `cue-move-fallback.wav`, `cue-item-fallback.wav`, `cue-pokemon-enter.wav`, `cue-pokemon-hit.wav`, `cue-pokemon-faint.wav`, `cue-ui-confirm.wav` |
 | Asset map | `audio-manifest.json` | Stable IDs and URLs used by `src/audio/audio.ts` |
 
@@ -18,9 +19,10 @@ The exact move IDs are `tackle`, `ember`, `vineWhip`, `waterPulse`, `thunderShoc
 
 - Menu, route/preparation, and battle each select their own looping track. The music crossfades when the run phase changes.
 - A move sound starts with its retained attack animation. A hit cue plays when the attack visual includes a damaged target. A faint cue plays when the fainted sprite leaves the board. A missing move mapping uses `cue-move-fallback.wav`.
-- A held item's sound plays when that item is equipped in preparation. X Attack and Charizardite X also play when their **Special** action succeeds. Leftovers and Sitrus Berry have named placeholders ready for their passive recovery events; the current build uses them at equip time and does not yet emit separate passive-recovery sound events.
+- A held item's sound plays when that item is equipped in preparation. X Attack and Charizardite X play when their **Special** action succeeds. Leftovers and Sitrus Berry play when passive recovery actually restores HP.
+- Ability triggers play a distinct named cue and show a brief in-world label. Current triggers cover Chlorophyll at AP gain, damage boosts when a move is used, Water Absorb and Flash Fire absorption, Sand Veil dodges, and Static reactions. Cues are cosmetic and bounded; their event IDs do not consume seeded battle RNG.
 - The battle entrance uses `cue-pokemon-enter.wav`. `cue-ui-confirm.wav` is available for future menu actions.
-- Browsers start audio after the first pointer or keyboard action. A **Sound: On/Off** control in the top bar stores only the mute preference under `pokemon-tactics-audio-muted`; it does not enter the run save. Muting silences the master bus.
+- Browsers start audio after the first pointer or keyboard action. **Options → Sound: On/Off** stores only the mute preference under `pokemon-tactics-audio-muted`; it does not enter the run save. Muting silences the master bus.
 
 `src/audio/audio.ts` has a master bus, a music bus, and an effects bus. Music and effects have separate gain settings; the master leaves headroom. At most eight one-shot effects play simultaneously. Files load and decode on demand, while effects preload in the background after the first user action. Repeated effects get a small random pitch change using cosmetic randomness outside the battle's seeded RNG.
 

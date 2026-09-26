@@ -13,7 +13,7 @@ const STORE = 'snapshots';
 type SaveEnvelope = { schemaVersion: number; savedAt: string; run: Run };
 type MapSnapshot = { id: string; signature: string; changes: TileChange[] };
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualPath'>;
-type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
+type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
 type SaveV9 = { schemaVersion: 9; savedAt: string; run: RunSnapshot };
 type StoredSnapshot = SaveV9 | { schemaVersion: 8 | 7; savedAt: string; run: RunSnapshot };
@@ -201,7 +201,7 @@ function snapshotMap(battle: Battle): MapSnapshot {
 
 export function snapshotRun(run: Run): SaveV9 {
   const battle = run.battle;
-  const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, tileChanges: _changes, ...state }) => ({
+  const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualPath: _visualPath, ...unit }) => unit),
@@ -238,7 +238,7 @@ function restoreRun(value: unknown): Run | undefined {
     }
   }
   const tileChanges = Object.fromEntries(saved.map.changes.map(change => [`${change.x},${change.y}`, change]));
-  return migrateRun({ ...run, battle: { ...saved, map, tileChanges, visualEvents: [] } } as Run, envelope.schemaVersion);
+  return migrateRun({ ...run, battle: { ...saved, map, tileChanges, visualEvents: [], feedbackEvents: [] } } as Run, envelope.schemaVersion);
 }
 
 function openDatabase(): Promise<IDBDatabase> {

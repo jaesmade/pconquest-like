@@ -1,5 +1,5 @@
 import type { Move, Unit } from '../game/types';
-import { SPECIES } from './species';
+import { megaFormFor } from './species';
 
 type ItemDefinition = {
   description: string;
@@ -47,7 +47,7 @@ export const itemFor = (id: string): ItemDefinition | undefined => definitions[i
 export function itemCanEquip(item: string, speciesId: string): boolean {
   const definition = itemFor(item);
   if (!definition) return false;
-  return definition.special?.kind !== 'mega-evolve' || SPECIES[speciesId]?.mega?.stone === item;
+  return definition.special?.kind !== 'mega-evolve' || !!megaFormFor(speciesId, item);
 }
 
 export function itemPeriodicHeal(unit: Unit): number {
@@ -70,6 +70,6 @@ export function itemBlocksMove(unit: Unit, move: Move): boolean {
 export function itemSpecial(unit: Unit) {
   const special = itemFor(unit.item)?.special;
   if (!special || unit.ap < special.apCost) return undefined;
-  if (special.kind === 'mega-evolve' && (unit.mega || SPECIES[unit.species]?.mega?.stone !== unit.item)) return undefined;
+  if (special.kind === 'mega-evolve' && !megaFormFor(unit.species, unit.item)) return undefined;
   return special;
 }

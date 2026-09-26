@@ -22,6 +22,7 @@
     "geodude": "/assets/animations/units/geodude/geodude-battle-32px.png",
     "pikachu": "/assets/animations/units/pikachu/pikachu-battle-32px.png",
     "meowth": "/assets/animations/units/meowth/meowth-battle-32px.png",
+    "charizard-mega-x": "/assets/animations/units/placeholder/placeholder-battle-32px.png",
     "placeholder": "/assets/animations/units/placeholder/placeholder-battle-32px.png"
   },
   "effects": {

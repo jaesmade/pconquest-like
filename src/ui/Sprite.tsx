@@ -1,6 +1,6 @@
-import { STARTERS } from '../content/data';
+import manifest from '../../public/assets/animations/animation-manifest.json';
 
 export default function Sprite({ id }: { id: string }) {
-  const texture = STARTERS.includes(id) ? id : 'placeholder';
-  return <span className="portrait" style={{ backgroundImage: `url(/assets/animations/units/${texture}/${texture}-battle-32px.png)` }} aria-hidden="true" />;
+  const units: Record<string, string> = manifest.units;
+  return <span className="portrait" style={{ backgroundImage: `url(${units[id] ?? units[manifest.fallbackUnit]})` }} aria-hidden="true" />;
 }

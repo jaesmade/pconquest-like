@@ -1,4 +1,4 @@
-import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
+import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, megaFormFor, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
 import { canEnter, hasLineOfSight, routeTo, stepCost } from './grid';
@@ -21,15 +21,11 @@ const feedback = (battle: Battle, kind: 'ability' | 'item', key: string, unit: U
 const alive = (unit: Unit) => unit.hp > 0;
 export const MAX_LEVEL = 100;
 export const RUN_START_LEVEL = 10;
-const MAX_CARRY_AP = Math.max(1,
-  Object.values(MOVES).reduce((cost, move) => Math.max(cost, move.apCost), 0),
-  Object.values(ITEM_DEFINITIONS).reduce((cost, item) => Math.max(cost, 'special' in item ? item.special.apCost : 0), 0));
 const encounterFor = (run: Run) => ENCOUNTERS.find(encounter => encounter.id === run.encounterId);
 export const unitAt = (battle: Battle, x: number, y: number) => battle.units.find(unit => alive(unit) && unit.x === x && unit.y === y);
 export const active = (battle: Battle) => battle.units.find(unit => unit.id === battle.current)!;
 export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
 export const apGain = (unit: Unit, battle: Battle) => Math.max(1, Math.floor(effectiveSpeed(unit, battle)));
-export const maxCarryAp = MAX_CARRY_AP;
 const scaleStats = (stats: Unit['stats'], level: number) => stats.map((n, i) => i === 5 || i === 6 ? n : Math.round(n * (1 + 0.07 * (level - 2)))) as Unit['stats'];
 export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
 export const xpForLevel = (level: number) => (level - 1) * 65;
@@ -46,7 +42,7 @@ export function newRun(starter: string, unlocks = 0): Run {
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1 };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
@@ -128,9 +124,10 @@ function activateNext(battle: Battle) {
     battle.current = unit.id;
     unit.maxAp = apGain(unit, battle);
     if (abilitySpeedMultiplier(unit, battle.weather) > 1) feedback(battle, 'ability', unit.ability, unit);
-    unit.ap = unit.maxAp + Math.min(unit.ap, MAX_CARRY_AP);
+    const bankedAp = unit.ap;
+    unit.ap = Math.min(Number.MAX_SAFE_INTEGER, bankedAp + unit.maxAp);
     unit.attackedThisTurn = false;
-    log(battle, `${unit.name}'s turn · ${unit.ap} AP (${unit.maxAp} gained)`);
+    log(battle, `${unit.name}'s turn · ${unit.ap} AP (${bankedAp} banked + ${unit.maxAp} gained)`);
     return;
   }
 }
@@ -333,20 +330,16 @@ export function useSpecial(battle: Battle): string | undefined {
   if (battle.result || !unit || !alive(unit)) return 'No usable Special action.';
   const special = itemSpecial(unit);
   if (!special) return 'No usable Special action or insufficient AP.';
+  const form = special.kind === 'mega-evolve' ? megaFormFor(unit.species, unit.item) : undefined;
+  if (special.kind === 'mega-evolve' && !form) return 'No compatible Mega form.';
   const usedItem = unit.item;
   unit.ap -= special.apCost;
   if (special.kind === 'attack-boost') { unit.itemAttackMultiplier = special.attackMultiplier; if (special.consume) unit.item = 'None'; log(battle, `${unit.name}'s Attack is now ×${special.attackMultiplier}.`); }
-  else {
-    const mega = SPECIES[unit.species].mega;
-    if (!mega) return 'No usable Special action.';
-    unit.mega = true; unit.name = mega.name; unit.ability = mega.ability;
-    if (mega.mobility) {
-      unit.mobility.canFly = mega.mobility.fly ?? unit.types.includes('Flying');
-      unit.mobility.canSwim = mega.mobility.swim ?? unit.types.includes('Water');
-      syncMobility(unit, battle.map.tiles[unit.y][unit.x]);
-    }
+  else if (form) {
     const oldMax = unit.maxHp;
-    unit.stats = scaleStats(mega.stats, unit.level); unit.maxHp = unit.stats[0]; unit.hp += unit.maxHp - oldMax;
+    unit.species = form.id; unit.name = form.species.name; unit.types = [...form.species.types]; unit.ability = form.species.ability;
+    unit.mobility = mobilityFor(form.species, battle.map.tiles[unit.y][unit.x]);
+    unit.stats = statsAtLevel(form.id, unit.level); unit.maxHp = unit.stats[0]; unit.hp += unit.maxHp - oldMax;
     log(battle, `${unit.name} Mega Evolved!`);
   }
   unit.visual = 'special'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;

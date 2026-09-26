@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Board from '../battle/Board';
 import type { BoardView, CameraCommand } from '../battle/Board';
 import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoWorldSize } from '../battle/isometric';
-import { abilityAbsorption, itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES } from '../content/data';
+import { abilityAbsorption, itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES, SPECIES } from '../content/data';
 import { active, apGain, canUseMove, upcoming, unitAt } from '../game/engine';
 import { reachable } from '../game/grid';
 import { damageRange } from '../game/damage';
@@ -168,7 +168,7 @@ export default function BattleScreen(props: Props) {
   const specialReason = !current || current.item === 'None' ? 'No held item'
     : !held?.special ? 'This item activates passively'
     : current.ap < held.special.apCost ? `Needs ${held.special.apCost} AP`
-    : current.mega && held.special.kind === 'mega-evolve' ? 'Already Mega Evolved'
+    : SPECIES[current.species].form?.kind === 'mega' && held.special.kind === 'mega-evolve' ? 'Already Mega Evolved'
     : !itemSpecial(current) ? 'Special unavailable' : '';
   const attackReady = !!current && !!target && !!chosenMove && canUseMove(battle, current, chosenMove, target[0], target[1]);
   const moveReasonFor = (id: string) => current?.attackedThisTurn ? 'Attack used'
@@ -186,7 +186,7 @@ export default function BattleScreen(props: Props) {
     <header className="battle-top-hud">
       <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `ENCOUNTER ${run.encounter + 1}`} · ROUND {battle.round}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
       <div className="turn-strip" aria-label="Turn order">{upcoming(battle).slice(0, 6).map((unit, index) =>
-        <div key={`${unit.id}-${index}`} className={`turn-portrait ${unit.side} ${index === 0 ? 'now' : ''}`} title={`${unit.name} · +${index === 0 ? unit.maxAp : apGain(unit, battle)} AP`}>
+        <div key={`${unit.id}-${index}`} className={`turn-portrait ${unit.side} ${index === 0 ? 'now' : ''}`} title={index === 0 ? `${unit.name} · ${unit.ap} AP now` : `${unit.name} · ${unit.ap} AP banked · +${apGain(unit, battle)} next turn`}>
           <Sprite id={unit.species} /><span>{unit.name}</span>
         </div>)}</div>
       <button className="battle-pause" onClick={props.onPause}>{props.controlBoth ? '⚙ Setup' : '☰ Menu'}</button>
@@ -203,7 +203,7 @@ export default function BattleScreen(props: Props) {
           <button data-popup-focus={!!attackReason && !moveReason || undefined} disabled={!!moveReason || visualBusy} title={moveReason || 'Choose a reachable tile'} onClick={() => chooseMode('move')}><b>Move</b><small>{moveReason || `Up to ${current.stats[6]} tiles · costs AP`}</small></button>
           <button data-popup-focus={!!attackReason && !!moveReason && !specialReason || undefined} disabled={!!specialReason || visualBusy} title={specialReason || held?.description} onClick={props.onSpecial}><img src={`/assets/ui/icons/item-${current.item.toLowerCase().replaceAll(' ', '-')}.svg`} alt="" /><span><b>Special</b><small>{specialReason || `${current.item} · ${held?.special?.apCost} AP`}</small></span></button>
         </div>
-        <button data-popup-focus={!!attackReason && !!moveReason && !!specialReason || undefined} className="end-turn" disabled={visualBusy} onClick={props.onPass}>End turn → <small>Carry unused AP forward</small></button>
+        <button data-popup-focus={!!attackReason && !!moveReason && !!specialReason || undefined} className="end-turn" disabled={visualBusy} onClick={props.onPass}>End turn → <small>Bank {current.ap} AP for next turn</small></button>
       </> : <>
         <div className="popup-submenu-title"><button data-popup-focus disabled={visualBusy} onClick={() => chooseMode('inspect')}>← Back</button><b>{mode === 'attack' ? 'Choose an attack' : 'Choose a destination'}</b></div>
         {mode === 'attack' && <>

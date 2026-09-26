@@ -17,6 +17,8 @@ Base HP is lower than in the pre-v9 content. HP and offensive/defensive stats st
 
 The first enemy trio is Meowth, Vulpix, and Squirtle. It offers multiple type answers without opening with Geodude's Electric immunity and high physical Defense. Later encounters retain stronger coverage and weather pressure. No opponent is given a hidden damage bonus.
 
+Unused AP now banks in full within each battle, for either side. A unit adds its Speed-based gain when it next acts; the one-Attack-per-turn limit still applies. This changes the value of passing early, so future balance reviews should record banked AP and whether delayed movement or item use changes encounter outcomes.
+
 ## Save behavior
 
 Schema v9 migrates older parties from the previous level-2 starting curve by adding eight levels, preserving progress within a level and each Pokémon's HP percentage using frozen old HP bases. An older active battle returns to preparation; this prevents a pre-balance battle snapshot from mixing old unit stats with new move content. New v9 battles and run saves use the updated values. The current and recovery copies remain in IndexedDB.

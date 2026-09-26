@@ -24,17 +24,26 @@ export function validateCatalog(): string[] {
       if (effect.kind === 'displace' && (!Number.isInteger(effect.tiles) || effect.tiles < 1)) errors.push(`Move ${id}: displacement must be a positive tile count`);
     }
   }
+  const formLinks = new Set<string>();
   for (const [id, species] of Object.entries(SPECIES)) {
     if (!ABILITIES[species.ability]) errors.push(`Species ${id}: unknown ability ${species.ability}`);
-    if (species.mega && !ABILITIES[species.mega.ability]) errors.push(`Species ${id}: unknown Mega ability ${species.mega.ability}`);
     for (const type of species.types) if (!TYPES.includes(type)) errors.push(`Species ${id}: unknown type ${type}`);
     for (const move of [...species.moves, ...Object.values(species.learn)]) if (!MOVES[move]) errors.push(`Species ${id}: unknown move ${move}`);
     if (species.evolves && !SPECIES[species.evolves.into]) errors.push(`Species ${id}: unknown evolution ${species.evolves.into}`);
-    if (species.mega && (!ITEMS.includes(species.mega.stone) || itemFor(species.mega.stone)?.special?.kind !== 'mega-evolve')) errors.push(`Species ${id}: invalid Mega Stone ${species.mega.stone}`);
+    if (species.evolves && SPECIES[species.evolves.into]?.form) errors.push(`Species ${id}: ordinary evolution cannot target temporary form ${species.evolves.into}`);
     if (species.stats.length !== 7 || species.stats.some(value => !Number.isInteger(value) || value <= 0)) errors.push(`Species ${id}: expected seven positive integer stats`);
-    if (species.mega && (species.mega.stats.length !== 7 || species.mega.stats.some(value => !Number.isInteger(value) || value <= 0))) errors.push(`Species ${id}: expected seven positive integer Mega stats`);
+    if (species.form?.kind === 'mega') {
+      const { from, stone } = species.form, source = SPECIES[from], link = `${from}:${stone}`;
+      if (!source || source.form || from === id) errors.push(`Species ${id}: Mega source ${from} must be a normal species`);
+      if (!ITEMS.includes(stone) || itemFor(stone)?.special?.kind !== 'mega-evolve') errors.push(`Species ${id}: invalid Mega Stone ${stone}`);
+      if (formLinks.has(link)) errors.push(`Species ${id}: duplicate Mega form for ${from} and ${stone}`);
+      formLinks.add(link);
+    }
   }
-  for (const id of [...STARTERS, ...RECRUITS]) if (!SPECIES[id]) errors.push(`Roster: unknown species ${id}`);
+  for (const id of [...STARTERS, ...RECRUITS]) {
+    if (!SPECIES[id]) errors.push(`Roster: unknown species ${id}`);
+    else if (SPECIES[id].form?.kind === 'mega') errors.push(`Roster: temporary Mega form ${id} cannot be recruited directly`);
+  }
   const encounterIds = new Set<string>();
   for (const encounter of ENCOUNTERS) {
     if (encounterIds.has(encounter.id)) errors.push(`Encounter: duplicate ID ${encounter.id}`);

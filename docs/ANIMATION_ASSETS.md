@@ -37,9 +37,9 @@ The playable build uses original, generic pixel placeholders in `public/assets/a
 | Weather loop | `public/assets/animations/weather/weather-<weather-id>-32px.png` | `weather-sandstorm-32px.png` |
 | Asset map | `public/assets/animations/animation-manifest.json` | Maps stable IDs to public URLs and frame layout |
 
-Use lowercase kebab case for IDs. Keep the same ID in the directory, filename, manifest, and Pokémon data. A new evolution or Mega form gets its own ID and sheet, such as `charizard-mega-y/charizard-mega-y-battle-32px.png`. A Vite runtime URL starts with `/assets/animations/`; it does not include `/public`.
+Use lowercase kebab case for IDs. Keep the same ID in the directory, filename, manifest, and Pokémon data. A new evolution or Mega form gets its own species ID and sheet, such as `charizard-mega-y/charizard-mega-y-battle-32px.png`. The initial `charizard-mega-x` manifest entry currently points to the shared placeholder sheet; replace that URL with `/assets/animations/units/charizard-mega-x/charizard-mega-x-battle-32px.png` when its art is ready. The renderer preloads the compatible held-stone form and switches textures when the battle unit's species ID changes. A Vite runtime URL starts with `/assets/animations/`; it does not include `/public`.
 
-The included unit IDs are `bulbasaur`, `squirtle`, `lapras`, `geodude`, `pikachu`, `meowth`, and `placeholder`. The shared effect IDs are `attack-impact`, `buff`, `debuff`, `heal`, `mega`, and `status`. Weather IDs are `sun`, `rain`, `snow`, and `sandstorm`. Attack IDs use the move-data keys, such as `waterPulse`, in the manifest; filenames use kebab case, such as `attack-water-pulse-32px.png`.
+The included unit IDs are `bulbasaur`, `squirtle`, `lapras`, `geodude`, `pikachu`, `meowth`, `charizard-mega-x`, and `placeholder`; the Mega ID currently shares the placeholder image URL. The shared effect IDs are `attack-impact`, `buff`, `debuff`, `heal`, `mega`, and `status`. Weather IDs are `sun`, `rain`, `snow`, and `sandstorm`. Attack IDs use the move-data keys, such as `waterPulse`, in the manifest; filenames use kebab case, such as `attack-water-pulse-32px.png`.
 
 ## Battle sheet layout
 

@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import manifest from '../../public/assets/animations/animation-manifest.json';
 import battleAssets from '../../public/assets/battle-asset-manifest.json';
 import isoAssets from '../../public/assets/environment/isometric/isometric-manifest.json';
-import { abilityAbsorption, effectiveness, mapHeight, mapWidth, MOVES } from '../content/data';
+import { abilityAbsorption, effectiveness, mapHeight, mapWidth, megaFormFor, MOVES } from '../content/data';
 import type { AttackVisualEvent, Battle, FeedbackEvent, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange, unitAt } from '../game/engine';
 import type { MovementPath } from '../game/grid';
@@ -52,7 +52,7 @@ class BattleScene extends Phaser.Scene {
     for (const asset of battleAssets.assets) this.load.image(asset.id, asset.url);
     for (const [kind, urls] of Object.entries(isoAssets.tiles)) urls.forEach((url, level) => this.load.svg(`iso-${kind}-h${level}-96px`, url));
     for (const [id, url] of Object.entries(isoAssets.decorations)) this.load.svg(`iso-${id}`, url);
-    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.map(unit => unit.species)]);
+    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id))]);
     const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
     for (const [id, url] of Object.entries(manifest.units)) if (unitIds.has(id)) this.load.spritesheet(id, url, { frameWidth: 32, frameHeight: 32 });
     for (const [id, url] of Object.entries(manifest.effects)) this.load.spritesheet(`effect-${id}`, url, { frameWidth: 32, frameHeight: 32 });
@@ -65,7 +65,7 @@ class BattleScene extends Phaser.Scene {
     this.ground = this.add.graphics().setDepth(1);
     this.targetOverlay = this.add.graphics().setDepth(2);
     this.drawTerrain();
-    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.map(unit => unit.species)]);
+    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id))]);
     const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
     for (const id of Object.keys(manifest.units).filter(id => unitIds.has(id))) for (let direction = 0; direction < 4; direction++) for (const [clip, data] of Object.entries(clips)) {
       const start = direction * manifest.columns + data.startColumn;
@@ -441,6 +441,7 @@ class BattleScene extends Phaser.Scene {
     }
     const newVisual = this.seen.get(unit.id) !== unit.visualNonce;
     if (!sprite) { sprite = this.add.sprite(x, y, texture).setScale(1.65).setDepth(5); this.sprites.set(unit.id, sprite); sprite.play(`${texture}-${unit.facing}-idle`); }
+    else if (sprite.texture.key !== texture) sprite.setTexture(texture);
     else if (newVisual && unit.visual === 'move' && unit.visualPath?.length) this.animateRoute(sprite, markers, unit.visualPath, unit, texture, unit.facing);
     else if ((sprite.x !== x || sprite.y !== y) && !this.tweens.isTweening(sprite)) this.tweens.add({ targets: sprite, x, y, duration: 230, ease: 'Sine.easeInOut' });
     if (!(unit.visual === 'move' && (newVisual || this.tweens.isTweening(sprite)))) {

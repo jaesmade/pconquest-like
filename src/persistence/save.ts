@@ -1,7 +1,7 @@
-import { abilityFor, ENCOUNTERS, itemFor, MAPS, MOVES, SPECIES, TYPES } from '../content/data';
-import { MAX_LEVEL, RUN_START_LEVEL, maxCarryAp, statsAtLevel, xpForLevel } from '../game/engine';
+import { abilityFor, ENCOUNTERS, itemFor, MAPS, megaFormFor, MOVES, SPECIES, TYPES } from '../content/data';
+import { MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
-import { syncMobility } from '../game/mobility';
+import { mobilityFor, syncMobility } from '../game/mobility';
 import { resolvePlayerDeployment } from '../game/deployment';
 import type { Battle, BattleMap, Run, TileChange, Unit } from '../game/types';
 
@@ -15,8 +15,8 @@ type MapSnapshot = { id: string; signature: string; changes: TileChange[] };
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV9 = { schemaVersion: 9; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV9 | { schemaVersion: 8 | 7; savedAt: string; run: RunSnapshot };
+type SaveV10 = { schemaVersion: 10; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV10 | { schemaVersion: 9 | 8 | 7; savedAt: string; run: RunSnapshot };
 // Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
 const LEGACY_HP_BASE: Record<string, number> = {
   bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
@@ -75,6 +75,25 @@ function migrateRun(run: Run, version: number): Run {
     next.report = ['Battle returned to preparation after the run balance update.'];
   }
 
+  if (version === 9 && next.battle) {
+    const legacyUnits = next.battle.units as (Unit & { mega?: boolean })[];
+    if (legacyUnits.some(unit => unit.mega && !megaFormFor(unit.species, unit.item))) {
+      next.phase = 'prepare';
+      next.battle = undefined;
+      next.report = ['A Mega form changed since this battle was saved. Prepare your team to restart it.'];
+    } else for (const unit of legacyUnits) {
+      if (unit.mega) {
+        const form = megaFormFor(unit.species, unit.item)!;
+        unit.species = form.id;
+        unit.name = form.species.name;
+        unit.types = [...form.species.types];
+        unit.ability = form.species.ability;
+        unit.mobility = mobilityFor(form.species, next.battle.map.tiles[unit.y][unit.x]);
+      }
+      delete unit.mega;
+    }
+  }
+
   // The old battle cannot reveal whether its active unit already spent its attack.
   if (version < 5 && next.battle) {
     if (next.phase === 'battle') {
@@ -109,8 +128,7 @@ function migrateRun(run: Run, version: number): Run {
       && unit.status && typeof unit.status === 'object' && !Array.isArray(unit.status)
       && Object.values(unit.status).every(value => Number.isFinite(value) && value >= 0)
       && Number.isInteger(unit.x) && Number.isInteger(unit.y) && Number.isFinite(unit.hp)
-      && Number.isFinite(unit.ap) && unit.ap >= 0 && Number.isFinite(unit.maxAp) && unit.maxAp >= 0
-      && unit.ap <= unit.maxAp + maxCarryAp
+      && Number.isSafeInteger(unit.ap) && unit.ap >= 0 && Number.isSafeInteger(unit.maxAp) && unit.maxAp >= 0
       && Number.isFinite(unit.maxHp) && unit.maxHp > 0 && unit.hp >= 0 && unit.hp <= unit.maxHp
       && Number.isInteger(unit.level) && unit.level >= 1 && unit.level <= 100
       && ['attack', 'defense', 'specialAttack', 'specialDefense'].every(stat => Number.isInteger(unit.stages?.[stat as keyof typeof unit.stages]) && Math.abs(unit.stages[stat as keyof typeof unit.stages]) <= 6)
@@ -199,20 +217,20 @@ function snapshotMap(battle: Battle): MapSnapshot {
   return { id: map.id, signature: mapSignature(authored, true), changes };
 }
 
-export function snapshotRun(run: Run): SaveV9 {
+export function snapshotRun(run: Run): SaveV10 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 9, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 10, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;

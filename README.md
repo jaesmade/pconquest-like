@@ -1,6 +1,6 @@
 # Pokémon Tactics Roguelike — playable prototype
 
-This early browser build turns the [design plan](PLAN.md) into a short tactical run. It uses original generic placeholder sprites, not Pokémon artwork. The battle board is Phaser, menus are React, and combat rules and content are TypeScript.
+This early browser build turns the [design plan](docs/PLAN.md) into a short tactical run. It uses original generic placeholder sprites, not Pokémon artwork. The battle board is Phaser, menus are React, and combat rules and content are TypeScript.
 
 ## Run in Docker
 
@@ -34,4 +34,4 @@ The [animation asset guide](docs/ANIMATION_ASSETS.md) describes filenames, sheet
 
 ## Still planned
 
-This is a first implementation pass. Enemy decisions are still basic. The UI does not yet show a full path preview or line-of-sight overlay, animation playback is immediate rather than a locked combat timeline, and route choices and rewards need more variety. See [PLAN.md](PLAN.md) for the complete intended build.
+This is a first implementation pass. Enemy decisions are still basic. The UI does not yet show a full path preview or line-of-sight overlay, animation playback is immediate rather than a locked combat timeline, and route choices and rewards need more variety. See [the design plan](docs/PLAN.md) for the complete intended build and [the UI overhaul plan](docs/UI_OVERHAUL_PLAN.md) for the next interface pass.

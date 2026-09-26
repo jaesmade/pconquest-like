@@ -37,7 +37,7 @@ Target run length: about 15–25 minutes once the player understands the control
 
 The rules and content format should accept all 18 Pokémon types even though the first roster is small. The two recruitable Pokémon beyond the named starters need final species choices. Later roster additions should be content work rather than a combat rewrite.
 
-For future implementation, use stable content IDs, authored encounter definitions, map-defined spawns, a versioned save, and a battle renderer that reads map dimensions. See [the extension guide](docs/SCALING.md) for the current code layout and the steps needed when adding content or new rule families.
+For future implementation, use stable content IDs, authored encounter definitions, map-defined spawns, a versioned save, and a battle renderer that reads map dimensions. See [the extension guide](SCALING.md) for the current code layout and the steps needed when adding content or new rule families.
 
 ## Battle rules
 
@@ -239,7 +239,7 @@ Permanent unlocks should add variety, such as a new starter, recruit, map, or it
 | Reward / recruit         | Clear comparison of available choices                                                                                                                                       |
 | Result                   | Run outcome and newly unlocked content                                                                                                                                      |
 
-Use crisp pixel rendering, consistent tile size, and readable icons. Type and status information must appear in text or symbols as well as color. The initial build uses the original generic placeholder sheets in `public/assets/animations/`. The [animation asset guide](docs/ANIMATION_ASSETS.md) defines every file name, direction row, frame range, playback trigger, and replacement step. Record the source and permission of any later artwork intended for distribution.
+Use crisp pixel rendering, consistent tile size, and readable icons. Type and status information must appear in text or symbols as well as color. The initial build uses the original generic placeholder sheets in `public/assets/animations/`. The [animation asset guide](ANIMATION_ASSETS.md) defines every file name, direction row, frame range, playback trigger, and replacement step. Record the source and permission of any later artwork intended for distribution.
 
 On the grid, face a Pokémon toward its next movement tile or attack target. Play movement between tile centers, attack toward the target, hurt on a successful damaging hit, and a separate one-shot effect for buffs, debuffs, healing, weather, and Mega Evolution. Return to directional idle after an action; play faint before removing a Pokémon. Finish the visible action sequence before showing the next Speed-queue activation, while keeping animation timing separate from combat calculations.
 

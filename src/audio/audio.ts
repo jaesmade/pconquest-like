@@ -35,20 +35,23 @@ class GameAudio {
   async unlock() {
     if (this.muted) return;
     if (!this.context) {
-      const context = new AudioContext();
-      const master = context.createGain();
-      const musicBus = context.createGain();
-      const effectsBus = context.createGain();
-      master.gain.value = this.muted ? 0 : gainFromDb(-6);
-      musicBus.gain.value = gainFromDb(-10);
-      effectsBus.gain.value = gainFromDb(-5);
-      musicBus.connect(master);
-      effectsBus.connect(master);
-      master.connect(context.destination);
-      this.context = context;
-      this.master = master;
-      this.musicBus = musicBus;
-      this.effectsBus = effectsBus;
+      if (typeof AudioContext === 'undefined') return;
+      try {
+        const context = new AudioContext();
+        const master = context.createGain();
+        const musicBus = context.createGain();
+        const effectsBus = context.createGain();
+        master.gain.value = gainFromDb(-6);
+        musicBus.gain.value = gainFromDb(-10);
+        effectsBus.gain.value = gainFromDb(-5);
+        musicBus.connect(master);
+        effectsBus.connect(master);
+        master.connect(context.destination);
+        this.context = context;
+        this.master = master;
+        this.musicBus = musicBus;
+        this.effectsBus = effectsBus;
+      } catch { return; }
     }
     try { await this.context.resume(); }
     catch { return; }
@@ -83,7 +86,7 @@ class GameAudio {
     const task = fetch(url)
       .then(response => { if (!response.ok) throw new Error(`Audio ${response.status}: ${url}`); return response.arrayBuffer(); })
       .then(bytes => this.context?.decodeAudioData(bytes))
-      .catch(() => undefined);
+      .catch(() => { this.buffers.delete(url); return undefined; });
     this.buffers.set(url, task);
     return task;
   }
@@ -95,7 +98,7 @@ class GameAudio {
     if (!buffer || context.state !== 'running' || this.muted) return;
     if (this.playingEffects.size >= 8) {
       const oldest = this.playingEffects.values().next().value;
-      oldest?.stop();
+      try { oldest?.stop(); } catch { /* A completed source may still await its ended callback. */ }
       if (oldest) this.playingEffects.delete(oldest);
     }
     const source = context.createBufferSource();
@@ -104,7 +107,8 @@ class GameAudio {
     source.connect(this.effectsBus);
     source.onended = () => { this.playingEffects.delete(source); source.disconnect(); };
     this.playingEffects.add(source);
-    source.start();
+    try { source.start(); }
+    catch { this.playingEffects.delete(source); source.disconnect(); }
   }
 
   private fadeOutMusic() {
@@ -136,8 +140,8 @@ class GameAudio {
     source.loop = true;
     source.connect(gain);
     gain.connect(this.musicBus);
-    source.start();
-    this.music = { source, gain };
+    try { source.start(); this.music = { source, gain }; }
+    catch { source.disconnect(); gain.disconnect(); }
   }
 }
 

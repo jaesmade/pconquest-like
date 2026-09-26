@@ -1,20 +1,22 @@
 # Animation asset guide
 
-## Imported battle environment and HUD art
+## Isometric battle environment and imported HUD art
 
-The battle now uses named 16×16 terrain tiles cropped from [Kenney Roguelike/RPG Pack](https://kenney.nl/assets/roguelike-rpg-pack), version 1.0, and named 32×32 HUD frames from [Kenney UI Pack – Pixel Adventure](https://kenney.nl/assets/ui-pack-pixel-adventure), version 2.0. Both source packs state CC0 1.0; Kenney credit is appreciated but optional. The [battle asset manifest](../public/assets/battle-asset-manifest.json) lists each source file and atlas cell. The [contact sheet](BATTLE_ASSET_PREVIEW.png) shows every imported file at 2–4× nearest-neighbor scale.
+The current battlefield uses the [isometric environment family](ISOMETRIC_ASSETS.md): raised grass, water, lava, and stone tiles plus trees, rocks, and flowers. Tile tops are 96×48 pixels and elevation adds 20 pixels per level. The old Kenney terrain tiles below are retained in the repository as replaceable source material, but the active Phaser board loads the isometric manifest. The Kenney HUD frames remain active.
+
+The earlier top-down asset pass imported named 16×16 terrain tiles from [Kenney Roguelike/RPG Pack](https://kenney.nl/assets/roguelike-rpg-pack), version 1.0, and 32×32 HUD frames from [Kenney UI Pack – Pixel Adventure](https://kenney.nl/assets/ui-pack-pixel-adventure), version 2.0. Both source packs state CC0 1.0; Kenney credit is appreciated but optional. The [battle asset manifest](../public/assets/battle-asset-manifest.json) and [contact sheet](BATTLE_ASSET_PREVIEW.png) document that older family. The active environment art is listed in the isometric guide.
 
 | Gameplay role | File family | Rendering |
 | --- | --- | --- |
-| Plain, water, lava, wall | `public/assets/environment/tiles/terrain-<kind>-16px.png` plus `-variant` | 16×16 source enlarged 4× into each 64×64 world tile; fixed coordinate hash selects a variant |
-| Sparse floral decal | `public/assets/environment/overlays/overlay-flower-16px.png` | Stamped into the static terrain layer on selected plain tiles |
+| Plain, water, lava, wall | `public/assets/environment/isometric/iso-<kind>-h<level>-96px.svg` | Active 96×48 isometric tops with height-specific cliffs |
+| Trees, rocks, flowers | `public/assets/environment/isometric/iso-<detail>-<width>px.svg` | Decorative stamps on selected plain tiles |
 | Temporary cover | `public/assets/environment/overlays/overlay-cover-16px.png` | Dynamic sprite on tiles where cover is active |
 | Ally, enemy, target portrait frames | `public/assets/ui/hud/hud-portrait-<role>-32px.png` | CSS background behind the placeholder unit-sheet portrait |
 | Action panel frame | `public/assets/ui/hud/hud-panel-border-32px.png` | CSS border image; text and buttons remain HTML |
 
-Height markings, zone tints, move range, target effectiveness, shadows, and swim ripples remain overlays above terrain. Terrain is stamped once into a Phaser render texture so camera movement does not rebuild 1,024 tile objects. The camera retains 64-pixel world coordinates and uses nearest-neighbor rendering. A map up to 32×32 opens near unit scale, can pan/zoom, and the minimap shows the visible window. Click mapping goes through `camera.getWorldPoint` before dividing by tile size.
+Zone tints, move range, target effectiveness, shadows, and swim ripples remain overlays above terrain. Terrain is stamped once into a Phaser render texture so camera movement does not rebuild 1,024 tile objects. A map up to 32×32 can pan/zoom, and the minimap shows the projected visible window. Click mapping goes through `camera.getWorldPoint` and the isometric diamond lookup.
 
-To reimport from the original archives, download `kenney_roguelike-rpg-pack.zip` as `roguelike.zip` and `kenney_ui-pack-pixel-adventure.zip` as `ui.zip` into a folder, install Pillow, then run `python scripts/import_battle_assets.py <folder>`. The script leaves existing PNGs untouched unless `--force` is supplied, so hand-replaced files are preserved. For a replacement tile, keep the 16×16 size and the same named path; for a HUD frame, keep 32×32. Preview a replacement as a repeated 3×3 patch at native scale to catch seams, then rebuild the app. New IDs need a manifest entry and a renderer lookup.
+To reimport the Kenney archives, download `kenney_roguelike-rpg-pack.zip` as `roguelike.zip` and `kenney_ui-pack-pixel-adventure.zip` as `ui.zip` into a folder, install Pillow, then run `python scripts/import_battle_assets.py <folder>`. The script preserves existing PNGs unless `--force` is supplied. The imported HUD frames remain 32×32. To replace current terrain, follow the isometric guide and preserve the diamond bounds.
 
 ## UI overhaul placeholders
 

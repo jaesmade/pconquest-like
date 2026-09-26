@@ -1,4 +1,4 @@
-import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
+import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, ITEM_DEFINITIONS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MOVES, RECRUITS, SPECIES, STARTERS, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
 import { canEnter, hasLineOfSight, routeTo, stepCost } from './grid';
@@ -8,6 +8,7 @@ import { calculateDamage, damageRange } from './damage';
 import { setTileEffects } from './clone';
 import { hasMoveTag } from '../content/moves';
 import { canDeploy, chooseEnemyDeployment, resolvePlayerDeployment } from './deployment';
+import { createMap } from '../content/maps';
 
 export { reachable, reachableTiles } from './grid';
 
@@ -45,7 +46,7 @@ export function newRun(starter: string, unlocks = 0): Run {
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
@@ -95,6 +96,29 @@ function beginRound(battle: Battle, initial = false) {
     .map(entry => entry.unit.id);
   battle.turnIndex = 0;
   activateNext(battle);
+}
+
+export type LabConfig = { allySpecies: string; enemySpecies: string; allyLevel: number; enemyLevel: number; allyItem: ItemId; enemyItem: ItemId; weather: Weather; seed: number };
+
+/** Disposable 1v1 battle. It shares the campaign's unit, turn, damage, and effect rules. */
+export function createLabBattle(config: LabConfig): Battle {
+  for (const id of [config.allySpecies, config.enemySpecies]) if (!SPECIES[id]) throw new Error(`Unknown lab species ${id}`);
+  for (const level of [config.allyLevel, config.enemyLevel]) if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) throw new Error('Lab levels must be 1–100.');
+  if (!itemCanEquip(config.allyItem, config.allySpecies) || !itemCanEquip(config.enemyItem, config.enemySpecies)) throw new Error('Invalid lab held item.');
+  const map = createMap({ id: 'battle-lab', name: 'Battle Lab', weather: config.weather,
+    terrain: Array(5).fill('.....'), elevation: Array(5).fill('00000'), zones: ['EEEEE', 'EEEEE', 'NNNNN', 'AAAAA', 'AAAAA'],
+    playerSpawns: [[2, 3]], enemySpawns: [[2, 1]] });
+  const ally = makeUnit(makePartyMon(config.allySpecies, config.allyLevel, config.allyItem), 'player', 2, 3, map.tiles[3][2]);
+  const enemy = makeUnit(makePartyMon(config.enemySpecies, config.enemyLevel, config.enemyItem), 'enemy', 2, 1, map.tiles[1][2]);
+  // The lab exposes every level-eligible move, including moves normally left out of two campaign slots.
+  ally.moves = learnedAtLevel(config.allySpecies, config.allyLevel);
+  enemy.moves = learnedAtLevel(config.enemySpecies, config.enemyLevel);
+  const battle: Battle = { map, tileChanges: {}, objective: 'defeat', units: [ally, enemy], weather: config.weather,
+    weatherUntil: config.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0,
+    current: '', rngState: config.seed >>> 0 || 1, log: [`Battle Lab · seed ${config.seed >>> 0 || 1}. Control both Pokémon.`],
+    visualEvents: [], feedbackEvents: [], captureHeld: false, encounterId: 'battle-lab' };
+  beginRound(battle, true);
+  return battle;
 }
 function activateNext(battle: Battle) {
   while (!battle.result) {

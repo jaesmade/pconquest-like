@@ -15,6 +15,13 @@
 - Selected 16×16 terrain and overlay cells from Kenney's CC0 Roguelike/RPG pack are imported under named paths and drawn once into a static Phaser render texture. Selected 32×32 frames from the CC0 UI Pack – Pixel Adventure style the turn portraits and action panel. The [asset manifest](../public/assets/battle-asset-manifest.json) records pack version, source file/cell, size, pivot, license, and replacement path; see the [preview](BATTLE_ASSET_PREVIEW.png).
 - The remaining work in this plan includes a responsive settings pass, keyboard/gamepad camera navigation, visual review across screen sizes, and measured 32×32/8v8 performance before claiming the 60 FPS target.
 
+## Implementation progress (contextual action pass)
+
+- The active ally's action panel now measures its own size, projects the actor through the camera, prefers the right side, flips left when needed, clamps within the stage, and draws a connector. On narrow viewports it becomes a bottom sheet.
+- Main commands show the reason when Attack, Move, or Special is unavailable. Attack and Move open focused submenus with a Back control; Escape returns to the main commands, closes inspection or the panel, then opens Pause. Closing the panel returns focus to its Actions button. Pause accepts Escape to resume.
+- Selecting a movement tile now previews the authoritative route, step count, AP cost, remaining AP, terrain, and path overlay. **Confirm move** commits it; Back consumes no AP. Reachability is calculated once per movement state and shared with highlights and the preview.
+- Attack selection retains the existing range and type effectiveness preview. The Confirm control stays at the bottom of the submenu. Inspecting another Pokémon or terrain tile shows a compact readout without changing the active actor. The panel reopens after a committed animation when the ally can still act.
+
 ## Goal and current baseline
 
 Make the battle feel like the main game screen: the map fills the browser viewport, the active Pokémon's commands appear beside it, and the next turns are readable as portraits over the battlefield. Add a title screen with **Start Game**, **Options**, and **Exit** before the existing run flow.

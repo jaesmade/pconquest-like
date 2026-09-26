@@ -2,18 +2,18 @@
 
 This early browser build turns the [design plan](docs/PLAN.md) into a short tactical run. It uses original generic placeholder sprites, not Pokémon artwork. The battle board is Phaser, menus are React, and combat rules and content are TypeScript.
 
-## Run in Docker
+## Run locally
 
 ```powershell
-docker build -t pokemon-tactics:dev .
-docker run -d --name pokemon-tactics -p 8080:80 pokemon-tactics:dev
+npm install
+npm run dev -- --host 127.0.0.1 --port 8080
 ```
 
-Open <http://localhost:8080>. On systems with the Docker Compose plugin, `docker compose up --build -d` uses [compose.yaml](compose.yaml). To stop the direct container: `docker stop pokemon-tactics`.
-
-For local development: `npm install` and `npm run dev`, then open the Vite URL printed in the terminal.
+Open <http://localhost:8080>. Drag the battlefield with the mouse to pan; click a tile to interact, use the wheel to zoom, or use the camera controls beside the minimap.
 
 ## What is playable
+
+The [Battle Lab](docs/BATTLE_LAB.md) is a small 1v1 arena where you control both sides, choose species, level, held item, weather, and seed, then inspect animation playback and damage ranges without changing the saved run.
 
 - Choose one of six starters. Two companions join; route recruitment grows the party to six. Select up to three healthy Pokémon for each battle.
 - Four encounters on authored square maps, currently 8×8, with elevation, deep water, lava, a boss capture point, and snow, sun, rain, or sandstorm starting weather. Swimmers show a water ripple; flying forms float above a shadow. The renderer and range calculations accept other rectangular map sizes.
@@ -29,6 +29,8 @@ For local development: `npm install` and `npm run dev`, then open the Vite URL p
 The [extension guide](docs/SCALING.md) maps the content files, stable IDs, encounter and map contracts, save migration, and the remaining engine rules that need a new handler when expanded. The [balance baseline](docs/BALANCE.md) records the current run curve. Abilities and held items live in [abilities.ts](src/content/abilities.ts) and [items.ts](src/content/items.ts). The content catalog checks references at startup. Battle rendering loads when an encounter begins, keeping the initial menus separate from Phaser.
 
 ## Placeholder assets
+
+The battlefield now uses a [replaceable isometric tile family](docs/ISOMETRIC_ASSETS.md) and a generated reference-inspired title backdrop. Its square combat rules remain unchanged; the renderer projects cells, units, paths, and attack effects into the new view. Pokémon sheets remain named placeholders.
 
 The [animation asset guide](docs/ANIMATION_ASSETS.md) describes filenames, sheet layout, direction rows, frame ranges, all 15 move-specific attack effects, and replacement steps. The runtime reads [animation-manifest.json](public/assets/animations/animation-manifest.json). Named starter sheets are included; other forms use the `placeholder` sheet until their artwork is added. Attack effects are queued on the board so quick enemy turns do not overwrite them.
 

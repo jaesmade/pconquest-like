@@ -15,9 +15,9 @@ type MapSource = {
 const terrainKinds: Record<string, Tile['kind']> = { '.': 'plain', '~': 'water', '^': 'lava', '#': 'wall' };
 const zoneKinds: Record<string, DeploymentZone> = { A: 'ally', N: 'neutral', E: 'enemy' };
 export const MAX_MAP_SIZE = 32;
-const standardZones = Array<string>(8).fill('AANNNNEE');
-const west: GridPoint[] = [[0, 1], [0, 3], [0, 5]];
-const east: GridPoint[] = [[7, 1], [7, 3], [7, 5]];
+const standardZones = ['EEEEEEEE', 'EEEEEEEE', ...Array<string>(4).fill('NNNNNNNN'), 'AAAAAAAA', 'AAAAAAAA'];
+const bottom: GridPoint[] = [[0, 7], [1, 7], [2, 7]];
+const top: GridPoint[] = [[0, 0], [1, 0], [2, 0]];
 
 export function createMap(source: MapSource): BattleMap {
   const height = source.terrain.length;
@@ -68,10 +68,10 @@ export function createMap(source: MapSource): BattleMap {
 }
 
 export const MAPS: Record<string, BattleMap> = Object.fromEntries([
-  createMap({ id: 'verdant-crossing', name: 'Verdant Crossing', weather: 'snow', terrain: ['........', '........', '..~~....', '...~....', '....##..', '..^.....', '........', '........'], elevation: ['00000000','00110000','00000000','00000000','00000000','00000000','00011000','00000000'], zones: standardZones, playerSpawns: west, enemySpawns: east }),
-  createMap({ id: 'cinder-ford', name: 'Cinder Ford', weather: 'sun', terrain: ['........', '...^^...', '..#.....', '..~~....', '...~....', '......#.', '........', '........'], elevation: ['00000000','00000000','00100000','00000000','00000000','00000010','00000000','00000000'], zones: standardZones, playerSpawns: west, enemySpawns: east }),
-  createMap({ id: 'storm-ridge', name: 'Storm Ridge', weather: 'rain', terrain: ['........', '..~~....', '..~~....', '...#....', '....^...', '....^...', '........', '........'], elevation: ['00000000','00000000','00000000','00000000','00000000','00000000','01100000','00000000'], zones: standardZones, playerSpawns: west, enemySpawns: east }),
-  createMap({ id: 'crown-citadel', name: 'Crown Citadel', weather: 'sandstorm', terrain: ['........', '....#...', '..^^....', '........', '...##...', '........', '........', '........'], elevation: ['00000000','00000000','00000000','00122100','00000000','00000000','00000000','00000000'], zones: standardZones, playerSpawns: west, enemySpawns: east, capture: [6, 4] }),
+  createMap({ id: 'verdant-crossing', name: 'Verdant Crossing', weather: 'snow', terrain: ['........', '........', '..~~....', '...~....', '....##..', '..^.....', '........', '........'], elevation: ['00000000','00110000','00000000','00000000','00000000','00000000','00011000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
+  createMap({ id: 'cinder-ford', name: 'Cinder Ford', weather: 'sun', terrain: ['........', '...^^...', '..#.....', '..~~....', '...~....', '......#.', '........', '........'], elevation: ['00000000','00000000','00100000','00000000','00000000','00000010','00000000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
+  createMap({ id: 'storm-ridge', name: 'Storm Ridge', weather: 'rain', terrain: ['........', '..~~....', '..~~....', '...#....', '....^...', '....^...', '........', '........'], elevation: ['00000000','00000000','00000000','00000000','00000000','00000000','01100000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
+  createMap({ id: 'crown-citadel', name: 'Crown Citadel', weather: 'sandstorm', terrain: ['........', '....#...', '..^^....', '........', '...##...', '........', '........', '........'], elevation: ['00000000','00000000','00000000','00122100','00000000','00000000','00000000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top, capture: [6, 4] }),
 ].map(map => [map.id, map]));
 
 export const mapWidth = (map: BattleMap) => map.tiles[0]?.length ?? 0;

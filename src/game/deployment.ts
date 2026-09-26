@@ -44,9 +44,10 @@ export function resolvePlayerDeployment(run: Run, map: BattleMap): Record<string
   return placements;
 }
 
-/** The solo opponent chooses its legal zone tile using the battle's seeded RNG. */
+/** The solo opponent uses authored top-row starts, then falls back to its legal zone. */
 export function chooseEnemyDeployment(map: BattleMap, speciesId: string, occupied: Set<string>, rng: { rngState: number }): GridPoint | undefined {
-  const candidates = zoneCells(map, 'enemy').filter(point => canDeploy(map, speciesId, point, 'enemy') && !occupied.has(key(point)));
+  const preferred = map.enemySpawns.filter(point => canDeploy(map, speciesId, point, 'enemy') && !occupied.has(key(point)));
+  const candidates = preferred.length ? preferred : zoneCells(map, 'enemy').filter(point => canDeploy(map, speciesId, point, 'enemy') && !occupied.has(key(point)));
   if (!candidates.length) return;
   return candidates[Math.floor(random(rng) * candidates.length)];
 }

@@ -56,6 +56,8 @@ For future implementation, use stable content IDs, authored encounter definition
 
 The run party holds at most six Pokémon. Before each encounter, show the full party and let the player select three with current HP above zero. If only one or two are available, they may enter with fewer than three; if none are available, the run ends. The selected Pokémon start on the battle grid, while the others remain reserves and take no turns or terrain and weather damage. There is no midbattle swapping in the early build.
 
+On the top-down deployment grid, allies choose starting tiles in the bottom two rows and enemies use the top two rows. The center four rows are neutral on the initial 8×8 campaign maps. Default allies enter from the bottom edge facing north; default enemies enter from the top edge facing south. Each team may reposition within its own zone before battle when deployment selection is available.
+
 Current HP, fainted state, level, XP, evolution stage, learned and equipped moves, and held item persist between encounters. Recruitment fills empty party slots until the party reaches six. Recruiting while full requires choosing one existing party member to replace. Save both the party and the selected deployment with the run so the next battle can show the previous selection by default.
 
 ### Pokémon stats

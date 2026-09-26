@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "projection": "square-grid-isometric",
+  "tileTopPixels": [96, 48],
+  "heightStepPixels": 20,
+  "source": "Original deterministic SVGs from scripts/generate_isometric_assets.mjs",
+  "license": "Project original; replaceable",
+  "tiles": {
+    "plain": ["/assets/environment/isometric/iso-plain-h0-96px.svg", "/assets/environment/isometric/iso-plain-h1-96px.svg", "/assets/environment/isometric/iso-plain-h2-96px.svg"],
+    "water": ["/assets/environment/isometric/iso-water-h0-96px.svg", "/assets/environment/isometric/iso-water-h1-96px.svg", "/assets/environment/isometric/iso-water-h2-96px.svg"],
+    "lava": ["/assets/environment/isometric/iso-lava-h0-96px.svg", "/assets/environment/isometric/iso-lava-h1-96px.svg", "/assets/environment/isometric/iso-lava-h2-96px.svg"],
+    "wall": ["/assets/environment/isometric/iso-wall-h0-96px.svg", "/assets/environment/isometric/iso-wall-h1-96px.svg", "/assets/environment/isometric/iso-wall-h2-96px.svg"]
+  },
+  "decorations": {
+    "tree": "/assets/environment/isometric/iso-tree-96px.svg",
+    "rock": "/assets/environment/isometric/iso-rock-48px.svg",
+    "flower": "/assets/environment/isometric/iso-flower-32px.svg",
+    "bush": "/assets/environment/isometric/iso-bush-48px.svg",
+    "grass-tuft": "/assets/environment/isometric/iso-grass-tuft-24px.svg"
+  },
+  "backdrop": "/assets/backgrounds/title-island-reference-inspired.png"
+}

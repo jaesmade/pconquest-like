@@ -16,3 +16,21 @@
 @media(max-width:700px){.battle-top-hud{gap:6px}.battle-location{min-width:0;max-width:135px;padding:6px}.battle-location strong{font-size:.85rem}.battle-location small{display:none}.turn-strip{max-width:calc(100vw - 205px)}.turn-portrait{width:55px;min-width:55px}.turn-portrait span:last-child{display:none}.battle-pause{padding:5px 8px;font-size:.75rem}.battle-actor-hud{bottom:calc(8px + env(safe-area-inset-bottom));left:8px}.battle-help{display:none}.battle-log{right:8px;bottom:8px;width:92px}.action-popup{left:8px!important;right:8px;top:auto!important;bottom:76px;width:auto;max-height:50dvh}.battle-map-frame{padding:64px 4px 92px}.battle-map-frame .board{width:min(calc(100vw - 8px),calc(100dvh - 170px));max-height:calc(100dvh - 170px)}}
 @media(prefers-reduced-motion:reduce){.action-popup,.turn-portrait,.title-actions button{transition:none!important}}
 .held-item-icon{width:25px;height:25px;image-rendering:pixelated}
+
+/* Imported Kenney UI frames and camera-first battle layout. */
+.battle-stage::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(#07181faa,transparent 19%,transparent 76%,#07181f88)}
+.battle-map-frame{inset:0;padding:0;display:block}.battle-map-frame .board{width:100%;height:100%;max-width:none;max-height:none;border:0;border-radius:0;box-shadow:none;aspect-ratio:auto}
+.battle-map-frame .board canvas{width:100%;height:100%;object-fit:fill}
+.battle-top-hud{padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 10px calc(12px + env(safe-area-inset-left))}
+.turn-portrait.player{background:#285347 url('/assets/ui/hud/hud-portrait-ally-32px.png') center/100% 100% no-repeat}.turn-portrait.enemy{background:#653c39 url('/assets/ui/hud/hud-portrait-enemy-32px.png') center/100% 100% no-repeat}
+.turn-portrait.now{border-color:#fff0ae;filter:brightness(1.2)}.turn-portrait .portrait{filter:drop-shadow(0 2px 1px #081921)}
+.action-popup{border:12px solid transparent;border-image-source:url('/assets/ui/hud/hud-panel-border-32px.png');border-image-slice:8 fill;border-image-width:12px;border-image-repeat:stretch;background:#102d32f5}
+.battle-location,.battle-actor-hud,.battle-log,.camera-hud{backdrop-filter:blur(3px)}
+.battle-actor-hud{left:calc(14px + env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom))}
+.battle-log{left:calc(14px + env(safe-area-inset-left));right:auto;bottom:calc(110px + env(safe-area-inset-bottom));width:min(310px,30vw)}
+.camera-hud{position:absolute;z-index:5;right:calc(14px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));display:grid;gap:6px;justify-items:end;padding:7px;background:#102b30e9;border:1px solid #769484;border-radius:9px}
+.minimap{display:block;width:144px;height:144px;padding:0;background:#122b30;border:2px solid #b6c9a4;cursor:crosshair}.minimap canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.camera-buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;width:144px}.camera-buttons button{min-height:32px;padding:3px 5px;background:#244b4c;color:#eaf3e8;border:1px solid #718e7c;border-radius:5px;font-size:.72rem}
+.camera-buttons button:hover,.camera-buttons button:focus-visible,.battle-pause:focus-visible,.action-popup button:focus-visible{outline:2px solid #fff1a8;outline-offset:2px}
+.battle-help{bottom:calc(20px + env(safe-area-inset-bottom));z-index:4}
+@media(max-width:700px){.battle-map-frame{padding:0}.battle-map-frame .board{width:100%;height:100%;max-height:none}.battle-log{left:8px;bottom:calc(88px + env(safe-area-inset-bottom));width:112px}.battle-actor-hud{bottom:calc(8px + env(safe-area-inset-bottom))}.camera-hud{right:8px;bottom:calc(8px + env(safe-area-inset-bottom));padding:4px}.minimap{width:88px;height:88px}.camera-buttons{width:88px}.camera-buttons button{min-height:28px;font-size:.57rem}.camera-buttons button:nth-child(n+3){grid-column:span 2}.action-popup{bottom:calc(86px + env(safe-area-inset-bottom))}}

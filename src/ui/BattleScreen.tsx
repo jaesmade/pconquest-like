@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Board from '../battle/Board';
+import type { BoardView, CameraCommand } from '../battle/Board';
 import { itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES } from '../content/data';
 import { active, apGain, canUseMove, upcoming } from '../game/engine';
 import type { Battle, Run, Unit } from '../game/types';
@@ -33,7 +34,12 @@ export default function BattleScreen(props: Props) {
   const move = chosenMove ? MOVES[chosenMove] : undefined;
   const [open, setOpen] = useState(true);
   const [anchor, setAnchor] = useState({ left: 20, top: 150, flip: false });
+  const [cameraAction, setCameraAction] = useState<{ id: number; command: CameraCommand; point?: [number, number] }>();
+  const view = useRef<BoardView | undefined>(undefined);
   const stageRef = useRef<HTMLElement>(null);
+  const minimapRef = useRef<HTMLCanvasElement>(null);
+  const cameraSequence = useRef(0);
+  const issueCamera = (command: CameraCommand, point?: [number, number]) => setCameraAction({ id: ++cameraSequence.current, command, point });
   useEffect(() => { setOpen(true); }, [current?.id, battle.round]);
   useEffect(() => {
     const stage = stageRef.current;
@@ -42,8 +48,10 @@ export default function BattleScreen(props: Props) {
       const canvas = stage.querySelector<HTMLCanvasElement>('.board canvas');
       if (!canvas) return;
       const board = canvas.getBoundingClientRect(), area = stage.getBoundingClientRect();
-      const x = board.left - area.left + (current.x + 0.5) * board.width / mapWidth(battle.map);
-      const y = board.top - area.top + (current.y + 0.5) * board.height / mapHeight(battle.map);
+      const x = board.left - area.left + ((current.x + 0.5) * 64 - (view.current?.left ?? 0))
+        * (view.current?.zoom ?? board.width / (mapWidth(battle.map) * 64)) * board.width / (view.current?.width ?? board.width);
+      const y = board.top - area.top + ((current.y + 0.5) * 64 - (view.current?.top ?? 0))
+        * (view.current?.zoom ?? board.height / (mapHeight(battle.map) * 64)) * board.height / (view.current?.height ?? board.height);
       const flip = x > area.width * 0.58;
       setAnchor({ left: Math.max(12, Math.min(area.width - 344, x + (flip ? -344 : 28))),
         top: Math.max(96, Math.min(area.height - 320, y - 42)), flip });
@@ -61,6 +69,41 @@ export default function BattleScreen(props: Props) {
     window.addEventListener('resize', position);
     return () => { insertion.disconnect(); observer.disconnect(); window.removeEventListener('resize', position); };
   }, [battle.map, current?.id, current?.x, current?.y]);
+  const onViewChange = (next: BoardView) => {
+    view.current = next;
+    const stage = stageRef.current, canvas = stage?.querySelector<HTMLCanvasElement>('.board canvas');
+    if (stage && canvas && current) {
+      const board = canvas.getBoundingClientRect(), area = stage.getBoundingClientRect();
+      const x = board.left - area.left + ((current.x + 0.5) * 64 - next.left) * next.zoom * board.width / next.width;
+      const y = board.top - area.top + ((current.y + 0.5) * 64 - next.top) * next.zoom * board.height / next.height;
+      const flip = x > area.width * 0.58;
+      setAnchor({ left: Math.max(12, Math.min(area.width - 344, x + (flip ? -344 : 28))),
+        top: Math.max(96, Math.min(area.height - 320, y - 42)), flip });
+    }
+    const mini = minimapRef.current;
+    if (mini) {
+      const context = mini.getContext('2d');
+      if (context) {
+        const width = mapWidth(battle.map), height = mapHeight(battle.map);
+        context.clearRect(0, 0, mini.width, mini.height);
+        const palette = { plain: '#649351', water: '#378eaa', lava: '#cf7240', wall: '#586776' };
+        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+          context.fillStyle = palette[battle.map.tiles[y][x].kind];
+          context.fillRect(x * mini.width / width, y * mini.height / height,
+            Math.ceil(mini.width / width), Math.ceil(mini.height / height));
+        }
+        for (const unit of battle.units.filter(unit => unit.hp > 0)) {
+          context.fillStyle = unit.side === 'player' ? '#c8ffcf' : '#ffc0a6';
+          context.fillRect((unit.x + 0.25) * mini.width / width, (unit.y + 0.25) * mini.height / height,
+            Math.max(2, mini.width / width * 0.5), Math.max(2, mini.height / height * 0.5));
+        }
+        context.strokeStyle = '#fff5ba'; context.lineWidth = 2;
+        context.strokeRect(next.left / (width * 64) * mini.width, next.top / (height * 64) * mini.height,
+          next.width / next.zoom / (width * 64) * mini.width, next.height / next.zoom / (height * 64) * mini.height);
+      }
+    }
+  };
+  useEffect(() => { if (view.current) onViewChange(view.current); }, [battle]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -78,7 +121,7 @@ export default function BattleScreen(props: Props) {
   const playerTurn = current?.side === 'player' && !battle.result;
 
   return <main className="battle-stage" ref={stageRef}>
-    <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} chosenMove={chosenMove} target={target} onTile={tile} onAnimationState={props.onAnimationState} /></div>
+    <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} chosenMove={chosenMove} target={target} onTile={tile} onAnimationState={props.onAnimationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
     <header className="battle-top-hud">
       <div className="battle-location"><span className="eyebrow">ENCOUNTER {run.encounter + 1} · ROUND {battle.round}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
       <div className="turn-strip" aria-label="Turn order">{upcoming(battle).slice(0, 6).map((unit, index) =>
@@ -107,6 +150,15 @@ export default function BattleScreen(props: Props) {
     </section>}
     {battle.result && <div className="battle-result"><h2>{battle.result === 'win' ? 'Victory!' : 'Defeat'}</h2><button className="primary" onClick={props.onComplete}>{battle.result === 'win' ? 'Collect XP →' : 'View result →'}</button></div>}
     <details className="battle-log"><summary>Action log</summary>{battle.log.slice(0, 8).map((entry, index) => <p key={index}>{entry}</p>)}</details>
+    <aside className="camera-hud" aria-label="Map camera controls">
+      <button className="minimap" title="Click to focus the map" aria-label="Map overview; click to focus" onClick={event => {
+        if (!event.detail) { issueCamera('center'); return; }
+        const rect = event.currentTarget.getBoundingClientRect();
+        issueCamera('focus', [Math.max(0, Math.min(mapWidth(battle.map) - 1, Math.floor((event.clientX - rect.left) / rect.width * mapWidth(battle.map)))),
+          Math.max(0, Math.min(mapHeight(battle.map) - 1, Math.floor((event.clientY - rect.top) / rect.height * mapHeight(battle.map))))]);
+      }}><canvas ref={minimapRef} width="160" height="160" /></button>
+      <div className="camera-buttons"><button onClick={() => issueCamera('zoom-in')} aria-label="Zoom in">+</button><button onClick={() => issueCamera('zoom-out')} aria-label="Zoom out">−</button><button onClick={() => issueCamera('fit')}>Fit map</button><button onClick={() => issueCamera('center')}>Center active</button></div>
+    </aside>
     <div className="battle-help">{mode === 'attack' && chosenMove ? 'Blue: range · green: strong · orange: resisted · gray: immune' : 'Select your Pokémon for actions'}</div>
   </main>;
 }

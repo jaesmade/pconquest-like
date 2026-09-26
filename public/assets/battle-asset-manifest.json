@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 1,
+  "license": "CC0 1.0; attribution appreciated but not required",
+  "packs": {
+    "roguelike": {
+      "page": "https://kenney.nl/assets/roguelike-rpg-pack",
+      "archive": "kenney_roguelike-rpg-pack.zip",
+      "version": "1.0 (2015)",
+      "creator": "Kenney Vleugels for Kenney, with Lynn Evers",
+      "downloadUrl": "https://kenney.nl/media/pages/assets/roguelike-rpg-pack/12c03cd78b-1677697420/kenney_roguelike-rpg-pack.zip"
+    },
+    "ui": {
+      "page": "https://kenney.nl/assets/ui-pack-pixel-adventure",
+      "archive": "kenney_ui-pack-pixel-adventure.zip",
+      "version": "2.0 (2024)",
+      "creator": "Kenney",
+      "downloadUrl": "https://kenney.nl/media/pages/assets/ui-pack-pixel-adventure/405ba5278a-1729196257/kenney_ui-pack-pixel-adventure.zip"
+    }
+  },
+  "assets": [
+    {
+      "id": "terrain-plain-16px",
+      "url": "/assets/environment/tiles/terrain-plain-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        0,
+        15
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "terrain-plain-variant-16px",
+      "url": "/assets/environment/tiles/terrain-plain-variant-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        1,
+        15
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "terrain-water-16px",
+      "url": "/assets/environment/tiles/terrain-water-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        0,
+        0
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "terrain-water-variant-16px",
+      "url": "/assets/environment/tiles/terrain-water-variant-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        1,
+        0
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "terrain-lava-16px",
+      "url": "/assets/environment/tiles/terrain-lava-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        0,
+        19
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "terrain-lava-variant-16px",
+      "url": "/assets/environment/tiles/terrain-lava-variant-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        1,
+        19
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "terrain-wall-16px",
+      "url": "/assets/environment/tiles/terrain-wall-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        6,
+        2
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "terrain-wall-variant-16px",
+      "url": "/assets/environment/tiles/terrain-wall-variant-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        6,
+        3
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "overlay-cover-16px",
+      "url": "/assets/environment/overlays/overlay-cover-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        12,
+        0
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "overlay-flower-16px",
+      "url": "/assets/environment/overlays/overlay-flower-16px.png",
+      "sourcePack": "roguelike",
+      "sourceFile": "Spritesheet/roguelikeSheet_transparent.png",
+      "sourceCell": [
+        0,
+        9
+      ],
+      "pixelSize": [
+        16,
+        16
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Crop a 16x16 cell at a 17-pixel atlas stride; no recolor"
+    },
+    {
+      "id": "hud-portrait-ally-32px",
+      "url": "/assets/ui/hud/hud-portrait-ally-32px.png",
+      "sourcePack": "ui",
+      "sourceFile": "Tiles/Large tiles/Thick outline/tile_0021.png",
+      "pixelSize": [
+        32,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Copy the source PNG without recolor"
+    },
+    {
+      "id": "hud-portrait-enemy-32px",
+      "url": "/assets/ui/hud/hud-portrait-enemy-32px.png",
+      "sourcePack": "ui",
+      "sourceFile": "Tiles/Large tiles/Thick outline/tile_0020.png",
+      "pixelSize": [
+        32,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Copy the source PNG without recolor"
+    },
+    {
+      "id": "hud-portrait-target-32px",
+      "url": "/assets/ui/hud/hud-portrait-target-32px.png",
+      "sourcePack": "ui",
+      "sourceFile": "Tiles/Large tiles/Thick outline/tile_0022.png",
+      "pixelSize": [
+        32,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Copy the source PNG without recolor"
+    },
+    {
+      "id": "hud-panel-border-32px",
+      "url": "/assets/ui/hud/hud-panel-border-32px.png",
+      "sourcePack": "ui",
+      "sourceFile": "Tiles/Large tiles/Thick outline/tile_0032.png",
+      "pixelSize": [
+        32,
+        32
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "status": "imported CC0; replaceable",
+      "transform": "Copy the source PNG without recolor"
+    }
+  ],
+  "acquiredOn": "2026-09-26"
+}

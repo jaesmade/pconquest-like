@@ -8,11 +8,18 @@
 - Named SVG item and status placeholders live under `public/assets/ui/icons/`; the animation and audio guides describe replacement.
 - Still planned: camera pan/zoom and world-to-tile conversion for 32×32 maps, minimap, terrain asset pass, broader Options controls, and measured 60 FPS profiling. The current Phaser canvas still fits the whole map.
 
+## Implementation progress (asset and battle layout pass)
+
+- The battle canvas now fills the stage. Phaser renders a camera window over the 64-pixel world grid; 8×8 maps fit the view, while larger maps open near playable scale. Wheel or the HUD controls zoom, drag with Shift/right/middle pans, Fit Map shows the full map, and Center Active returns to the acting Pokémon. Tile clicks use camera world coordinates.
+- A compact clickable minimap shows terrain, living units, and the camera rectangle. The contextual action panel projects its anchor through the same view and updates after camera changes or canvas resize.
+- Selected 16×16 terrain and overlay cells from Kenney's CC0 Roguelike/RPG pack are imported under named paths and drawn once into a static Phaser render texture. Selected 32×32 frames from the CC0 UI Pack – Pixel Adventure style the turn portraits and action panel. The [asset manifest](../public/assets/battle-asset-manifest.json) records pack version, source file/cell, size, pivot, license, and replacement path; see the [preview](BATTLE_ASSET_PREVIEW.png).
+- The remaining work in this plan includes a responsive settings pass, keyboard/gamepad camera navigation, visual review across screen sizes, and measured 32×32/8v8 performance before claiming the 60 FPS target.
+
 ## Goal and current baseline
 
 Make the battle feel like the main game screen: the map fills the browser viewport, the active Pokémon's commands appear beside it, and the next turns are readable as portraits over the battlefield. Add a title screen with **Start Game**, **Options**, and **Exit** before the existing run flow.
 
-The current app uses React for menus and HUD, Phaser 3.90 for the board, and a 64-pixel world tile. `BattleScreen.tsx` places a board capped at 512 CSS pixels next to a sidebar. `Board.tsx` draws flat terrain colors, and its canvas is sized to the entire map. Existing 32-pixel unit, attack, and effect sheets are listed in `public/assets/animations/animation-manifest.json`. Keep the TypeScript battle state authoritative: UI, camera, and animations only present committed outcomes.
+The app uses React for menus and HUD, Phaser 3.90 for the board, and a 64-pixel world tile. The first pass replaced the old 512-pixel board and sidebar; the current battle stage and camera are described above. Existing 32-pixel unit, attack, and effect sheets are listed in `public/assets/animations/animation-manifest.json`. Keep the TypeScript battle state authoritative: UI, camera, and animations only present committed outcomes.
 
 ## Screen flow
 

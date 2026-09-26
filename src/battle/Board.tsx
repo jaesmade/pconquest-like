@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import manifest from '../../public/assets/animations/animation-manifest.json';
+import battleAssets from '../../public/assets/battle-asset-manifest.json';
 import { abilityAbsorption, effectiveness, mapHeight, mapWidth, MOVES } from '../content/data';
 import type { AttackVisualEvent, Battle, FeedbackEvent, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange, reachableTiles, unitAt } from '../game/engine';
@@ -9,9 +10,10 @@ import { enqueueAttackCues } from './visualQueue';
 import { gameAudio } from '../audio/audio';
 
 const TILE = 64;
-const colors: Record<string, number> = { plain: 0x42776d, water: 0x336c9b, lava: 0xbb5844, wall: 0x263c48 };
 const clips = manifest.clips as Record<string, { startColumn: number; frameCount: number; fps: number; loop: boolean }>;
-type Props = { battle: Battle; mode: 'move' | 'attack' | 'inspect'; chosenMove?: string; target?: [number, number]; onTile: (x: number, y: number) => void; onAnimationState?: (playing: boolean) => void };
+export type BoardView = { left: number; top: number; zoom: number; width: number; height: number };
+export type CameraCommand = 'zoom-in' | 'zoom-out' | 'fit' | 'center' | 'focus';
+type Props = { battle: Battle; mode: 'move' | 'attack' | 'inspect'; chosenMove?: string; target?: [number, number]; onTile: (x: number, y: number) => void; onAnimationState?: (playing: boolean) => void; onViewChange?: (view: BoardView) => void; cameraAction?: { id: number; command: CameraCommand; point?: [number, number] } };
 
 class BattleScene extends Phaser.Scene {
   battle!: Battle;
@@ -20,6 +22,12 @@ class BattleScene extends Phaser.Scene {
   target?: [number, number];
   onTile: Props['onTile'] = () => {};
   onAnimationState: Props['onAnimationState'] = () => {};
+  onViewChange: Props['onViewChange'] = () => {};
+  cameraActionId = -1;
+  dragging = false;
+  dragX = 0;
+  dragY = 0;
+  terrainTexture?: Phaser.GameObjects.RenderTexture;
   terrain!: Phaser.GameObjects.Graphics;
   ground!: Phaser.GameObjects.Graphics;
   targetOverlay!: Phaser.GameObjects.Graphics;
@@ -27,6 +35,7 @@ class BattleScene extends Phaser.Scene {
   sprites = new Map<string, Phaser.GameObjects.Sprite>();
   markers = new Map<string, { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }>();
   hp = new Map<string, Phaser.GameObjects.Graphics>();
+  cover = new Map<string, Phaser.GameObjects.Image>();
   seen = new Map<string, number>();
   seenAttacks = new Set<string>();
   seenFeedback = new Set<string>();
@@ -38,6 +47,7 @@ class BattleScene extends Phaser.Scene {
   movingUnits = new Set<string>();
   constructor() { super('battle'); }
   preload() {
+    for (const asset of battleAssets.assets) this.load.image(asset.id, asset.url);
     const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.map(unit => unit.species)]);
     const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
     for (const [id, url] of Object.entries(manifest.units)) if (unitIds.has(id)) this.load.spritesheet(id, url, { frameWidth: 32, frameHeight: 32 });
@@ -45,6 +55,7 @@ class BattleScene extends Phaser.Scene {
     for (const [id, asset] of Object.entries(manifest.attacks)) if (moveIds.has(id)) this.load.spritesheet(`attack-${id}`, asset.url, { frameWidth: 32, frameHeight: 32 });
   }
   create() {
+    this.terrainTexture = this.add.renderTexture(0, 0, mapWidth(this.battle.map) * TILE, mapHeight(this.battle.map) * TILE).setOrigin(0).setDepth(0);
     this.terrain = this.add.graphics().setDepth(0);
     this.ground = this.add.graphics().setDepth(1);
     this.targetOverlay = this.add.graphics().setDepth(2);
@@ -61,28 +72,109 @@ class BattleScene extends Phaser.Scene {
       this.anims.create({ key: `attack-${id}`, frames, frameRate: manifest.attackFps });
       this.anims.create({ key: `attack-${id}-travel`, frames, frameRate: manifest.attackFps, repeat: -1 });
     }
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => this.onTile(Math.floor(pointer.x / TILE), Math.floor(pointer.y / TILE)));
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.rightButtonDown() || pointer.middleButtonDown() || pointer.event.shiftKey) {
+        this.dragging = true; this.dragX = pointer.x; this.dragY = pointer.y; return;
+      }
+      const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const x = Math.floor(world.x / TILE), y = Math.floor(world.y / TILE);
+      if (x >= 0 && y >= 0 && x < mapWidth(this.battle.map) && y < mapHeight(this.battle.map)) this.onTile(x, y);
+    });
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!this.dragging) return;
+      const camera = this.cameras.main;
+      camera.scrollX -= (pointer.x - this.dragX) / camera.zoom;
+      camera.scrollY -= (pointer.y - this.dragY) / camera.zoom;
+      this.dragX = pointer.x; this.dragY = pointer.y;
+      this.emitView();
+    });
+    this.input.on('pointerup', () => { this.dragging = false; });
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _objects: unknown, _deltaX: number, deltaY: number) => {
+      this.zoom(deltaY < 0 ? 0.25 : -0.25);
+    });
+    this.scale.on(Phaser.Scale.Events.RESIZE, () => this.resizeViewport());
+    this.resizeViewport(true);
     this.renderBattle();
     this.playFeedback();
     void this.playNextAttack();
     this.updateAnimationState();
   }
   drawTerrain() {
+    if (!this.terrainTexture) return;
+    const stamp = new Phaser.GameObjects.Image(this, 0, 0, 'terrain-plain-16px').setOrigin(0).setScale(TILE / 16);
     for (let y = 0; y < mapHeight(this.battle.map); y++) for (let x = 0; x < mapWidth(this.battle.map); x++) {
       const tile = this.battle.map.tiles[y][x], left = x * TILE, top = y * TILE;
-      this.terrain.fillStyle(colors[tile.kind], 1); this.terrain.fillRect(left + 1, top + 1, TILE - 2, TILE - 2);
+      const variant = (x * 17 + y * 31) % 5 === 0 ? '-variant' : '';
+      const texture = `terrain-${tile.kind}${variant}-16px`;
+      stamp.setTexture(texture);
+      this.terrainTexture.draw(stamp, left, top);
+      if (tile.kind === 'plain' && (x * 13 + y * 29) % 19 === 0) {
+        stamp.setTexture('overlay-flower-16px');
+        this.terrainTexture.draw(stamp, left, top);
+      }
       const zone = this.battle.map.zones[y][x];
-      if (zone !== 'neutral') { this.terrain.fillStyle(zone === 'ally' ? 0x9de1b7 : 0xedb4a2, 0.13); this.terrain.fillRect(left + 1, top + 1, TILE - 2, TILE - 2); }
-      if (tile.height) { this.terrain.fillStyle(0xd8e1a8, 0.18 * tile.height); this.terrain.fillRect(left + 1, top + 1, TILE - 2, TILE - 2); }
-      if (tile.height) this.add.text(left + 5, top + 4, `H${tile.height}`, { fontFamily: 'monospace', fontSize: '11px', color: '#f0f5da' }).setDepth(3);
-      if (tile.kind === 'water') this.add.text(left + 5, top + 45, '≈', { fontFamily: 'monospace', fontSize: '18px', color: '#bce5ff' }).setDepth(3);
-      if (tile.kind === 'lava') this.add.text(left + 5, top + 45, '◆', { fontFamily: 'monospace', fontSize: '13px', color: '#ffbc73' }).setDepth(3);
+      if (zone !== 'neutral') { this.terrain.fillStyle(zone === 'ally' ? 0x8be8ad : 0xff9b80, 0.15); this.terrain.fillRect(left, top, TILE, TILE); }
+      if (x > 0 && this.battle.map.zones[y][x - 1] !== zone) { this.terrain.lineStyle(2, 0xddeac0, 0.55); this.terrain.lineBetween(left, top, left, top + TILE); }
+      if (tile.height) {
+        this.terrain.fillStyle(0xf6efc3, 0.08 * tile.height); this.terrain.fillRect(left, top, TILE, TILE);
+        this.terrain.lineStyle(3, 0xf5e4a5, 0.75); this.terrain.lineBetween(left + 3, top + TILE - 5, left + TILE - 3, top + TILE - 5);
+        this.add.text(left + 5, top + 4, `H${tile.height}`, { fontFamily: 'monospace', fontSize: '11px', color: '#f0f5da', backgroundColor: '#173034aa' }).setDepth(3);
+      }
+    }
+    stamp.destroy();
+  }
+  private fitZoom() {
+    const width = Math.max(1, this.scale.width), height = Math.max(1, this.scale.height);
+    return Math.min(width / (mapWidth(this.battle.map) * TILE), height / (mapHeight(this.battle.map) * TILE), 2);
+  }
+  private emitView() {
+    const camera = this.cameras.main;
+    const corner = camera.getWorldPoint(0, 0);
+    this.onViewChange?.({ left: corner.x, top: corner.y, zoom: camera.zoom, width: camera.width, height: camera.height });
+  }
+  resizeViewport(initial = false) {
+    if (!this.battle || !this.cameras.main) return;
+    const camera = this.cameras.main;
+    const width = Math.max(1, this.scale.width), height = Math.max(1, this.scale.height);
+    camera.setSize(width, height);
+    camera.setBounds(0, 0, mapWidth(this.battle.map) * TILE, mapHeight(this.battle.map) * TILE);
+    camera.setRoundPixels(true);
+    if (initial) {
+      const fit = this.fitZoom();
+      camera.setZoom(Math.max(fit, Math.min(1, Math.max(width, height) / (12 * TILE))));
+      const unit = this.battle.units.find(candidate => candidate.id === this.battle.current);
+      if (fit >= 0.75) camera.centerOn(mapWidth(this.battle.map) * TILE / 2, mapHeight(this.battle.map) * TILE / 2);
+      else camera.centerOn((unit?.x ?? (mapWidth(this.battle.map) - 1) / 2) * TILE + TILE / 2,
+        (unit?.y ?? (mapHeight(this.battle.map) - 1) / 2) * TILE + TILE / 2);
+    } else camera.setZoom(Math.max(this.fitZoom(), camera.zoom));
+    this.emitView();
+  }
+  private zoom(delta: number) {
+    const camera = this.cameras.main;
+    camera.setZoom(Phaser.Math.Clamp(Math.round((camera.zoom + delta) * 4) / 4, this.fitZoom(), 2.5));
+    this.emitView();
+  }
+  command(command: CameraCommand, point?: [number, number]) {
+    const camera = this.cameras.main;
+    if (!camera || !this.ground) return;
+    if (command === 'zoom-in') this.zoom(0.25);
+    else if (command === 'zoom-out') this.zoom(-0.25);
+    else if (command === 'fit') {
+      camera.setZoom(this.fitZoom());
+      camera.centerOn(mapWidth(this.battle.map) * TILE / 2, mapHeight(this.battle.map) * TILE / 2);
+      this.emitView();
+    } else {
+      const unit = this.battle.units.find(candidate => candidate.id === this.battle.current);
+      if (command === 'focus' && point) camera.centerOn((point[0] + 0.5) * TILE, (point[1] + 0.5) * TILE);
+      else if (unit) camera.centerOn((unit.x + 0.5) * TILE, (unit.y + 0.5) * TILE);
+      this.emitView();
     }
   }
   setProps(props: Props) {
+    const activeChanged = this.battle?.current !== props.battle.current;
     const boardChanged = this.battle !== props.battle || this.mode !== props.mode || this.chosenMove !== props.chosenMove;
     const targetChanged = this.target?.[0] !== props.target?.[0] || this.target?.[1] !== props.target?.[1];
-    this.battle = props.battle; this.mode = props.mode; this.chosenMove = props.chosenMove; this.target = props.target; this.onTile = props.onTile; this.onAnimationState = props.onAnimationState;
+    this.battle = props.battle; this.mode = props.mode; this.chosenMove = props.chosenMove; this.target = props.target; this.onTile = props.onTile; this.onAnimationState = props.onAnimationState; this.onViewChange = props.onViewChange;
     const incoming = (props.battle.visualEvents ?? []).filter(event => !this.seenAttacks.has(event.id));
     for (const event of incoming) this.seenAttacks.add(event.id);
     if (incoming.length) {
@@ -97,7 +189,14 @@ class BattleScene extends Phaser.Scene {
     this.pendingFeedback = [...this.pendingFeedback, ...cues].slice(-4);
     const currentFeedback = new Set((props.battle.feedbackEvents ?? []).map(event => event.id));
     for (const id of this.seenFeedback) if (!currentFeedback.has(id)) this.seenFeedback.delete(id);
-    if (this.ground) { if (boardChanged) this.renderBattle(); else if (targetChanged) this.renderTarget(); this.playFeedback(); void this.playNextAttack(); }
+    if (this.ground) {
+      if (boardChanged) this.renderBattle(); else if (targetChanged) this.renderTarget();
+      if (activeChanged && !props.battle.result && this.fitZoom() < 0.75) this.command('center');
+      if (props.cameraAction && props.cameraAction.id !== this.cameraActionId) {
+        this.cameraActionId = props.cameraAction.id; this.command(props.cameraAction.command, props.cameraAction.point);
+      }
+      this.playFeedback(); void this.playNextAttack();
+    }
   }
   private playFeedback() {
     if (!this.ground) return;
@@ -208,11 +307,15 @@ class BattleScene extends Phaser.Scene {
     const current = active(this.battle);
     const moveHighlights = this.mode === 'move' && current.side === 'player' && current.ap > 0 ? reachableTiles(this.battle, current) : new Set<string>();
     const attackMove = this.mode === 'attack' && this.chosenMove && current.side === 'player' ? MOVES[this.chosenMove] : undefined;
+    const activeCover = new Set<string>();
     for (let y = 0; y < mapHeight(this.battle.map); y++) for (let x = 0; x < mapWidth(this.battle.map); x++) {
       const tile = this.battle.map.tiles[y][x], left = x * TILE, top = y * TILE;
       if (tile.hazardUntil && tile.hazardUntil > this.battle.time) { this.ground.lineStyle(3, 0xd4b5a5, 0.9); this.ground.strokeRect(left + 5, top + 5, TILE - 10, TILE - 10); }
       if (tile.mudUntil && tile.mudUntil > this.battle.time) { this.ground.fillStyle(0x563c31, 0.6); this.ground.fillCircle(left + 52, top + 13, 6); }
-      if (tile.coverUntil && tile.coverUntil > this.battle.time) { this.ground.fillStyle(0x999a9a, 0.9); this.ground.fillTriangle(left + 48, top + 12, left + 57, top + 12, left + 53, top + 4); }
+      if (tile.coverUntil && tile.coverUntil > this.battle.time) {
+        const key = `${x},${y}`; activeCover.add(key);
+        if (!this.cover.has(key)) this.cover.set(key, this.add.image(left + 50, top + 16, 'overlay-cover-16px').setScale(1.5).setDepth(3));
+      }
       if (moveHighlights.has(`${x},${y}`)) { this.ground.fillStyle(0x9fe4bd, 0.3); this.ground.fillRect(left + 2, top + 2, TILE - 4, TILE - 4); }
       if (attackMove && (attackMove.target !== 'unit' || x !== current.x || y !== current.y) && inMoveRange(this.battle, current, this.chosenMove!, x, y)) {
         this.ground.fillStyle(0x8bbcff, 0.22); this.ground.fillRect(left + 2, top + 2, TILE - 4, TILE - 4);
@@ -238,6 +341,7 @@ class BattleScene extends Phaser.Scene {
       const markers = this.markers.get(id); markers?.shadow.destroy(); markers?.ripple.destroy(); this.markers.delete(id);
       this.hp.get(id)?.destroy(); this.hp.delete(id);
     }
+    for (const [key, image] of this.cover) if (!activeCover.has(key)) { image.destroy(); this.cover.delete(key); }
     this.renderTarget();
   }
   renderTarget() {
@@ -316,10 +420,18 @@ export default function Board(props: Props) {
   useEffect(() => {
     if (!holder.current) return;
     const boardScene = new BattleScene(); scene.current = boardScene; boardScene.setProps(props);
-    const game = new Phaser.Game({ type: Phaser.AUTO, width: TILE * width, height: TILE * height, parent: holder.current, backgroundColor: '#14262d', pixelArt: true, antialias: false, scene: boardScene, scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH } });
+    const game = new Phaser.Game({ type: Phaser.AUTO, width: Math.max(1, holder.current.clientWidth), height: Math.max(1, holder.current.clientHeight), parent: holder.current, backgroundColor: '#14262d', pixelArt: true, antialias: false, scene: boardScene, scale: { mode: Phaser.Scale.NONE, autoCenter: Phaser.Scale.NO_CENTER } });
+    const observer = new ResizeObserver(() => {
+      if (!holder.current) return;
+      const nextWidth = Math.max(1, holder.current.clientWidth), nextHeight = Math.max(1, holder.current.clientHeight);
+      if (game.scale.width !== nextWidth || game.scale.height !== nextHeight) game.scale.resize(nextWidth, nextHeight);
+    });
+    observer.observe(holder.current);
+    const preventMenu = (event: MouseEvent) => event.preventDefault();
+    holder.current.addEventListener('contextmenu', preventMenu);
     if (import.meta.env.MODE === 'profile') (window as Window & { __profileBattleScene?: BattleScene }).__profileBattleScene = boardScene;
-    return () => { game.destroy(true); scene.current = null; if (import.meta.env.MODE === 'profile') delete (window as Window & { __profileBattleScene?: BattleScene }).__profileBattleScene; };
+    return () => { observer.disconnect(); holder.current?.removeEventListener('contextmenu', preventMenu); game.destroy(true); scene.current = null; if (import.meta.env.MODE === 'profile') delete (window as Window & { __profileBattleScene?: BattleScene }).__profileBattleScene; };
   }, [width, height]);
   useEffect(() => { scene.current?.setProps(props); }, [props]);
-  return <div className="board" ref={holder} style={{ aspectRatio: `${width} / ${height}` }} aria-label={`${width} by ${height} battle board`} />;
+  return <div className="board" ref={holder} aria-label={`${width} by ${height} battle board`} />;
 }

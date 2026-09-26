@@ -1,4 +1,5 @@
-import type { Move, Unit, Weather } from '../game/types';
+import type { Move, MoveTag, Unit, Weather } from '../game/types';
+import { hasMoveTag } from './moves';
 
 type DamageBonus = {
   multiplier: number;
@@ -6,7 +7,7 @@ type DamageBonus = {
   maxApCost?: number;
   belowHpRatio?: number;
   requiresStatus?: string;
-  contactOnly?: boolean;
+  requiredTag?: MoveTag;
 };
 
 type AbilityDefinition = {
@@ -55,7 +56,7 @@ export const ABILITIES = {
   },
   'Tough Claws': {
     description: 'Contact attacks deal 30% more damage.',
-    damage: [{ contactOnly: true, multiplier: 1.3 }],
+    damage: [{ requiredTag: 'contact', multiplier: 1.3 }],
   },
 } as const satisfies Record<string, AbilityDefinition>;
 
@@ -75,7 +76,7 @@ export function abilityDamageMultiplier(unit: Unit, move: Move): number {
     if (bonus.maxApCost !== undefined && move.apCost > bonus.maxApCost) return multiplier;
     if (bonus.belowHpRatio !== undefined && unit.hp >= unit.maxHp * bonus.belowHpRatio) return multiplier;
     if (bonus.requiresStatus && !unit.status[bonus.requiresStatus]) return multiplier;
-    if (bonus.contactOnly && !move.contact) return multiplier;
+    if (bonus.requiredTag && !hasMoveTag(move, bonus.requiredTag)) return multiplier;
     return multiplier * bonus.multiplier;
   }, 1);
 }

@@ -6,6 +6,8 @@ import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
 import { calculateDamage, damageRange } from './damage';
 import { setTileEffects } from './clone';
+import { hasMoveTag } from '../content/moves';
+import { canDeploy, chooseEnemyDeployment, resolvePlayerDeployment } from './deployment';
 
 export { reachable, reachableTiles } from './grid';
 
@@ -33,23 +35,37 @@ export function newRun(starter: string, unlocks = 0): Run {
   const companions = STARTERS.filter(id => id !== starter);
   for (let i = companions.length - 1; i > 0; i--) { const j = Math.floor(random(rng) * (i + 1)); [companions[i], companions[j]] = [companions[j], companions[i]]; }
   const party = [starter, ...companions.slice(0, 2)].map((id, i) => makePartyMon(id, 2, STARTING_HELD_ITEMS[i]));
-  return { phase: 'route', party, selected: party.map(p => p.id), bag: [...STARTING_BAG], encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, routeChoice: 'rest', report: [], unlocks };
+  return { phase: 'route', party, selected: party.map(p => p.id), deployment: {}, bag: [...STARTING_BAG], encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, routeChoice: 'rest', report: [], unlocks };
 }
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
   return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: mon.hp, maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
 }
-export function startBattle(run: Run): Run {
+export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
   const definition = encounterFor(next);
   if (!definition) throw new Error(`Unknown encounter ${next.encounterId}`);
   const map = structuredClone(MAPS[definition.mapId]);
   const selected = next.selected.map(id => next.party.find(mon => mon.id === id)).filter((mon): mon is PartyMon => !!mon && mon.hp > 0).slice(0, 3);
   if (!selected.length) return { ...next, phase: 'result', result: 'loss' };
-  const players = selected.map((mon, i) => { const [x, y] = map.playerSpawns[i]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
-  const enemies = definition.enemies.map((id, i) => { const [x, y] = map.enemySpawns[i]; return makeUnit(makePartyMon(id, definition.enemyLevel), 'enemy', x, y, map.tiles[y][x]); });
-  const battle: Battle = { map, tileChanges: {}, objective: definition.objective, units: [...players, ...enemies], weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], captureHeld: false, encounterId: definition.id };
+  const deployment = resolvePlayerDeployment(next, map);
+  if (selected.some(mon => !deployment[mon.id])) throw new Error(`Map ${map.id}: no legal ally deployment for the selected team.`);
+  next.deployment = deployment;
+  const players = selected.map(mon => { const [x, y] = deployment[mon.id]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
+  const battle: Battle = { map, tileChanges: {}, objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], captureHeld: false, encounterId: definition.id };
+  const occupied = new Set(players.map(unit => `${unit.x},${unit.y}`));
+  if (enemyDeployment && enemyDeployment.length !== definition.enemies.length) throw new Error(`Map ${map.id}: enemy deployment count does not match the team.`);
+  for (const [index, id] of definition.enemies.entries()) {
+    const chosen = enemyDeployment?.[index];
+    if (enemyDeployment && !chosen) throw new Error(`Map ${map.id}: missing enemy-zone placement for ${id}.`);
+    if (chosen && (!canDeploy(map, id, chosen, 'enemy') || occupied.has(`${chosen[0]},${chosen[1]}`))) throw new Error(`Map ${map.id}: invalid enemy-zone placement for ${id}.`);
+    const point = chosen ?? chooseEnemyDeployment(map, id, occupied, battle);
+    if (!point) throw new Error(`Map ${map.id}: no legal enemy deployment for ${id}.`);
+    const [x, y] = point;
+    occupied.add(`${x},${y}`);
+    battle.units.push(makeUnit(makePartyMon(id, definition.enemyLevel), 'enemy', x, y, map.tiles[y][x]));
+  }
   next.battle = battle;
   next.phase = 'battle';
   beginRound(battle, true);
@@ -221,7 +237,7 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   visual.targetIds.push(target.id);
   hit(battle, target, damage, `${move.name}${critical ? ' (critical)' : ''} · ${preview.type}×`);
   if (!alive(target)) return;
-  const reaction = move.contact && abilityContactReaction(target.ability);
+  const reaction = hasMoveTag(move, 'contact') && abilityContactReaction(target.ability);
   if (reaction && random(battle) < reaction.chance) { source.status[reaction.status] = battle.time + reaction.duration; log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
   for (const effect of move.effects ?? []) {
     if (effect.on !== 'hit' || !alive(target)) continue;
@@ -369,7 +385,7 @@ export function nextEncounter(run: Run): Run {
   const followingId = encounterFor(next)?.nextId;
   next.encounter++;
   if (!followingId) { next.phase = 'result'; next.result = 'win'; next.unlocks++; }
-  else { next.encounterId = followingId; next.phase = 'route'; next.routeChoice = 'rest'; next.selected = next.selected.filter(id => next.party.some(p => p.id === id && p.hp > 0)); }
+  else { next.encounterId = followingId; next.phase = 'route'; next.routeChoice = 'rest'; next.deployment = {}; next.selected = next.selected.filter(id => next.party.some(p => p.id === id && p.hp > 0)); }
   return next;
 }
 export function applyRouteChoice(run: Run, choice: 'rest' | 'recruit'): Run {
@@ -379,6 +395,7 @@ export function applyRouteChoice(run: Run, choice: 'rest' | 'recruit'): Run {
   } else {
     const offered = offerRecruits(next)[0]; if (next.party.length < 6) next.party.push(makePartyMon(offered, 2 + Math.min(3, next.encounter)));
   }
+  next.deployment = {};
   next.phase = 'prepare'; return next;
 }
 export function setWeather(battle: Battle, weather: Weather) { battle.weather = weather; battle.weatherUntil = battle.time + 300; }

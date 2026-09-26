@@ -36,7 +36,7 @@ export default function BattleScreen(props: Props) {
       </div>
       <Board key={battle.map.id} battle={battle} mode={mode} chosenMove={chosenMove} target={target} onTile={props.onTile} onAnimationState={props.onAnimationState} />
       <div className="board-legend">
-        <span>▣ Height</span><span>≈ Deep water · swimmers/flyers</span><span>◆ Lava · 10% HP</span><span>● Shadow: flying · ◯ Ripple: swimming</span>
+        <span>▣ Height</span><span>≈ Deep water · swimmers/flyers</span><span>◆ Lava · 10% HP</span><span>● Shadow: flying · ◯ Ripple: swimming</span><span>Green/red tint: starting zones · movement unrestricted</span>
         {mode === 'attack' && chosenMove && <span>Blue: range · green: strong · orange: resisted · gray: immune</span>}
         {battle.map.capture && <span>◯ Capture point</span>}
       </div>
@@ -53,7 +53,7 @@ export default function BattleScreen(props: Props) {
             <button disabled={current.side !== 'player' || !itemSpecial(current)} onClick={props.onSpecial}>Special</button>
           </div>
           <p className="hint">Use one Attack command per turn, then keep moving or use Special while AP remains. End the turn to carry up to {maxCarryAp} unused AP forward.</p>
-          {mode === 'attack' && currentMon && <div className="moves">{current.moves.map(id => <button key={id} className={chosenMove === id ? 'active' : ''} disabled={current.attackedThisTurn || current.ap < MOVES[id].apCost || itemBlocksMove(current, MOVES[id])} onClick={() => props.onChooseMove(id)}><b>{MOVES[id].name}</b><small>{MOVES[id].type} · {MOVES[id].category} · Range {MOVES[id].range} · {MOVES[id].apCost} AP</small></button>)}</div>}
+          {mode === 'attack' && currentMon && <div className="moves">{current.moves.map(id => <button key={id} className={chosenMove === id ? 'active' : ''} disabled={current.attackedThisTurn || current.ap < MOVES[id].apCost || itemBlocksMove(current, MOVES[id])} onClick={() => props.onChooseMove(id)}><b>{MOVES[id].name}</b><small>{MOVES[id].type} · {MOVES[id].category} · Range {MOVES[id].range} · {MOVES[id].apCost} AP{MOVES[id].tags.length ? ` · ${MOVES[id].tags.join(', ')}` : ''}</small></button>)}</div>}
           {selectedMove && mode === 'attack' && <p className="hint">{selectedMove.detail} {selectedMove.target === 'self' ? 'Confirm to use.' : 'Select a target tile on the grid.'}</p>}
           {chosenMove && mode === 'attack' && <MovePreview battle={battle} attacker={current} moveId={chosenMove} target={target} />}
           {mode === 'attack' && target && chosenMove && <button className="primary full" disabled={!canUseMove(battle, current, chosenMove, target[0], target[1])} onClick={props.onAttack}>Confirm {selectedMove?.name}</button>}

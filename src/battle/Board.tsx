@@ -63,6 +63,8 @@ class BattleScene extends Phaser.Scene {
     for (let y = 0; y < mapHeight(this.battle.map); y++) for (let x = 0; x < mapWidth(this.battle.map); x++) {
       const tile = this.battle.map.tiles[y][x], left = x * TILE, top = y * TILE;
       this.terrain.fillStyle(colors[tile.kind], 1); this.terrain.fillRect(left + 1, top + 1, TILE - 2, TILE - 2);
+      const zone = this.battle.map.zones[y][x];
+      if (zone !== 'neutral') { this.terrain.fillStyle(zone === 'ally' ? 0x9de1b7 : 0xedb4a2, 0.13); this.terrain.fillRect(left + 1, top + 1, TILE - 2, TILE - 2); }
       if (tile.height) { this.terrain.fillStyle(0xd8e1a8, 0.18 * tile.height); this.terrain.fillRect(left + 1, top + 1, TILE - 2, TILE - 2); }
       if (tile.height) this.add.text(left + 5, top + 4, `H${tile.height}`, { fontFamily: 'monospace', fontSize: '11px', color: '#f0f5da' }).setDepth(3);
       if (tile.kind === 'water') this.add.text(left + 5, top + 45, '≈', { fontFamily: 'monospace', fontSize: '18px', color: '#bce5ff' }).setDepth(3);

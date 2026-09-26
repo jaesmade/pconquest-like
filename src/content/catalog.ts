@@ -1,15 +1,17 @@
 import { ABILITIES } from './abilities';
 import { ENCOUNTERS } from './encounters';
 import { itemFor, ITEMS } from './items';
-import { MAPS } from './maps';
-import { MOVES } from './moves';
+import { MAPS, MAX_MAP_SIZE } from './maps';
+import { MOVES, MOVE_TAGS } from './moves';
 import { RECRUITS, SPECIES, STARTERS } from './species';
 import { TYPES } from './typeChart';
+import { canDeploy, zoneCells } from '../game/deployment';
 
 /** Content references are checked once at startup so new packs fail with useful IDs. */
 export function validateCatalog(): string[] {
   const errors: string[] = [];
   for (const [id, move] of Object.entries(MOVES)) {
+    if (!Array.isArray(move.tags) || move.tags.some(tag => !MOVE_TAGS.includes(tag)) || new Set(move.tags).size !== move.tags.length) errors.push(`Move ${id}: tags must be unique known move tags`);
     if (!TYPES.includes(move.type)) errors.push(`Move ${id}: unknown type ${move.type}`);
     if (!Number.isInteger(move.range) || move.range < 0 || !Number.isInteger(move.power) || move.power < 0 || !Number.isInteger(move.apCost) || move.apCost < 1) errors.push(`Move ${id}: range and power must be nonnegative integers, and AP cost must be a positive integer`);
     if (move.category === 'Status' ? move.power !== 0 : move.power <= 0) errors.push(`Move ${id}: Status moves need zero power and damaging moves need positive power`);
@@ -42,6 +44,12 @@ export function validateCatalog(): string[] {
     if (encounter.nextId && !ENCOUNTERS.some(next => next.id === encounter.nextId)) errors.push(`Encounter ${encounter.id}: unknown next encounter ${encounter.nextId}`);
     const map = MAPS[encounter.mapId];
     if (!map) { errors.push(`Encounter ${encounter.id}: unknown map ${encounter.mapId}`); continue; }
+    if (map.tiles.length > MAX_MAP_SIZE || map.tiles.some(row => row.length > MAX_MAP_SIZE)) errors.push(`Encounter ${encounter.id}: map exceeds ${MAX_MAP_SIZE}×${MAX_MAP_SIZE}`);
+    if (!Array.isArray(map.zones) || map.zones.length !== map.tiles.length
+      || map.zones.some((row, y) => row.length !== map.tiles[y].length || row.some(zone => !['ally', 'neutral', 'enemy'].includes(zone)))) {
+      errors.push(`Encounter ${encounter.id}: zones must cover every map tile exactly once`);
+      continue;
+    }
     if (map.playerSpawns.length < 3) errors.push(`Encounter ${encounter.id}: fewer than three player spawns`);
     if (map.enemySpawns.length < encounter.enemies.length) errors.push(`Encounter ${encounter.id}: fewer enemy spawns than enemies`);
     if (encounter.objective === 'defeat-and-capture' && !map.capture) errors.push(`Encounter ${encounter.id}: capture tile required`);
@@ -55,6 +63,12 @@ export function validateCatalog(): string[] {
       const canSwim = species.mobility?.swim ?? species.types.includes('Water');
       if (map.tiles[y]?.[x]?.kind === 'water' && !canFly && !canSwim) errors.push(`Encounter ${encounter.id}: ${id} cannot occupy deep-water spawn ${x},${y}`);
     });
+    const occupied = new Set<string>();
+    for (const id of encounter.enemies) {
+      const point = zoneCells(map, 'enemy').find(([x, y]) => canDeploy(map, id, [x, y], 'enemy') && !occupied.has(`${x},${y}`));
+      if (!point) errors.push(`Encounter ${encounter.id}: no distinct legal enemy-zone tile for ${id}`);
+      else occupied.add(point.join(','));
+    }
   }
   for (const encounter of ENCOUNTERS) {
     const seen = new Set<string>();

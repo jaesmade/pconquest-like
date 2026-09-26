@@ -32,6 +32,8 @@ The [extension guide](docs/SCALING.md) maps the content files, stable IDs, encou
 
 The [animation asset guide](docs/ANIMATION_ASSETS.md) describes filenames, sheet layout, direction rows, frame ranges, all 15 move-specific attack effects, and replacement steps. The runtime reads [animation-manifest.json](public/assets/animations/animation-manifest.json). Named starter sheets are included; other forms use the `placeholder` sheet until their artwork is added. Attack effects are queued on the board so quick enemy turns do not overwrite them.
 
+The [audio asset guide](docs/AUDIO_ASSETS.md) lists original placeholder music, move sounds, item sounds, and shared cues, with replacement instructions. The runtime reads [audio-manifest.json](public/assets/audio/audio-manifest.json); the top bar has a persistent Sound On/Off control.
+
 ## Still planned
 
 This is a first implementation pass. Enemy decisions are still basic. The UI does not yet show a full path preview or line-of-sight overlay, animation playback is immediate rather than a locked combat timeline, and route choices and rewards need more variety. See [the design plan](docs/PLAN.md) for the complete intended build and [the UI overhaul plan](docs/UI_OVERHAUL_PLAN.md) for the next interface pass.

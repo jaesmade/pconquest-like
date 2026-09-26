@@ -102,3 +102,5 @@ Keep pixel edges sharp by using nearest-neighbor texture filtering. A reduced-mo
 The generator is `scripts/generate_placeholder_animations.py` and requires Python with Pillow. It creates only missing placeholder PNGs by default, so rerunning it preserves art you have replaced. Its `--force` option overwrites those files and should be used only when you intend to regenerate the generic placeholders.
 
 The placeholders are original geometric art generated for this workspace. No third-party Pokémon sprites or downloaded asset pack is included. Record the source and usage permission for replacement art that will be distributed with the game.
+
+Move animations have matching placeholder sounds. See the [audio asset guide](AUDIO_ASSETS.md) for the per-move filenames, music, item cues, and replacement format.

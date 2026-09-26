@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "music": {
+    "menu": "/assets/audio/music/bgm-menu-loop.wav",
+    "route": "/assets/audio/music/bgm-route-loop.wav",
+    "battle": "/assets/audio/music/bgm-battle-loop.wav"
+  },
+  "moves": {
+    "tackle": "/assets/audio/moves/move-tackle.wav",
+    "ember": "/assets/audio/moves/move-ember.wav",
+    "vineWhip": "/assets/audio/moves/move-vine-whip.wav",
+    "waterPulse": "/assets/audio/moves/move-water-pulse.wav",
+    "thunderShock": "/assets/audio/moves/move-thunder-shock.wav",
+    "rockThrow": "/assets/audio/moves/move-rock-throw.wav",
+    "mudSlap": "/assets/audio/moves/move-mud-slap.wav",
+    "iceShard": "/assets/audio/moves/move-ice-shard.wav",
+    "tailWhip": "/assets/audio/moves/move-tail-whip.wav",
+    "harden": "/assets/audio/moves/move-harden.wav",
+    "howl": "/assets/audio/moves/move-howl.wav",
+    "stealthRock": "/assets/audio/moves/move-stealth-rock.wav",
+    "thunderbolt": "/assets/audio/moves/move-thunderbolt.wav",
+    "sandstorm": "/assets/audio/moves/move-sandstorm.wav",
+    "sunnyDay": "/assets/audio/moves/move-sunny-day.wav"
+  },
+  "items": {
+    "Leftovers": "/assets/audio/items/item-leftovers.wav",
+    "Sitrus Berry": "/assets/audio/items/item-sitrus-berry.wav",
+    "Assault Vest": "/assets/audio/items/item-assault-vest.wav",
+    "X Attack": "/assets/audio/items/item-x-attack.wav",
+    "Charizardite X": "/assets/audio/items/item-charizardite-x.wav"
+  },
+  "cues": {
+    "moveFallback": "/assets/audio/cues/cue-move-fallback.wav",
+    "itemFallback": "/assets/audio/cues/cue-item-fallback.wav",
+    "pokemonEnter": "/assets/audio/cues/cue-pokemon-enter.wav",
+    "pokemonHit": "/assets/audio/cues/cue-pokemon-hit.wav",
+    "pokemonFaint": "/assets/audio/cues/cue-pokemon-faint.wav",
+    "uiConfirm": "/assets/audio/cues/cue-ui-confirm.wav"
+  }
+}

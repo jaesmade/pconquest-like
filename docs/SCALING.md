@@ -22,6 +22,7 @@ The [32×32 competitive 8v8 reassessment](SCALABILITY_TARGETS.md) sets the map c
 | Menus and battle display | `src/main.tsx`, `src/ui/`, `src/battle/Board.tsx` | Keep React controls separate from Phaser grid rendering. The battle screen loads on demand. |
 | Run persistence | `src/persistence/save.ts` | Bump the schema version and migrate older saves when the saved state shape changes. |
 | Visual assets | `public/assets/animations/` | Follow [the animation asset guide](ANIMATION_ASSETS.md) and add manifest entries for new art. |
+| Audio assets | `public/assets/audio/`, `src/audio/audio.ts` | Follow [the audio asset guide](AUDIO_ASSETS.md); add named move, item, and music URLs to the manifest without changing battle rules. |
 
 `src/content/data.ts` is a barrel for existing imports. New content can live in its focused file; rule changes should remain in `src/game/engine.ts` or a future engine module.
 

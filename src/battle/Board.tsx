@@ -6,6 +6,7 @@ import type { AttackVisualEvent, Battle, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange, reachableTiles, unitAt } from '../game/engine';
 import { mobilityState } from '../game/mobility';
 import { enqueueAttackCues } from './visualQueue';
+import { gameAudio } from '../audio/audio';
 
 const TILE = 64;
 const colors: Record<string, number> = { plain: 0x42776d, water: 0x336c9b, lava: 0xbb5844, wall: 0x263c48 };
@@ -119,6 +120,7 @@ class BattleScene extends Phaser.Scene {
     if (this.pendingAttacks.length && this.scene.isActive()) void this.playNextAttack();
   }
   private async playAttackEvent(event: AttackVisualEvent, fast: boolean) {
+    gameAudio.playMove(event.moveId);
     const asset = manifest.attacks[event.moveId as keyof typeof manifest.attacks];
     if (!asset) {
       const [x, y] = this.tileCenter(event.to);
@@ -170,6 +172,7 @@ class BattleScene extends Phaser.Scene {
       const texture = Object.hasOwn(manifest.units, target.species) ? target.species : manifest.fallbackUnit;
       sprite.play(`${texture}-${target.facing}-${target.hp <= 0 ? 'faint' : 'hurt'}`, true);
     }
+    if (event.targetIds.length) gameAudio.playCue('pokemonHit');
     await this.wait(fast ? 160 : Math.round(1000 * manifest.attackFrameCount / manifest.attackFps));
     if (attacker && attackerSprite?.active && attacker.hp > 0) {
       const texture = Object.hasOwn(manifest.units, attacker.species) ? attacker.species : manifest.fallbackUnit;
@@ -207,6 +210,7 @@ class BattleScene extends Phaser.Scene {
     for (const unit of this.battle.units) this.drawUnit(unit);
     const protectedIds = new Set([...(this.playingAttack ? [this.playingAttack] : []), ...this.pendingAttacks].flatMap(event => [event.sourceId, ...event.targetIds]));
     for (const [id, sprite] of this.sprites) if (!this.battle.units.some(u => u.id === id && u.hp > 0) && !protectedIds.has(id)) {
+      gameAudio.playCue('pokemonFaint');
       this.movingUnits.delete(id); this.updateAnimationState();
       sprite.destroy(); this.sprites.delete(id);
       const markers = this.markers.get(id); markers?.shadow.destroy(); markers?.ripple.destroy(); this.markers.delete(id);

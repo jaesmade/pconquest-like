@@ -72,6 +72,8 @@ Current HP, fainted state, level, XP, evolution stage, learned and equipped move
 | Speed           | Determines turn order and AP gained at the start of each turn. Equal Speed ties are randomized.                   |
 | Movement        | Maximum number of tiles the Pokémon can move in one Move command; AP pays the path's terrain cost.                 |
 
+At level `L`, calculate integer combat stats from the species' base values using `HP = floor(2 × base HP × L / 100) + L + 10` and `Attack, Defense, Special Attack, Special Defense, and Speed = floor(2 × base stat × L / 100) + 5`. Movement is a fixed tile-range value taken directly from the species record; it does not scale with level. This build does not apply IVs, EVs, or Natures. For example, level-10 Bulbasaur's base `[60, 49, 49, 65, 65, 4, 3]` becomes `[32, 14, 14, 18, 18, 5, 3]`.
+
 Speed and Movement are independent: a Pokémon can gain many AP without traveling far in one Move command, or travel farther per command while gaining fewer AP. Show the current round's remaining turn order and each Pokémon's AP gain.
 
 ## Terrain and elevation

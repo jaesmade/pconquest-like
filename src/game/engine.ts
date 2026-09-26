@@ -26,7 +26,8 @@ export const unitAt = (battle: Battle, x: number, y: number) => battle.units.fin
 export const active = (battle: Battle) => battle.units.find(unit => unit.id === battle.current)!;
 export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
 export const apGain = (unit: Unit, battle: Battle) => Math.max(1, Math.floor(effectiveSpeed(unit, battle)));
-const scaleStats = (stats: Unit['stats'], level: number) => stats.map((n, i) => i === 5 || i === 6 ? n : Math.round(n * (1 + 0.07 * (level - 2)))) as Unit['stats'];
+const scaleStats = (stats: Unit['stats'], level: number) => stats.map((base, index) =>
+  index === 6 ? base : Math.floor(2 * base * level / 100) + (index === 0 ? level + 10 : 5)) as Unit['stats'];
 export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
 export const xpForLevel = (level: number) => (level - 1) * 65;
 const learnedAtLevel = (species: string, level: number) => [...new Set([...SPECIES[species].moves, ...Object.entries(SPECIES[species].learn).filter(([required]) => Number(required) <= level).map(([, move]) => move)])];

@@ -4,7 +4,7 @@ This guide describes the code that exists now and the contracts to keep stable a
 
 The [scalability review](SCALABILITY_AUDIT.md) records the current growth limits and priorities for larger battles and content packs.
 
-The [32×32 competitive 8v8 reassessment](../SCALABILITY_TARGETS.md) sets the map ceiling alongside 20 total owned Pokémon per player and a 60 FPS rendering target. The present build has smaller gameplay limits; use that reassessment for the next implementation phases.
+The [32×32 competitive 8v8 reassessment](SCALABILITY_TARGETS.md) sets the map ceiling alongside 20 total owned Pokémon per player and a 60 FPS rendering target. The present build has smaller gameplay limits; use that reassessment for the next implementation phases.
 
 ## Where changes belong
 
@@ -49,9 +49,9 @@ An encounter's stable ID, `nextId`, and `enemyLevel` determine progression and d
 
 ## Saves and future rule families
 
-The current format is v8 in the browser's IndexedDB database `pokemon-tactics-saves`. The `current` slot holds `{ schemaVersion, savedAt, run }` as JSON; the `backup` slot holds the previous complete snapshot. Battle maps save an authored map ID and signature plus changed tiles; the signature now includes deployment zones. The run stores selected deployment coordinates. Units retain combat state and seeded RNG, while transient animation events are omitted. Loading restores the authored map, applies changed tiles, validates the battle, and falls back to the backup if the current slot is malformed. A changed authored map restarts that battle at preparation with a report message.
+The current format is v9 in the browser's IndexedDB database `pokemon-tactics-saves`. The `current` slot holds `{ schemaVersion, savedAt, run }` as JSON; the `backup` slot holds the previous complete snapshot. Battle maps save an authored map ID and signature plus changed tiles; the signature includes deployment zones. The run stores selected deployment coordinates. Units retain combat state and seeded RNG, while transient animation events are omitted. Loading restores the authored map, applies changed tiles, validates the battle, and falls back to the backup if the current slot is malformed. A changed authored map restarts that battle at preparation with a report message.
 
-On first load, v7 IndexedDB saves and v6 localStorage saves migrate to v8, preserving valid active battles and adding the authored zones and default deployment choices. Loading also accepts v5, v4, v3, v2, and the older `pokemon-tactics-prototype-v1` shape. A v5 battle gains unit levels and Special stat stages in place. Battles from before v5 resume at preparation because their active Pokémon's attack use cannot be recovered. Legacy localStorage keys are retained as a fallback. React batches normal writes for 700 ms during battle and 150 ms outside battle, and requests a final write when the page is hidden or closed; an abrupt browser termination can still lose the latest unsaved command. Storage failure appears in the top bar.
+On first load, v8 and earlier saves migrate to v9. The migration raises legacy party levels by eight, preserves XP progress within the level and each Pokémon's HP ratio, and returns an active battle to preparation so its units use the new content values. It also retains earlier map-zone, deployment, and combat-state migrations as applicable. Loading accepts v7 IndexedDB saves, v6 through v2 localStorage saves, and the older `pokemon-tactics-prototype-v1` shape. Legacy localStorage keys remain a fallback. React batches normal writes for 700 ms during battle and 150 ms outside battle, and requests a final write when the page is hidden or closed; an abrupt browser termination can still lose the latest unsaved command. Storage failure appears in the top bar.
 
 ## Damage calculation
 

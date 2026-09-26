@@ -16,6 +16,7 @@ const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => M
 const log = (battle: Battle, message: string) => { battle.log = [message, ...battle.log].slice(0, 24); };
 const alive = (unit: Unit) => unit.hp > 0;
 export const MAX_LEVEL = 100;
+export const RUN_START_LEVEL = 10;
 const MAX_CARRY_AP = Math.max(1,
   Object.values(MOVES).reduce((cost, move) => Math.max(cost, move.apCost), 0),
   Object.values(ITEM_DEFINITIONS).reduce((cost, item) => Math.max(cost, 'special' in item ? item.special.apCost : 0), 0));
@@ -29,18 +30,19 @@ const scaleStats = (stats: Unit['stats'], level: number) => stats.map((n, i) => 
 export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
 export const xpForLevel = (level: number) => (level - 1) * 65;
 const learnedAtLevel = (species: string, level: number) => [...new Set([...SPECIES[species].moves, ...Object.entries(SPECIES[species].learn).filter(([required]) => Number(required) <= level).map(([, move]) => move)])];
-const makePartyMon = (species: string, level = 2, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: learnedAtLevel(species, level).slice(0, 2), item });
+const makePartyMon = (species: string, level = RUN_START_LEVEL, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: learnedAtLevel(species, level).slice(0, 2), item });
+const recruitLevel = (run: Run) => Math.max(RUN_START_LEVEL, ...run.party.map(mon => mon.level));
 export function newRun(starter: string, unlocks = 0): Run {
   const seed = newSeed(), rng = { rngState: seed };
   const companions = STARTERS.filter(id => id !== starter);
   for (let i = companions.length - 1; i > 0; i--) { const j = Math.floor(random(rng) * (i + 1)); [companions[i], companions[j]] = [companions[j], companions[i]]; }
-  const party = [starter, ...companions.slice(0, 2)].map((id, i) => makePartyMon(id, 2, STARTING_HELD_ITEMS[i]));
+  const party = [starter, ...companions.slice(0, 2)].map((id, i) => makePartyMon(id, RUN_START_LEVEL, STARTING_HELD_ITEMS[i]));
   return { phase: 'route', party, selected: party.map(p => p.id), deployment: {}, bag: [...STARTING_BAG], encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, routeChoice: 'rest', report: [], unlocks };
 }
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: mon.hp, maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1, mega: false };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
@@ -375,7 +377,7 @@ export function evolve(run: Run, id: string) {
 }
 export function recruit(run: Run, species: string) {
   const next = structuredClone(run); if (next.party.length >= 6) return next;
-  next.party.push(makePartyMon(species, 2 + Math.min(3, next.encounter)));
+  next.party.push(makePartyMon(species, recruitLevel(next)));
   return next;
 }
 export function offerRecruits(run: Run) { return [RECRUITS[run.encounter % RECRUITS.length], RECRUITS[(run.encounter + 1) % RECRUITS.length]]; }
@@ -393,7 +395,7 @@ export function applyRouteChoice(run: Run, choice: 'rest' | 'recruit'): Run {
   if (choice === 'rest') {
     for (const mon of next.party) mon.hp = Math.min(statsAtLevel(mon.species, mon.level)[0], mon.hp + max(statsAtLevel(mon.species, mon.level)[0] * 0.4));
   } else {
-    const offered = offerRecruits(next)[0]; if (next.party.length < 6) next.party.push(makePartyMon(offered, 2 + Math.min(3, next.encounter)));
+    const offered = offerRecruits(next)[0]; if (next.party.length < 6) next.party.push(makePartyMon(offered, recruitLevel(next)));
   }
   next.deployment = {};
   next.phase = 'prepare'; return next;

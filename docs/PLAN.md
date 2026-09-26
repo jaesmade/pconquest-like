@@ -4,6 +4,8 @@
 
 Build a playable browser prototype of a Pokémon fan game inspired by the tactical battles of Pokémon Conquest and the replayable routes of a roguelike. The player commands several Pokémon on a tile grid, wins short battles, chooses a route, recruits teammates, and faces a final battle. The early build should establish whether positioning, type matchups, and team composition are fun before adding a large roster.
 
+For the current level, HP, move-power, and encounter tuning, see [the early-run balance baseline](BALANCE.md).
+
 ## First playable run
 
 1. Choose one of six starting Pokémon: Bulbasaur, Squirtle, Lapras, Geodude, Pikachu, or Meowth. Two companions from that pool complete the initial run party of three; recruitment can grow it to six.

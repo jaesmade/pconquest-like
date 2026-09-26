@@ -1,5 +1,5 @@
 import { abilityFor, ENCOUNTERS, itemFor, MAPS, MOVES, SPECIES, TYPES } from '../content/data';
-import { MAX_LEVEL, maxCarryAp, statsAtLevel, xpForLevel } from '../game/engine';
+import { MAX_LEVEL, RUN_START_LEVEL, maxCarryAp, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
 import { resolvePlayerDeployment } from '../game/deployment';
@@ -15,8 +15,13 @@ type MapSnapshot = { id: string; signature: string; changes: TileChange[] };
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV8 = { schemaVersion: 8; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV8 | { schemaVersion: 7; savedAt: string; run: RunSnapshot };
+type SaveV9 = { schemaVersion: 9; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV9 | { schemaVersion: 8 | 7; savedAt: string; run: RunSnapshot };
+// Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
+const LEGACY_HP_BASE: Record<string, number> = {
+  bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
+  geodude: 90, pikachu: 76, meowth: 78, vulpix: 80, charmander: 78,
+};
 const phases = new Set<Run['phase']>(['starter', 'route', 'prepare', 'battle', 'intermission', 'result']);
 
 export function freshRun(unlocks = 0): Run {
@@ -41,6 +46,15 @@ function migrateRun(run: Run, version: number): Run {
   if (next.party.length > 6 || next.party.some(mon => !mon || typeof mon.id !== 'string' || !mon.id || !SPECIES[mon.species])
     || new Set(next.party.map(mon => mon.id)).size !== next.party.length) return freshRun(next.unlocks);
   for (const mon of next.party) {
+    if (version < 9) {
+      const oldLevel = Number.isInteger(mon.level) ? Math.max(1, Math.min(MAX_LEVEL, mon.level)) : 2;
+      const oldMaxHp = Math.round((LEGACY_HP_BASE[mon.species] ?? SPECIES[mon.species].stats[0]) * (1 + 0.07 * (oldLevel - 2)));
+      const oldXp = Number.isFinite(mon.xp) ? mon.xp : xpForLevel(oldLevel);
+      mon.level = Math.min(MAX_LEVEL, oldLevel + RUN_START_LEVEL - 2);
+      mon.xp = xpForLevel(mon.level) + Math.max(0, oldXp - xpForLevel(oldLevel));
+      const newMaxHp = statsAtLevel(mon.species, mon.level)[0];
+      mon.hp = Number.isFinite(mon.hp) ? Math.min(newMaxHp, Math.ceil(newMaxHp * mon.hp / Math.max(1, oldMaxHp))) : newMaxHp;
+    }
     mon.level = Number.isInteger(mon.level) ? Math.max(1, Math.min(MAX_LEVEL, mon.level)) : 2;
     mon.xp = Number.isFinite(mon.xp) ? Math.max(xpForLevel(mon.level), Math.min(xpForLevel(MAX_LEVEL), Math.floor(mon.xp))) : xpForLevel(mon.level);
     const maxHp = statsAtLevel(mon.species, mon.level)[0];
@@ -54,6 +68,12 @@ function migrateRun(run: Run, version: number): Run {
   next.bag = next.bag.filter(item => !!itemFor(item));
   next.selected = [...new Set(next.selected.filter(id => next.party.some(mon => mon.id === id && mon.hp > 0)))].slice(0, 3);
   next.deployment = resolvePlayerDeployment({ ...next, deployment: next.deployment && typeof next.deployment === 'object' && !Array.isArray(next.deployment) ? next.deployment : {} }, MAPS[ENCOUNTERS.find(encounter => encounter.id === next.encounterId)!.mapId]);
+
+  if (version < 9 && next.phase === 'battle' && next.battle) {
+    next.phase = 'prepare';
+    next.battle = undefined;
+    next.report = ['Battle returned to preparation after the run balance update.'];
+  }
 
   // The old battle cannot reveal whether its active unit already spent its attack.
   if (version < 5 && next.battle) {
@@ -179,25 +199,25 @@ function snapshotMap(battle: Battle): MapSnapshot {
   return { id: map.id, signature: mapSignature(authored, true), changes };
 }
 
-export function snapshotRun(run: Run): SaveV8 {
+export function snapshotRun(run: Run): SaveV9 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 8, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 9, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;
   const authored = MAPS[saved.map?.id];
-  if (!authored || saved.map.signature !== mapSignature(authored, envelope.schemaVersion === 8) || !Array.isArray(saved.map.changes)) {
+  if (!authored || saved.map.signature !== mapSignature(authored, envelope.schemaVersion >= 8) || !Array.isArray(saved.map.changes)) {
     return migrateRun({ ...run, phase: 'prepare', battle: undefined,
       report: ['The map changed since this battle was saved. Prepare your team to restart it.'] } as Run, envelope.schemaVersion);
   }

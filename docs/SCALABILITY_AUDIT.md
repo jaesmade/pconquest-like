@@ -1,6 +1,6 @@
 # Scalability review
 
-The new target assessment for 32×32 maps, competitive 8v8, 20 total owned Pokémon, and 60 FPS is in [SCALABILITY_TARGETS.md](../SCALABILITY_TARGETS.md). This earlier review describes the current prototype.
+The new target assessment for 32×32 maps, competitive 8v8, 20 total owned Pokémon, and 60 FPS is in [SCALABILITY_TARGETS.md](SCALABILITY_TARGETS.md). This earlier review describes the current prototype.
 
 Review date: 2026-09-26. This is a code and architecture review of the early build. A local Node benchmark covers serialization and cloning on synthetic 8×8, 64×64, and 128×128 maps; low-end-device and browser frame profiles remain future work.
 

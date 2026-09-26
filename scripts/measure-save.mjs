@@ -39,7 +39,7 @@ for (const size of [8, 32]) {
   const json = JSON.stringify({ savedAt: new Date().toISOString(), run });
   const bytes = Buffer.byteLength(json, 'utf8');
   const compact = JSON.stringify(snapshotRun(run));
-  console.log(`${size}×${size}: full-map ${bytes} bytes; v8 ${Buffer.byteLength(compact, 'utf8')} bytes; ${measure('full clone', () => structuredClone(run.battle), iterations)}; ${measure('command clone', () => cloneBattleForCommand(run.battle), iterations)}; ${measure('full-map stringify', () => JSON.stringify({ savedAt: '', run }), iterations)}; ${measure('v8 stringify', () => JSON.stringify(snapshotRun(run)), iterations)}`);
+  console.log(`${size}×${size}: full-map ${bytes} bytes; v9 ${Buffer.byteLength(compact, 'utf8')} bytes; ${measure('full clone', () => structuredClone(run.battle), iterations)}; ${measure('command clone', () => cloneBattleForCommand(run.battle), iterations)}; ${measure('full-map stringify', () => JSON.stringify({ savedAt: '', run }), iterations)}; ${measure('v9 stringify', () => JSON.stringify(snapshotRun(run)), iterations)}`);
 }
 
 // Synthetic future-cap state; current gameplay still limits deployment and roster size.
@@ -54,7 +54,7 @@ capped.battle.units = Array.from({ length: 16 }, (_, i) => ({
 capped.battle.turnOrder = capped.battle.units.map(unit => unit.id);
 capped.battle.current = capped.battle.turnOrder[0];
 const cappedJson = JSON.stringify(snapshotRun(capped));
-console.log(`32×32 + 16 units + 20 owned: v8 ${Buffer.byteLength(cappedJson, 'utf8')} bytes; ${measure('command clone', () => cloneBattleForCommand(capped.battle), 1000)}; ${measure('v8 stringify', () => JSON.stringify(snapshotRun(capped)), 1000)}`);
+console.log(`32×32 + 16 units + 20 owned: v9 ${Buffer.byteLength(cappedJson, 'utf8')} bytes; ${measure('command clone', () => cloneBattleForCommand(capped.battle), 1000)}; ${measure('v9 stringify', () => JSON.stringify(snapshotRun(capped)), 1000)}`);
 
 capped.battle.map.tiles = Array.from({ length: 32 }, () => Array.from({ length: 32 }, () => ({ kind: 'plain', height: 0 })));
 const pursuer = capped.battle.units[8], target = capped.battle.units[0];

@@ -16,6 +16,13 @@
     "placeholder": {
       "facingRows": [7, 5, 1, 3],
       "normal": null,
+      "shadows": {
+        "idle": "/assets/animations/units/placeholder/placeholder-idle-shadow-32x40.png",
+        "attack": "/assets/animations/units/placeholder/placeholder-attack-shadow-80x88.png",
+        "shoot": "/assets/animations/units/placeholder/placeholder-shoot-shadow-64x64.png",
+        "charge": "/assets/animations/units/placeholder/placeholder-charge-shadow-32x40.png",
+        "sleep": "/assets/animations/units/placeholder/placeholder-sleep-shadow-32x40.png"
+      },
       "clips": {
         "idle": { "url": "/assets/animations/units/placeholder/placeholder-idle-32x40.png", "frameWidth": 32, "frameHeight": 40, "frames": 5, "rows": 8, "fps": 5, "loop": true },
         "walk": { "url": "/assets/animations/units/placeholder/placeholder-walk-32x40.png", "frameWidth": 32, "frameHeight": 40, "frames": 7, "rows": 8, "fps": 8, "loop": true },

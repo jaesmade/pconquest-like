@@ -2,7 +2,12 @@ import manifest from '../../public/assets/animations/animation-manifest.json';
 import type { GridPoint, Unit } from '../game/types';
 
 export type UnitClip = keyof typeof manifest.unitSets.placeholder.clips;
-type UnitSet = { facingRows: number[]; normal?: string | null; clips: Record<UnitClip, { url: string; frameWidth: number; frameHeight: number; frames: number; rows: number; fps: number; impactFrame?: number; loop: boolean }> };
+type UnitSet = {
+  facingRows: number[];
+  normal?: string | null;
+  clips: Record<UnitClip, { url: string; frameWidth: number; frameHeight: number; frames: number; rows: number; fps: number; impactFrame?: number; loop: boolean }>;
+  shadows?: Partial<Record<UnitClip, string>>;
+};
 
 const unitIds: Record<string, string> = manifest.units;
 const unitSets: Record<string, UnitSet> = manifest.unitSets;
@@ -17,6 +22,10 @@ export function unitSet(speciesOrSet: string): UnitSet {
 
 export function unitTextureKey(setId: string, clip: UnitClip): string {
   return `unit-${setId}-${clip}`;
+}
+
+export function unitShadowTextureKey(setId: string, clip: UnitClip): string {
+  return `${unitTextureKey(setId, clip)}-shadow`;
 }
 
 export function unitAnimationKey(species: string, facing: number, clip: UnitClip): string {

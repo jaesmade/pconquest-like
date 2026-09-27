@@ -33,8 +33,14 @@
 
 - New runs use the two-panel point-budget builder documented in [PARTY_BUILDER.md](PARTY_BUILDER.md): removable roster cards at left; a searchable, paged species catalog, point balance, and Start Run control at right.
 - Hovering or keyboard-focusing a catalog card updates a stats inspector with the candidate's level-10 HP, Attack, Defense, Special Attack, Special Defense, Speed, Movement, type, and ability.
-- The starting draft has six points. Species cost two by default and content can override a cost; current eligible choices use the default. The run owns up to 20 Pokémon and still deploys up to three per solo encounter.
-- The layout uses responsive CSS, a scrollable roster/catalog, keyboard-operable controls, and a single-column narrow-screen mode. Save schema v15 accepts existing roster saves and raises the owned-Pokémon validation ceiling to 20.
+- The starting draft has six points. Species cost two by default and content can override a cost; current eligible choices use the default. The run owns up to 20 Pokémon and deploys up to six per solo encounter.
+- The layout uses responsive CSS, a scrollable roster/catalog, keyboard-operable controls, and a single-column narrow-screen mode. Save schema v16 migrates earlier roster and route saves.
+
+## Implementation progress (route and preparation)
+
+- The route is now a saved ten-column cavern graph with a guaranteed boss in column ten. React renders node icons and connection lines over a generated pixel-art cave backdrop; only the next connected nodes accept input. See [ROUTE_OVERHAUL.md](ROUTE_OVERHAUL.md).
+- Battle and elite nodes open preparation, healing fully restores and revives, stores sell held items for coins, and the initial special encounter offers one of two free recruits or a coin cache.
+- Preparation now places up to six selected Pokémon directly on the authored isometric map. The roster remains scrollable, and move and held-item controls remain available in an expandable section. Tile legality and saved positions use the same deployment rules as battle.
 
 ## Goal and current baseline
 

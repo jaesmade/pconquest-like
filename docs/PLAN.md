@@ -8,22 +8,22 @@ For the current level, HP, move-power, and encounter tuning, see [the early-run 
 
 ## First playable run
 
-1. Build a starting roster from the available starter and recruit species using six party points. Most Pokémon cost two points, so the default budget buys three. A run can own up to 20 Pokémon total; choose up to three to deploy before each battle.
-2. Choose a path through a small branching route map.
-3. Before each battle, choose up to three available Pokémon from the run roster to deploy. Fight three regular encounters, with a choice of a rest or recruit node between battles.
+1. Build a starting roster from the available starter and recruit species using six party points. Most Pokémon cost two points, so the default budget buys three. A run can own up to 20 Pokémon total; choose up to six to deploy before each battle.
+2. Choose a path through a branching route with ten columns; the boss is always in column ten. See the [route and deployment overhaul](ROUTE_OVERHAUL.md).
+3. Before each battle, choose up to six available Pokémon from the run roster and place them on the isometric map. Normal battles, elite battles, full-party healing, stores, and simple special encounters appear along the route.
 4. After each encounter, give XP to every Pokémon in the run party, offer any eligible evolutions, and teach moves unlocked by their new levels before the next encounter.
-5. Fight a boss encounter with a distinct map and objective.
+5. Fight the column-ten boss encounter with a distinct map and capture objective.
 6. See a win or loss screen. Save an unlock that changes a future run.
 
-Target run length: about 15–25 minutes once the player understands the controls.
+Target run length for the ten-column route needs play-session measurement.
 
 ## Early build scope
 
 | Area                 | Initial target                                                                                                                      |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Battle size          | Three Pokémon per side on an 8×8 square grid                                                                                        |
-| Run party            | Up to 20 Pokémon; choose up to three to deploy before each solo battle; starting roster drafted from six points                     |
-| Maps                 | Two regular maps and one boss map                                                                                                   |
+| Battle size          | Up to six player Pokémon on an 8×8 square grid; elite and boss enemies can field more than three                                     |
+| Run party            | Up to 20 Pokémon; choose up to six to deploy before each solo battle; starting roster drafted from six points                       |
+| Maps                 | Three regular map templates and one boss map, reused by route nodes                                                                  |
 | Roster               | Six named starting Pokémon and at least two recruitable Pokémon, including a Fire user and a Mega-compatible species                |
 | Types in encounters  | Normal, Fire, Water, Grass, Electric, Ground, Rock, and Ice                                                                         |
 | Moves                | A growing pool of learned moves, with two equipped for battle, one passive ability, and a 1-in-24 critical chance on damaging moves |
@@ -33,7 +33,7 @@ Target run length: about 15–25 minutes once the player understands the control
 | Terrain              | Elevation, deep water, and lava hazards                                                                                             |
 | Weather              | Sun, rain, snow, and sandstorm                                                                                                      |
 | Encounter objectives | Defeat all opponents; boss battle adds a capture point                                                                              |
-| Route nodes          | Battle, rest, recruit, and boss                                                                                                     |
+| Route nodes          | Ten columns: battle, elite battle, full heal, store, special, and a column-ten boss                                                  |
 | Persistence          | Local browser save for settings and unlocks                                                                                         |
 | Controls             | Mouse or touch selection; keyboard shortcuts can follow                                                                             |
 
@@ -55,11 +55,11 @@ For future implementation, use stable content IDs, authored encounter definition
 
 ### Run party and deployment
 
-The run party holds at most 20 Pokémon total, including deployed members and reserves. Build the initial roster with six points; species cost two by default, with optional per-species overrides in content. Before each encounter, show the full roster and let the player select up to three with current HP above zero. If only one or two are available, they may enter with fewer than three; if none are available, the run ends. The selected Pokémon start on the battle grid, while the others remain reserves and take no turns or terrain and weather damage. There is no midbattle swapping in the early build.
+The run party holds at most 20 Pokémon total, including deployed members and reserves. Build the initial roster with six points; species cost two by default, with optional per-species overrides in content. Before each encounter, show the full roster and let the player select up to six with current HP above zero. They may enter with fewer than six; if none are available for a battle, the run ends. Place the selected Pokémon on the rendered isometric map in the ally zone. Reserves take no turns or terrain and weather damage. There is no midbattle swapping in the early build.
 
 On the top-down deployment grid, allies choose starting tiles in the bottom two rows and enemies use the top two rows. The center four rows are neutral on the initial 8×8 campaign maps. Default allies enter from the bottom edge facing north; default enemies enter from the top edge facing south. Each team may reposition within its own zone before battle when deployment selection is available.
 
-Current HP, fainted state, level, XP, evolution stage, learned and equipped moves, and held item persist between encounters. Recruitment adds a Pokémon while the roster has fewer than 20 members. At capacity, the recruit choice is disabled in this early build. Save both the roster and selected deployment with the run so the next battle can show the previous selection by default.
+Current HP, fainted state, level, XP, evolution stage, learned and equipped moves, and held item persist between encounters. Special-node recruitment adds a Pokémon while the roster has fewer than 20 members. At capacity, the recruit choice is disabled. Save both the roster and selected deployment with the run so the next battle can show the previous selection by default.
 
 ### Pokémon stats
 
@@ -241,7 +241,7 @@ Resolve XP and level gains after the battle, then show an evolution step before 
 
 After XP and any evolution choice, check every party Pokémon's current form and level against its level-based learnset. Teach all newly eligible moves, including moves from an evolved form that the Pokémon already qualifies for. This check happens after every encounter for deployed Pokémon, reserves, and fainted Pokémon alike. Show each new move and let the player equip it in one of two battle move slots, replacing an equipped move if necessary; declining to equip does not erase the learned move. The player may change the two equipped moves during battle preparation. Recruits arrive knowing all moves available to their form at their starting level. For the early build, arrange XP thresholds and learnsets so at least one party member can learn a move after each regular encounter.
 
-Generate a short route from authored node templates so each run offers different choices while every branch remains viable. After the XP, evolution, and move-learning steps, a won battle awards one choice from a small set of healing, recruitment, held items, upgrades to already learned moves, or team improvements. A recruit node offers a Pokémon while the run roster has fewer than 20; at the cap the recruit action is unavailable in the early build. A rest node heals or revives one teammate. The boss rewards completion and a permanent unlock.
+Generate a ten-column route from seeded node templates so each run offers different choices while every branch reaches the column-ten boss. Normal battles award shared XP and coins; elites have stronger teams and larger rewards. Healing nodes fully restore and revive the whole owned party. Stores sell held items for coins. The initial special encounter offers one of two free recruits while under the 20-owned cap or a coin cache. The boss rewards completion and a permanent unlock. See [route behavior and prices](ROUTE_OVERHAUL.md).
 
 Permanent unlocks should add variety, such as a new starter, recruit, map, or item. The first release needs only a few unlocks and one region. Store the current run and unlocks locally so a browser refresh does not erase progress.
 
@@ -251,8 +251,8 @@ Permanent unlocks should add variety, such as a new starter, recruit, map, or it
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Start                    | New run, continue run, settings                                                                                                                                             |
 | Starter choice           | Searchable, six-point party draft, selected roster, point costs, and hovered/focused species stats                                                                           |
-| Route map                | Upcoming node choices and current health for up to 20 owned Pokémon                                                                                                          |
-| Battle preparation       | Full party, HP and status, learned and equipped moves, held items and bag, three deployment slots, and encounter terrain and weather                                        |
+| Route map                | Ten connected columns, visible node types, current path, coins, and the column-ten boss                                                                                       |
+| Battle preparation       | Full party, HP and status, learned and equipped moves, held items and bag, six deployment slots on the rendered isometric map, terrain, and weather                         |
 | Battle                   | Grid, terrain height and hazards, weather, upcoming turn queue, objective, selected Pokémon, Attack / Move / Special commands, range preview, effectiveness, and action log |
 | XP, evolution, and moves | XP gained by every party member, level increases, optional evolution previews, newly learned moves, and two-move loadout choices before the next encounter                  |
 | Reward / recruit         | Clear comparison of available choices                                                                                                                                       |
@@ -301,11 +301,11 @@ The core rules and named content are covered above. These data choices remain be
 - [ ] **2. Complete battle:** add three units per side, the continuous Speed scheduler with random equal-Speed tie breakers, enemy decisions, HP, fainting, and win/loss handling.
 - [ ] **3. Initial roster, moves, and items:** add the six named starters and abilities, listed move set and AP costs, type table, hit and critical rolls, status effects, held items, Mega Evolution, and clear action previews.
 - [ ] **4. Weather:** add sun, rain, snow, and sandstorm with battle-time duration and damage ticks.
-- [ ] **5. One complete run:** add the 20-Pokémon owned-run roster, six-point starting draft, three-Pokémon battle selection, shared XP, level gains, between-encounter evolution and move learning, move loadouts, route choices, rewards, recruitment, rest, boss objective, and result screens.
+- [ ] **5. One complete run:** add the 20-Pokémon owned-run roster, six-point starting draft, six-Pokémon battle selection, shared XP, level gains, between-encounter evolution and move learning, move loadouts, ten-column route choices, rewards, recruitment, healing, stores, boss objective, and result screens.
 - [ ] **6. Presentation and persistence:** load the named placeholder animation sheets and manifest, animate directional grid actions and effects, add terrain and UI placeholders, sound, readable UI, browser saving, and a small set of unlocks.
 
 ## Early build completion criteria
 
-The build is ready for broader content work when a player can draft a starting roster within six points, grow to a maximum of 20 owned Pokémon, choose up to three for each battle, and finish a run in the browser. Award XP to the entire roster, evolve an eligible Pokémon, learn level-based moves after encounters and equip two for battle, equip and use held items including one Mega Stone, command the deployed Pokémon through Attack / Move / Special without confusing turn rules, read terrain and weather effects before choosing an action, understand why a move will help or hurt, make meaningful route choices, and return after a refresh with the roster and unlocks intact.
+The build is ready for broader content work when a player can draft a starting roster within six points, grow to a maximum of 20 owned Pokémon, choose up to six for each battle, and finish a ten-column run in the browser. Award XP to the entire roster, evolve an eligible Pokémon, learn level-based moves after encounters and equip two for battle, equip and use held items including one Mega Stone, command the deployed Pokémon through Attack / Move / Special without confusing turn rules, read terrain and weather effects before choosing an action, understand why a move will help or hurt, make meaningful route choices, and return after a refresh with the roster and unlocks intact.
 
 After that milestone, expand the roster and maps, introduce the remaining types, and tune encounter difficulty from actual play sessions.

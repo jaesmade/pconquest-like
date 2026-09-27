@@ -9,8 +9,8 @@ The New Run selection screen follows the supplied 3.png layout: an aqua grid bac
 - A new run starts with **6 party points**.
 - Standard species cost **2 points**. Species.partyCost can override this for later balance/content work; the shared default is in src/content/roster.ts.
 - The selected starting roster costs no more than the point budget and contains no duplicate species.
-- A run may own up to **20 Pokémon total**, including deployed members and reserves. The current recruit route adds one while under the cap and is disabled at capacity.
-- Solo preparation still deploys at most **3 Pokémon** per encounter. Point budget and owned-roster capacity do not change that battle limit.
+- A run may own up to **20 Pokémon total**, including deployed members and reserves. Special route nodes can add a recruit while under the cap.
+- Solo preparation deploys at most **6 Pokémon** per encounter after the player recruits enough members. Point budget and owned-roster capacity do not change the starting draft.
 - Candidate stats use the run's starting level (currently level 10) and the authoritative statsAtLevel calculation. Movement remains its species tile-range value.
 
 ## Screen layout and interaction
@@ -33,7 +33,7 @@ On narrow screens, the party list moves above the catalog and can scroll indepen
 - src/content/species.ts defines the eligible species and may set optional partyCost.
 - src/ui/PartyBuilder.tsx renders the draft without mutating the run until Start Run.
 - src/game/engine.ts validates draft points and enforces the 20-owned cap during creation/recruitment.
-- src/persistence/save.ts writes schema v15 and migrates existing saves without dropping any of their Pokémon. Existing v14 rosters were already below the new cap.
+- src/persistence/save.ts writes schema v16 and migrates existing saves without dropping any of their Pokémon. Existing v14 and v15 rosters were already below the new cap.
 
 The initial catalog combines unique starter and recruit IDs and excludes temporary Mega forms. Ordinary evolutions appear later through progression rather than as separate initial draft choices. To add more choices, add species content and register the ID in STARTERS or RECRUITS; set a positive integer partyCost only when its cost should differ from two.
 
@@ -43,4 +43,4 @@ The initial catalog combines unique starter and recruit IDs and excludes tempora
 - Three standard species exactly spend six points. Adding a fourth is blocked until a species is removed or an override makes the selected costs fit.
 - Hover and focus both update the same stat inspector, with values taken from the actual game stat calculation.
 - No draft mutates the run until Start Run. Back returns to the title screen.
-- Recruit, save validation, and roster display all use the shared 20-Pokémon cap; battle preparation still caps deployment at three.
+- Recruit, save validation, and roster display all use the shared 20-Pokémon cap; battle preparation caps deployment at six.

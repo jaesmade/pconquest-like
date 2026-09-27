@@ -191,7 +191,7 @@ export default function BattleScreen(props: Props) {
   return <main className="battle-stage" ref={stageRef}>
     <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
     <header className="battle-top-hud">
-      <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `ENCOUNTER ${run.encounter + 1}`} · ROUND {battle.round}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
+      <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `COLUMN ${run.encounter + 1}`} · ROUND {battle.round}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
       <div className="turn-strip" aria-label="Turn order">{upcoming(battle).slice(0, 6).map((unit, index) =>
         <div key={`${unit.id}-${index}`} className={`turn-portrait ${unit.side} ${index === 0 ? 'now' : ''}`} title={index === 0 ? `${unit.name} · ${unit.ap} AP now` : `${unit.name} · ${unit.ap} AP banked · +${apGain(unit, battle)} next turn`}>
           <Sprite id={unit.species} /><span>{unit.name}</span>

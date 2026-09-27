@@ -1,5 +1,6 @@
 import type { AbilityId } from '../content/abilities';
 import type { ItemId } from '../content/items';
+import type { RoutePlan } from './route';
 
 export type Weather = 'clear' | 'sun' | 'rain' | 'snow' | 'sandstorm';
 export type GridPoint = [number, number];
@@ -33,4 +34,4 @@ export type AttackVisualEvent = { id: string; moveId: string; sourceId: string; 
 export type FeedbackEvent = { id: string; kind: 'ability' | 'item'; key: string; unitId: string };
 export type HpVisualEvent = { id: string; unitId: string; kind: 'damage' | 'heal'; amount: number; hpAfter: number; x: number; y: number; attackId?: string; duringMove?: boolean };
 export type Battle = { map: BattleMap; tileChanges: Record<string, TileChange>; hazardZones: HazardZone[]; objective: Encounter['objective']; units: Unit[]; weather: Weather; weatherUntil: number; time: number; round: number; turnOrder: string[]; turnIndex: number; current: string; rngState: number; log: string[]; visualEvents: AttackVisualEvent[]; feedbackEvents?: FeedbackEvent[]; hpEvents?: HpVisualEvent[]; result?: 'win' | 'loss'; captureHeld: boolean; encounterId: string };
-export type Run = { phase: 'starter' | 'route' | 'prepare' | 'battle' | 'intermission' | 'result'; party: PartyMon[]; selected: string[]; deployment: Record<string, GridPoint>; bag: ItemId[]; encounter: number; encounterId: string; seed: number; rngState: number; routeChoice: 'rest' | 'recruit'; battle?: Battle; report: string[]; result?: 'win' | 'loss'; unlocks: number };
+export type Run = { phase: 'starter' | 'route' | 'prepare' | 'battle' | 'intermission' | 'shop' | 'event' | 'result'; party: PartyMon[]; selected: string[]; deployment: Record<string, GridPoint>; bag: ItemId[]; coins: number; encounter: number; encounterId: string; seed: number; rngState: number; route: RoutePlan; currentNodeId?: string; routeChoice: 'rest' | 'recruit'; battle?: Battle; report: string[]; result?: 'win' | 'loss'; unlocks: number };

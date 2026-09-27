@@ -12,6 +12,9 @@ import { changeStage, emptyStageExpiry, expireStages } from './stages';
 import { hasMoveTag } from '../content/moves';
 import { canDeploy, chooseEnemyDeployment, resolvePlayerDeployment } from './deployment';
 import { createMap } from '../content/maps';
+import { SHOP_STOCK } from '../content/shop';
+import { availableRouteNodes, createRoute, routeNode, ROUTE_COLUMNS } from './route';
+import type { Encounter } from './types';
 
 export { reachable, reachableTiles } from './grid';
 
@@ -28,7 +31,15 @@ const hpFeedback = (battle: Battle, unit: Unit, kind: 'damage' | 'heal', amount:
 const alive = (unit: Unit) => unit.hp > 0;
 export const MAX_LEVEL = 100;
 export const RUN_START_LEVEL = 10;
-const encounterFor = (run: Run) => ENCOUNTERS.find(encounter => encounter.id === run.encounterId);
+export function encounterDefinition(run: Run): Encounter {
+  const node = routeNode(run.route, run.currentNodeId);
+  const template = node?.kind === 'boss' ? ENCOUNTERS.at(-1)! : ENCOUNTERS.find(encounter => encounter.id === run.encounterId) ?? ENCOUNTERS[0];
+  if (!node) return template;
+  if (node.kind === 'boss') return { ...template, enemies: ['lapras', 'geodude', 'pikachu', 'charmander'], enemyLevel: 21, xp: 100 };
+  const level = 9 + Math.floor((node.column - 1) * 0.8) + (node.kind === 'elite' ? 3 : 0);
+  return { ...template, enemies: node.kind === 'elite' ? [...template.enemies, RECRUITS[node.column % RECRUITS.length]] : template.enemies,
+    enemyLevel: level, xp: node.kind === 'elite' ? 85 : 65, objective: 'defeat' };
+}
 export const unitAt = (battle: Battle, x: number, y: number) => battle.units.find(unit => alive(unit) && unit.x === x && unit.y === y);
 export const active = (battle: Battle) => battle.units.find(unit => unit.id === battle.current)!;
 export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
@@ -46,7 +57,7 @@ export function newRun(selectedSpecies: string[], unlocks = 0): Run {
     || partyDraftCost(draft) > STARTING_PARTY_POINTS) throw new Error('Choose a valid starting party within the available points.');
   const seed = newSeed(), rng = { rngState: seed };
   const party = draft.map((id, i) => makePartyMon(id, RUN_START_LEVEL, STARTING_HELD_ITEMS[i] ?? 'None'));
-  return { phase: 'route', party, selected: party.slice(0, 3).map(p => p.id), deployment: {}, bag: [...STARTING_BAG], encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, routeChoice: 'rest', report: [], unlocks };
+  return { phase: 'route', party, selected: party.slice(0, 6).map(p => p.id), deployment: {}, bag: [...STARTING_BAG], coins: 20, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
 }
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
@@ -55,10 +66,9 @@ function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile:
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
-  const definition = encounterFor(next);
-  if (!definition) throw new Error(`Unknown encounter ${next.encounterId}`);
+  const definition = encounterDefinition(next);
   const map = structuredClone(MAPS[definition.mapId]);
-  const selected = next.selected.map(id => next.party.find(mon => mon.id === id)).filter((mon): mon is PartyMon => !!mon && mon.hp > 0).slice(0, 3);
+  const selected = next.selected.map(id => next.party.find(mon => mon.id === id)).filter((mon): mon is PartyMon => !!mon && mon.hp > 0).slice(0, 6);
   if (!selected.length) return { ...next, phase: 'result', result: 'loss' };
   const deployment = resolvePlayerDeployment(next, map);
   if (selected.some(mon => !deployment[mon.id])) throw new Error(`Map ${map.id}: no legal ally deployment for the selected team.`);
@@ -407,7 +417,10 @@ export function completeBattle(run: Run): Run {
   for (const mon of next.party) { const unit = battle.units.find(u => u.partyId === mon.id); if (unit) { mon.hp = Math.min(unit.hp, statsAtLevel(mon.species, mon.level)[0]); mon.item = unit.item; } }
   if (battle.result === 'loss') { next.phase = 'result'; next.result = 'loss'; next.battle = undefined; return next; }
   const report: string[] = [];
-  const earnedXp = ENCOUNTERS.find(encounter => encounter.id === battle.encounterId)!.xp;
+  const node = routeNode(next.route, next.currentNodeId);
+  const earnedXp = encounterDefinition(next).xp;
+  next.coins += node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 12;
+  report.push(`Earned ${node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 12} coins.`);
   for (const mon of next.party) {
     mon.xp += earnedXp; report.push(`${SPECIES[mon.species].name} gained ${earnedXp} XP.`);
     while (mon.level < MAX_LEVEL && mon.xp >= xpForLevel(mon.level + 1)) {
@@ -440,23 +453,58 @@ export function recruit(run: Run, species: string) {
   return next;
 }
 export function offerRecruits(run: Run) { return [RECRUITS[run.encounter % RECRUITS.length], RECRUITS[(run.encounter + 1) % RECRUITS.length]]; }
-export function nextEncounter(run: Run): Run {
-  if (run.phase !== 'intermission') return run;
+export function advanceRoute(run: Run): Run {
   const next = structuredClone(run);
-  const followingId = encounterFor(next)?.nextId;
-  next.encounter++;
-  if (!followingId) { next.phase = 'result'; next.result = 'win'; next.unlocks++; }
-  else { next.encounterId = followingId; next.phase = 'route'; next.routeChoice = 'rest'; next.deployment = {}; next.selected = next.selected.filter(id => next.party.some(p => p.id === id && p.hp > 0)); }
+  const node = routeNode(next.route, next.currentNodeId);
+  if (!node) return next;
+  next.encounter = node.column;
+  next.currentNodeId = undefined;
+  next.deployment = {};
+  next.selected = next.selected.filter(id => next.party.some(mon => mon.id === id && mon.hp > 0));
+  if (node.column === ROUTE_COLUMNS) { next.phase = 'result'; next.result = 'win'; next.unlocks++; }
+  else next.phase = 'route';
   return next;
 }
-export function applyRouteChoice(run: Run, choice: 'rest' | 'recruit'): Run {
-  const next = structuredClone(run); next.routeChoice = choice;
-  if (choice === 'rest') {
-    for (const mon of next.party) mon.hp = Math.min(statsAtLevel(mon.species, mon.level)[0], mon.hp + max(statsAtLevel(mon.species, mon.level)[0] * 0.4));
-  } else {
-    const offered = offerRecruits(next)[0]; if (next.party.length < MAX_RUN_POKEMON) next.party.push(makePartyMon(offered, recruitLevel(next)));
+export function nextEncounter(run: Run): Run { return run.phase === 'intermission' ? advanceRoute(run) : run; }
+
+export function selectRouteNode(run: Run, id: string): Run {
+  if (run.phase !== 'route') return run;
+  const node = availableRouteNodes(run.route).find(candidate => candidate.id === id);
+  if (!node) return run;
+  const next = structuredClone(run);
+  next.route.visited.push(id);
+  next.currentNodeId = id;
+  next.encounter = node.column - 1;
+  if (node.kind === 'heal') {
+    for (const mon of next.party) mon.hp = statsAtLevel(mon.species, mon.level)[0];
+    next.report = ['The healing spring fully restored and revived your party.'];
+    return advanceRoute(next);
   }
+  if (node.kind === 'store') { next.phase = 'shop'; return next; }
+  if (node.kind === 'special') { next.phase = 'event'; return next; }
+  next.encounterId = node.kind === 'boss' ? ENCOUNTERS.at(-1)!.id : ENCOUNTERS[(node.column - 1) % (ENCOUNTERS.length - 1)].id;
+  next.phase = 'prepare';
   next.deployment = {};
-  next.phase = 'prepare'; return next;
+  return next;
+}
+
+export function buyShopItem(run: Run, item: ItemId): Run {
+  const offer = SHOP_STOCK.find(stock => stock.item === item);
+  if (run.phase !== 'shop' || !offer || run.coins < offer.price) return run;
+  const next = structuredClone(run);
+  next.coins -= offer.price;
+  next.bag.push(item);
+  return next;
+}
+
+export function resolveSpecial(run: Run, choice: { kind: 'recruit'; species: string } | { kind: 'coins' }): Run {
+  if (run.phase !== 'event') return run;
+  if (choice.kind === 'recruit' && (run.party.length >= MAX_RUN_POKEMON || !offerRecruits(run).includes(choice.species))) return run;
+  const next = structuredClone(run);
+  if (choice.kind === 'recruit') {
+    next.party.push(makePartyMon(choice.species, recruitLevel(next)));
+    next.report = [`${SPECIES[choice.species].name} joined your party.`];
+  } else { next.coins += 18; next.report = ['You found 18 coins in a forgotten cache.']; }
+  return advanceRoute(next);
 }
 export function setWeather(battle: Battle, weather: Weather) { battle.weather = weather; battle.weatherUntil = battle.time + 300; }

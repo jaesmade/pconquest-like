@@ -19,8 +19,8 @@
 
 - The active ally's action panel now measures its own size, projects the actor through the camera, prefers the right side, flips left when needed, clamps within the stage, and draws a connector. On narrow viewports it becomes a bottom sheet.
 - Main commands show the reason when Attack, Move, or Special is unavailable. Attack and Move open focused submenus with a Back control; Escape returns to the main commands, closes inspection or the panel, then opens Pause. Closing the panel returns focus to its Actions button. Pause accepts Escape to resume.
-- Selecting a movement tile now previews the authoritative route, step count, AP cost, remaining AP, terrain, and path overlay. **Confirm move** commits it; Back consumes no AP. Reachability is calculated once per movement state and shared with highlights and the preview.
-- Attack selection retains the existing range and type effectiveness preview. The Confirm control stays at the bottom of the submenu. Inspecting another Pokémon or terrain tile shows a compact readout without changing the active actor. The panel reopens after a committed animation when the ally can still act.
+- Hovering over a movement tile previews the authoritative route, step count, AP cost, remaining AP, terrain, and path overlay. Clicking a reachable tile commits the move. The submenu button can also act on the previewed tile; Back consumes no AP. Reachability is calculated once per movement state and shared with highlights and the preview.
+- Attack selection retains the range and type effectiveness preview. After choosing a move, hovering previews a target and clicking a valid tile attacks immediately. The submenu button can also act on the previewed target. Inspecting another Pokémon or terrain tile shows a compact readout without changing the active actor. The panel reopens after a committed animation when the ally can still act.
 
 ## Goal and current baseline
 
@@ -70,8 +70,8 @@ Battle result → current XP and evolution flow → Title when run ends
 
 - Open beside the active allied Pokémon when its turn begins and attack/move animations finish. Clicking that Pokémon reopens it; clicking another Pokémon or tile while in Inspect shows information without changing the active actor. During enemy turns show a small `Opponent acting` indicator, not actionable commands.
 - Main popup: **Attack**, **Move**, **Special**, **End Turn**, current HP/AP, and whether Attack has been used. Disabled commands state why: insufficient AP, attack already used, item blocked, or no usable special.
-- Attack opens a move list in the same popup or an attached pane. Each move shows type, category, AP, range, and tags. Selecting a move highlights legal tiles and target effectiveness before confirmation. The target preview and **Confirm** remain visible without covering the chosen target. Cancel returns to the action popup and consumes no AP.
-- Move shows reachable tiles and a path/AP preview. After a committed move, follow the sprite and reopen the popup at its new screen position if it still has AP. Attack remains limited to once per turn; moving or using a special follows existing AP rules.
+- Attack opens a move list in the same popup or an attached pane. Each move shows type, category, AP, range, and tags. Selecting a move highlights range and target effectiveness. Hover previews damage and effect area; clicking a valid tile commits the attack. The target preview and optional button remain visible without covering the chosen target. Cancel returns to the action popup and consumes no AP.
+- Move shows reachable tiles and a path/AP preview on hover. Clicking a valid tile commits movement. After a committed move, follow the sprite and reopen the popup at its new screen position if it still has AP. Attack remains limited to once per turn; moving or using a special follows existing AP rules.
 - Anchor by projecting the active unit's world tile into stage coordinates on state, camera, or viewport changes. Prefer right of the unit; flip left/top/bottom and clamp inside the safe viewport when needed. Use a small connector/arrow so the popup remains associated with its unit. On narrow screens, use a bottom sheet with a pointer to the unit, preserving the same commands.
 - Only one overlay owns input at a time. Escape/Back closes a submenu or pause panel in order; focus returns to the prior control. Keep keyboard and mouse use equivalent, provide visible focus, accessible names, and touch targets of at least 44 CSS pixels. Reduced motion removes popup travel and decorative effects while preserving actionable feedback.
 
@@ -105,7 +105,7 @@ The existing original placeholder unit and named move sheets remain the initial 
 
 1. **Menu foundation:** title, Start Game/Continue/New Run, Options, Exit panel, pause, and independent preference storage. Keep existing run saves loadable.
 2. **Stage and camera:** viewport battle shell, resize handling, camera pan/zoom/fit, correct world-to-tile input, and compact HUD anchors. Preserve all current battle interactions.
-3. **Context popup:** unit anchoring, flip/clamp, command and move submenus, target confirmation, keyboard/touch focus, and animation lock behavior.
+3. **Context popup:** unit anchoring, flip/clamp, command and move submenus, direct tile actions with an optional preview button, keyboard/touch focus, and animation lock behavior.
 4. **Turn portraits and information:** strip from `upcoming`, unit status, weather/objective/log panels, fallback portraits, and explicit current/next styling.
 5. **Environment pass:** source and record public assets, normalize named files, render terrain/elevation/cover/water/lava, and update the asset guide. Retain existing attack effects unless a replacement passes native-scale review.
 6. **Polish and performance:** motion settings, transitions and impact feedback, responsive layouts, 32×32 camera usability, and browser profiling against the 60 FPS target.

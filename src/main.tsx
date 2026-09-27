@@ -36,6 +36,7 @@ function App({ initialRun }: { initialRun: Run }) {
   const [saveFailed, setSaveFailed] = useState(false);
   const [soundMuted, setSoundMuted] = useState(gameAudio.isMuted());
   const enemyPlanner = useRef<EnemyPlanner>(new EnemyPlanner());
+  const actionPending = useRef(false);
   const latestRun = useRef(run);
   latestRun.current = run;
   useEffect(() => {
@@ -76,6 +77,7 @@ function App({ initialRun }: { initialRun: Run }) {
     return () => window.removeEventListener('keydown', close);
   }, [paused]);
   const battle = screen === 'lab' ? labBattle : run.battle;
+  useEffect(() => { actionPending.current = false; }, [battle]);
   useEffect(() => {
     if (screen !== 'game' || paused || run.phase !== 'battle' || !battle || battle.result || active(battle).side !== 'enemy') { enemyPlanner.current.reset(); return; }
     if (animating || !boardReady) return;
@@ -101,32 +103,44 @@ function App({ initialRun }: { initialRun: Run }) {
   const current = battle && !battle.result ? active(battle) : undefined;
   const patch = (change: (next: Run) => void) => setRun(previous => { const next = { ...previous, selected: [...previous.selected], deployment: { ...previous.deployment }, bag: [...previous.bag], party: previous.party.map(mon => ({ ...mon, learned: [...mon.learned], equipped: [...mon.equipped] })) }; change(next); return next; });
   const battleAction = (change: (next: Battle) => string | undefined) => {
-    if (animating || paused || !battle) return false;
+    if (actionPending.current || animating || paused || !battle) return false;
     const next = cloneBattleForCommand(battle);
     const message = change(next);
     if (message) { setNotice(message); return false; }
     if (next.visualEvents.at(-1)?.id !== battle.visualEvents.at(-1)?.id) setAnimating(true);
+    actionPending.current = true;
     setNotice('');
     if (screen === 'lab') setLabBattle(next);
     else setRun({ ...run, battle: next });
     return true;
   };
   const resetSelection = () => { setMode('inspect'); setChosenMove(''); setTarget(undefined); };
+  const moveTo = (x: number, y: number) => {
+    const success = battleAction(next => { const error = moveUnit(next, x, y); if (!error) finishTurn(next); return error; });
+    if (success) resetSelection();
+  };
+  const attackAt = (x: number, y: number) => {
+    if (!chosenMove) { setNotice('Choose a move first.'); return; }
+    const success = battleAction(next => { const error = useMove(next, chosenMove, x, y); if (!error) finishTurn(next); return error; });
+    if (success) resetSelection();
+  };
+  const previewTile = (x: number, y: number) => {
+    if (!battle || battle.result || animating || paused || (current?.side !== 'player' && screen !== 'lab')) return;
+    if (mode === 'move' || (mode === 'attack' && chosenMove)) setTarget(previous => previous?.[0] === x && previous[1] === y ? previous : [x, y]);
+  };
   const selectTile = (x: number, y: number) => {
     if (!battle || battle.result || animating || paused || (current?.side !== 'player' && screen !== 'lab')) return;
-    if (mode === 'move') setTarget([x, y]);
-    else if (mode === 'attack') { if (chosenMove) setTarget([x, y]); else setNotice('Choose a move first.'); }
+    if (mode === 'move') { setTarget([x, y]); moveTo(x, y); }
+    else if (mode === 'attack') { setTarget([x, y]); attackAt(x, y); }
     else { const unit = unitAt(battle, x, y); if (unit) setNotice(`${unit.name} · ${unit.types.join('/')} · ${unit.hp}/${unit.maxHp} HP · ${unit.ability}`); else { const tile = battle.map.tiles[y][x]; setNotice(`${tile.object ?? tile.kind} · elevation ${tile.height}${tile.slope ? ` · ${tile.slope} slope` : ''}`); } }
   };
   const confirmMove = () => {
     if (animating || !target) return;
-    const success = battleAction(next => { const error = moveUnit(next, target[0], target[1]); if (!error) finishTurn(next); return error; });
-    if (success) resetSelection();
+    moveTo(target[0], target[1]);
   };
   const attack = () => {
-    if (animating || !target || !chosenMove) return;
-    const success = battleAction(next => { const error = useMove(next, chosenMove, target[0], target[1]); if (!error) finishTurn(next); return error; });
-    if (success) resetSelection();
+    if (animating || !target) return;
+    attackAt(target[0], target[1]);
   };
   const special = () => {
     const success = battleAction(next => { const error = useSpecial(next); if (!error) finishTurn(next); return error; });
@@ -201,12 +215,12 @@ function App({ initialRun }: { initialRun: Run }) {
     {run.phase === 'starter' && <main className="narrow"><section className="hero"><span className="eyebrow">NEW RUN</span><h2>Choose your lead Pokémon</h2><p>Two companions join your starting party. Pick three before each tactical battle and grow your team along the route.</p></section><div className="starter-grid">{STARTERS.map(id => <button className="starter-card" key={id} onClick={() => setRun(newRun(id, run.unlocks))}><Sprite id={id} /><strong>{SPECIES[id].name}</strong><span>{SPECIES[id].types.join(' / ')}</span><small>{SPECIES[id].ability} · {SPECIES[id].moves.map(pretty).join(' / ')}</small></button>)}</div></main>}
     {run.phase === 'route' && <main className="narrow"><section className="hero"><span className="eyebrow">ROUTE {run.encounter + 1}</span><h2>{MAPS[encounter.mapId].name}</h2><p>Choose a stop before the next encounter. Rest restores 40% max HP to the whole party. Recruit adds a Pokémon until the party reaches six.</p></section><div className="route-choice"><button className="choice" onClick={() => setRun(applyRouteChoice(run, 'rest'))}><b>✚ Rest camp</b><span>Restore and revive your party.</span></button><button className="choice" disabled={run.party.length >= 6} onClick={() => setRun(applyRouteChoice(run, 'recruit'))}><b>◇ Recruit trail</b><span>Meet another Pokémon for your run.</span></button></div><PartyList run={run} /></main>}
     {run.phase === 'prepare' && <PrepareScreen run={run} onToggle={toggleDeploy} onEquipMove={equipMove} onEquipItem={chooseItem} onDeploymentChange={deployment => patch(next => { next.deployment = deployment; })} onStart={start} />}
-    {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={paused} onTile={selectTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></Suspense>}
+    {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={paused} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></Suspense>}
     {run.phase === 'intermission' && <main className="narrow"><section className="hero"><span className="eyebrow">ENCOUNTER CLEARED</span><h2>Party growth</h2><p>Every party member gained XP, including reserves. You can evolve eligible Pokémon now and adjust learned moves before the next battle.</p></section><div className="report">{run.report.map((item, i) => <p key={i}>{item}</p>)}</div><div className="prep-list">{run.party.map(mon => { const evolution = SPECIES[mon.species].evolves; return <article className="prep-card" key={mon.id}><div className="prep-head"><Sprite id={mon.species} /><div><strong>{SPECIES[mon.species].name}</strong><small> Lv {mon.level} · {mon.hp}/{maxHp(mon)} HP</small></div></div><p>Learned: {mon.learned.map(pretty).join(', ')}</p>{evolution && mon.level >= evolution.level && <button onClick={() => setRun(evolve(run, mon.id))}>Evolve into {SPECIES[evolution.into].name}</button>}</article>; })}</div><div className="sticky-actions"><button className="primary" onClick={() => setRun(nextEncounter(run))}>{!encounter.nextId ? 'Complete run →' : 'Continue route →'}</button></div></main>}
     {run.phase === 'result' && <main className="narrow"><section className="hero result"><span className="eyebrow">RUN COMPLETE</span><h2>{run.result === 'win' ? 'Citadel secured' : 'Your team fell'}</h2><p>{run.result === 'win' ? 'The next run is ready. Your first victory has been saved locally.' : 'The route ends here. Try a different lead, moves, or terrain approach.'}</p><button className="primary" onClick={() => setRun(freshRun(run.unlocks))}>Start a new run</button></section></main>}
     {paused && <div className="pause-backdrop" role="dialog" aria-modal="true" aria-label="Paused"><div className="pause-panel"><h2>Paused</h2><button autoFocus className="primary" onClick={() => { setPaused(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.battle-pause')?.focus()); }}>Resume</button><button onClick={() => { setPaused(false); setScreen('title'); }}>Title screen</button></div></div>}
     </>}
-    {screen === 'lab' && labBattle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading Battle Lab…</h2></section></main>}><BattleScreen key={labSession} run={run} battle={labBattle} labSeed={labConfig.seed} controlBoth mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={false} onTile={selectTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={startLab} onPause={() => { setAnimating(false); setScreen('lab-setup'); }} onLabReset={startLab} /></Suspense>}
+    {screen === 'lab' && labBattle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading Battle Lab…</h2></section></main>}><BattleScreen key={labSession} run={run} battle={labBattle} labSeed={labConfig.seed} controlBoth mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={false} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={startLab} onPause={() => { setAnimating(false); setScreen('lab-setup'); }} onLabReset={startLab} /></Suspense>}
     {screen === 'game' && run.phase !== 'battle' && <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>}
   </div>;
 }

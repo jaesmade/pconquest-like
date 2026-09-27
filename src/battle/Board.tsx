@@ -16,7 +16,7 @@ import { facingBetween, impactDelay, restingClip, unitAnimationKey, unitSet, uni
 
 export type BoardView = { left: number; top: number; zoom: number; width: number; height: number };
 export type CameraCommand = 'zoom-in' | 'zoom-out' | 'fit' | 'center' | 'focus';
-type Props = { battle: Battle; mode: 'move' | 'attack' | 'inspect'; controlBoth?: boolean; chosenMove?: string; target?: [number, number]; moveRoutes?: Map<string, MovementPath>; onTile: (x: number, y: number) => void; onAnimationState?: (playing: boolean) => void; onViewChange?: (view: BoardView) => void; cameraAction?: { id: number; command: CameraCommand; point?: [number, number] } };
+type Props = { battle: Battle; mode: 'move' | 'attack' | 'inspect'; controlBoth?: boolean; chosenMove?: string; target?: [number, number]; moveRoutes?: Map<string, MovementPath>; onTile: (x: number, y: number) => void; onHover?: (x: number, y: number) => void; onAnimationState?: (playing: boolean) => void; onViewChange?: (view: BoardView) => void; cameraAction?: { id: number; command: CameraCommand; point?: [number, number] } };
 const MOVE_STEP_MS = 375;
 
 class BattleScene extends Phaser.Scene {
@@ -27,10 +27,14 @@ class BattleScene extends Phaser.Scene {
   target?: [number, number];
   moveRoutes?: Map<string, MovementPath>;
   onTile: Props['onTile'] = () => {};
+  onHover: NonNullable<Props['onHover']> = () => {};
   onAnimationState: Props['onAnimationState'] = () => {};
   onViewChange: Props['onViewChange'] = () => {};
   cameraActionId = -1;
   press?: { pointerId: number; startX: number; startY: number; lastX: number; lastY: number; panOnly: boolean; dragging: boolean };
+  hovered?: [number, number];
+  hoverPointer?: { x: number; y: number };
+  hoverScheduled = false;
   terrainTexture?: Phaser.GameObjects.RenderTexture;
   scenery: Phaser.GameObjects.Image[] = [];
   terrain!: Phaser.GameObjects.Graphics;
@@ -90,12 +94,16 @@ class BattleScene extends Phaser.Scene {
     }
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.press) return;
+      this.hoverPointer = undefined;
       const panOnly = pointer.rightButtonDown() || pointer.middleButtonDown() || pointer.event.shiftKey;
       this.press = { pointerId: pointer.id, startX: pointer.x, startY: pointer.y, lastX: pointer.x, lastY: pointer.y, panOnly, dragging: panOnly };
     });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       const press = this.press;
-      if (!press || press.pointerId !== pointer.id || !pointer.isDown) return;
+      if (!press || press.pointerId !== pointer.id || !pointer.isDown) {
+        if (this.mode === 'move' || (this.mode === 'attack' && this.chosenMove)) this.queueHover(pointer.x, pointer.y);
+        return;
+      }
       if (!press.dragging && Math.hypot(pointer.x - press.startX, pointer.y - press.startY) < 6) return;
       press.dragging = true;
       const camera = this.cameras.main;
@@ -153,6 +161,20 @@ class BattleScene extends Phaser.Scene {
       if (zone !== 'neutral') { this.terrain.fillStyle(zone === 'ally' ? 0x96edb0 : 0xf8a184, 0.08); this.fillDiamond(this.terrain, center.x, center.y); }
     }
     stamp.destroy(); decor.destroy();
+  }
+  private queueHover(x: number, y: number) {
+    this.hoverPointer = { x, y };
+    if (this.hoverScheduled) return;
+    this.hoverScheduled = true;
+    requestAnimationFrame(() => {
+      this.hoverScheduled = false;
+      if (!this.scene.isActive() || this.press || !this.hoverPointer || (this.mode !== 'move' && (this.mode !== 'attack' || !this.chosenMove))) return;
+      const point = this.cameras.main.getWorldPoint(this.hoverPointer.x, this.hoverPointer.y);
+      const cell = isoGridAtWorld(this.battle.map, point.x, point.y);
+      if (!cell || (this.hovered?.[0] === cell[0] && this.hovered[1] === cell[1])) return;
+      this.hovered = cell;
+      this.onHover(cell[0], cell[1]);
+    });
   }
   private diamondPoints(x: number, y: number) { return [
     { x, y: y - ISO_HALF_HEIGHT }, { x: x + ISO_HALF_WIDTH, y },
@@ -219,7 +241,8 @@ class BattleScene extends Phaser.Scene {
     const activeChanged = this.battle?.current !== props.battle.current;
     const boardChanged = this.battle !== props.battle || this.mode !== props.mode || this.chosenMove !== props.chosenMove || this.controlBoth !== !!props.controlBoth;
     const targetChanged = this.target?.[0] !== props.target?.[0] || this.target?.[1] !== props.target?.[1];
-    this.battle = props.battle; this.mode = props.mode; this.controlBoth = !!props.controlBoth; this.chosenMove = props.chosenMove; this.target = props.target; this.moveRoutes = props.moveRoutes; this.onTile = props.onTile; this.onAnimationState = props.onAnimationState; this.onViewChange = props.onViewChange;
+    if (this.mode !== props.mode || this.chosenMove !== props.chosenMove) this.hovered = undefined;
+    this.battle = props.battle; this.mode = props.mode; this.controlBoth = !!props.controlBoth; this.chosenMove = props.chosenMove; this.target = props.target; this.moveRoutes = props.moveRoutes; this.onTile = props.onTile; this.onHover = props.onHover ?? (() => {}); this.onAnimationState = props.onAnimationState; this.onViewChange = props.onViewChange;
     const incoming = (props.battle.visualEvents ?? []).filter(event => !this.seenAttacks.has(event.id));
     for (const event of incoming) this.seenAttacks.add(event.id);
     if (incoming.length) {

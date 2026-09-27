@@ -15,7 +15,7 @@ type Mode = 'inspect' | 'move' | 'attack';
 type Props = {
   run: Run; battle: Battle; mode: Mode; chosenMove: string; target?: [number, number]; notice: string; paused: boolean;
   controlBoth?: boolean; labSeed?: number; onLabReset?: () => void;
-  onTile: (x: number, y: number) => void; onAnimationState: (playing: boolean) => void;
+  onTile: (x: number, y: number) => void; onHoverTile: (x: number, y: number) => void; onAnimationState: (playing: boolean) => void;
   onMode: (mode: Mode) => void; onChooseMove: (id: string) => void; onAttack: () => void;
   onMove: () => void; onSpecial: () => void; onPass: () => void; onComplete: () => void; onPause: () => void;
 };
@@ -189,7 +189,7 @@ export default function BattleScreen(props: Props) {
   const chooseMode = (next: Mode) => { setInspected(undefined); props.onMode(next); };
 
   return <main className="battle-stage" ref={stageRef}>
-    <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
+    <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
     <header className="battle-top-hud">
       <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `ENCOUNTER ${run.encounter + 1}`} · ROUND {battle.round}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
       <div className="turn-strip" aria-label="Turn order">{upcoming(battle).slice(0, 6).map((unit, index) =>
@@ -215,14 +215,14 @@ export default function BattleScreen(props: Props) {
         <div className="popup-submenu-title"><button data-popup-focus disabled={visualBusy} onClick={() => chooseMode('inspect')}>← Back</button><b>{mode === 'attack' ? 'Choose an attack' : 'Choose a destination'}</b></div>
         {mode === 'attack' && <>
           <div className="moves">{current.moves.map(id => { const reason = moveReasonFor(id), moveData = MOVES[id]; return <button key={id} className={chosenMove === id ? 'active' : ''} disabled={!!reason || visualBusy} title={reason || moveData.detail} onClick={() => props.onChooseMove(id)}><b>{moveData.name}</b><small>{moveData.type} · {moveData.category}{moveData.delivery ? ` · ${moveData.delivery === 'melee' ? 'Melee' : 'Ranged'}` : ''} · Range {moveData.range} · {moveData.apCost} AP{moveData.tags.length ? ` · ${moveData.tags.join(', ')}` : ''}</small>{reason && <small className="disabled-reason">{reason}</small>}</button>; })}</div>
-          {move && <p className="hint">{move.detail} {move.target === 'self' ? 'Confirm to use.' : 'Select a target tile.'}</p>}
+          {move && <p className="hint">{move.detail} {move.target === 'self' ? 'Click your Pokémon or use the button below.' : 'Hover to preview, then click a valid target tile to attack.'}</p>}
           {chosenMove && <MovePreview battle={battle} attacker={current} moveId={chosenMove} target={target} />}
-          <div className="popup-confirm"><button className="primary full" disabled={visualBusy || !attackReady} onClick={props.onAttack}>Confirm {move?.name ?? 'attack'}</button><small>{!chosenMove ? 'Choose a move first' : !target ? 'Select a highlighted target tile' : !attackReady ? 'Target is blocked or out of range' : `Target: ${target[0] + 1}, ${target[1] + 1}`}</small></div>
+          <div className="popup-confirm"><button className="primary full" disabled={visualBusy || !attackReady} onClick={props.onAttack}>Use {move?.name ?? 'attack'} at preview</button><small>{!chosenMove ? 'Choose a move first' : !target ? 'Hover over a highlighted target tile' : !attackReady ? 'Target is blocked or out of range' : `Target: ${target[0] + 1}, ${target[1] + 1}`}</small></div>
         </>}
         {mode === 'move' && <>
-          <p className="hint">Select a highlighted tile. Ground Pokémon change elevation through the marked slopes. The route and AP cost appear before you move.</p>
+          <p className="hint">Hover to preview the route and AP cost, then click a green tile to move. Ground Pokémon change elevation through marked slopes.</p>
           {target && <div className="path-preview"><b>{selectedRoute ? `Tile ${target[0] + 1}, ${target[1] + 1} · ${selectedRoute.points.length} steps` : objectBlocksMovement(selectedTile) ? `Blocked by ${selectedTile?.object}` : 'Tile out of reach'}</b><span>{selectedRoute ? `${selectedRoute.cost} AP · ${current.ap - selectedRoute.cost} AP after moving` : 'Choose a green highlighted tile.'}</span>{selectedRoute && selectedTile && <small>{selectedTile.object ?? selectedTile.kind} · height {selectedTile.height}{selectedTile.slope ? ` · ${selectedTile.slope} slope` : ''}</small>}</div>}
-          <div className="popup-confirm"><button className="primary full" disabled={!selectedRoute || visualBusy} onClick={props.onMove}>Confirm move</button><small>Movement may be repeated while AP remains</small></div>
+          <div className="popup-confirm"><button className="primary full" disabled={!selectedRoute || visualBusy} onClick={props.onMove}>Move to previewed tile</button><small>Movement may be repeated while AP remains</small></div>
         </>}
       </>}
       {notice && <p className="notice" role="status">{notice}</p>}
@@ -253,6 +253,6 @@ export default function BattleScreen(props: Props) {
       }}><canvas ref={minimapRef} width="160" height="160" /></button>
       <div className="camera-buttons"><button onClick={() => issueCamera('zoom-in')} aria-label="Zoom in">+</button><button onClick={() => issueCamera('zoom-out')} aria-label="Zoom out">−</button><button onClick={() => issueCamera('fit')}>Fit map</button><button onClick={() => issueCamera('center')}>Center active</button></div>
     </aside>
-    <div className="battle-help">{mode === 'attack' && chosenMove ? 'Blue: range · green: strong · orange: resisted · gray: immune' : 'Drag map to pan · scroll to zoom · click tiles to act'}</div>
+    <div className="battle-help">{mode === 'attack' && chosenMove ? 'Click a target to attack · blue: range · green: strong · orange: resisted · gray: immune' : mode === 'move' ? 'Click a green tile to move · drag to pan · scroll to zoom' : 'Drag map to pan · scroll to zoom · click tiles to inspect'}</div>
   </main>;
 }

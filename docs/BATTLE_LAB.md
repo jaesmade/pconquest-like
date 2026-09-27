@@ -8,7 +8,7 @@ Choose each Pokémon's species, level (1–100), and compatible held item, then 
 
 ## Inspecting results
 
-- Select **Attack**, choose a move, and select a highlighted tile. The regular move preview displays range, type effectiveness, and damage before confirmation.
+- Select **Attack**, choose a move, hover over a tile to preview range, type effectiveness, and damage, then click a valid tile to attack. The popup button can also use the previewed target.
 - The **Damage lab** panel shows current HP and AP for both sides, starting seed, weather, noncritical and critical damage ranges for the selected move, and the combat log. Damage ranges use the same pure calculator as the battle engine and do not consume RNG.
 - **Replay seed** resets HP, statuses, items, weather, and turn order. With the same choices and command sequence, seeded combat rolls repeat. Animation playback and unique visual event IDs do not affect combat RNG.
 - The battle menu returns to setup. Battle Lab state is not written to the campaign save; the current run remains available from **Continue**.

@@ -8,6 +8,7 @@ Static review of the early build on 2026-09-27. Compared `PLAN.md` and `BALANCE.
 - **Area damage through solid blockers:** Walls, trees, and rocks cannot be aim points. Each defender in a damaging area must have clear line of sight from the attacker. Targeting preview, AI, visual effect tiles, and damage resolution use that rule. See `src/game/grid.ts`, `src/game/engine.ts`, `src/game/enemyPlanner.ts`, `src/ui/MovePreview.tsx`, and `src/battle/Board.tsx`.
 - **Stealth Rock zone ownership:** Each caster's active zone has a source ID, zone ID, tiles, and expiry. Recasting removes only that caster's old zone, while overlapping zones from others remain. The derived tile expiry handles a single hazard trigger per entry. Save v13 keeps zone ownership and migrates old tile expiries as temporary legacy zones. See `src/game/hazards.ts` and `src/persistence/save.ts`.
 - **Timed stat stages:** Tail Whip, Harden, and Howl now cap at ±3 and refresh a per-stat 200 battle-time expiry. Stage icons show rounds remaining, and the damage calculator and enemy AI use the new cap. Save v14 migrates active older stages to a fresh timer. See `src/game/stages.ts`, `src/game/damage.ts`, and `src/persistence/save.ts`.
+- **Grounded map routes:** Map creation now checks every plain deployment cell and capture tile with battle terrain movement rules. Encounter validation checks legal swimmer and flyer placements, and enemy water placements need a reachable shore. See `src/game/grid.ts`, `src/content/maps.ts`, and `src/content/catalog.ts`.
 
 ## Rule defects to fix first
 
@@ -23,7 +24,6 @@ Mega HP conversion is deferred by the user. Future Mega forms are intended to re
 
 | Priority | Gap | Evidence and next step |
 | --- | --- | --- |
-| P1 | **Map validation does not prove a grounded route.** Creation checks connectivity while ignoring deep-water and slope restrictions. A future map could pass validation while a ground-only party cannot reach opponents or the boss capture point. | `src/content/maps.ts` flood fill; `src/game/grid.ts` movement rules. Validate routes using the mobility profiles required by the encounter, including slopes, deep water, and solid objects. Current authored maps were not playtested in this audit. |
 | P1 | **The recruit route has no real selection or full-party replacement.** `offerRecruits` returns two choices, but `applyRouteChoice` always takes the first; the UI disables recruit at six party members. The planned choice and replacement tradeoff are absent. | `src/game/engine.ts` `offerRecruits`, `applyRouteChoice`; `src/main.tsx` route buttons; `docs/PLAN.md` progression. Add a recruit choice screen and a replacement flow when full. |
 | P2 | **The roguelike route and unlock are thin.** Encounters follow one fixed `nextId` chain. Rest heals the whole party, recruit auto-adds one Pokémon, and a win increments `unlocks` without changing future available content. | `src/content/encounters.ts`; `src/game/engine.ts` route and unlock functions; `src/main.tsx` route UI. Add varied route nodes and make at least one unlock alter a later run. |
 | P2 | **Movement and weather forecasts omit planned information.** Move preview shows AP and destination height but not hazard damage along the route. The battle HUD shows weather name without remaining duration or the next sandstorm tick. | `src/ui/BattleScreen.tsx` path preview and top HUD; `docs/PLAN.md` battle and weather rules. Derive forecast values from the selected path and battle time; do not consume RNG. |
@@ -37,4 +37,4 @@ Mega HP conversion is deferred by the user. Future Mega forms are intended to re
 
 ## Suggested order
 
-Settle cover semantics and validate grounded map routes next. Address recruit/reward decisions and the missing forecasts before expanding move and map content. Revisit Mega HP with the future Mega form content pass.
+Settle cover semantics next. Address recruit/reward decisions and the missing forecasts before expanding move and map content. Revisit Mega HP with the future Mega form content pass.

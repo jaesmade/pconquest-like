@@ -6,6 +6,8 @@ import { MOVES, MOVE_TAGS } from './moves';
 import { RECRUITS, SPECIES, STARTERS } from './species';
 import { TYPES } from './typeChart';
 import { canDeploy, zoneCells } from '../game/deployment';
+import { terrainReachable } from '../game/grid';
+import { mobilityFor } from '../game/mobility';
 
 /** Content references are checked once at startup so new packs fail with useful IDs. */
 export function validateCatalog(): string[] {
@@ -63,15 +65,46 @@ export function validateCatalog(): string[] {
     if (map.playerSpawns.length < 3) errors.push(`Encounter ${encounter.id}: fewer than three player spawns`);
     if (map.enemySpawns.length < encounter.enemies.length) errors.push(`Encounter ${encounter.id}: fewer enemy spawns than enemies`);
     if (encounter.objective === 'defeat-and-capture' && !map.capture) errors.push(`Encounter ${encounter.id}: capture tile required`);
-    for (const [x, y] of map.playerSpawns) if (map.tiles[y]?.[x]?.kind === 'water') errors.push(`Encounter ${encounter.id}: player spawn ${x},${y} cannot be deep water for a mixed party`);
+    const allyCells = zoneCells(map, 'ally'), enemyCells = zoneCells(map, 'enemy');
+    const groundRoute = terrainReachable(map, map.playerSpawns[0], { canFly: false, canSwim: false });
+    const groundEnemy = enemyCells.find(([x, y]) => map.tiles[y][x].kind === 'plain' && groundRoute.has(`${x},${y}`));
+    const profileRoutes = new Map<string, Set<string>>();
+    const routeFor = (speciesId: string, origin: [number, number]) => {
+      const mobility = mobilityFor(SPECIES[speciesId], map.tiles[origin[1]][origin[0]]);
+      const key = `${origin[0]},${origin[1]}:${mobility.canFly}:${mobility.canSwim}`;
+      let route = profileRoutes.get(key);
+      if (!route) { route = terrainReachable(map, origin, mobility); profileRoutes.set(key, route); }
+      return route;
+    };
+    const hasGroundShore = (x: number, y: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .some(([dx, dy]) => groundRoute.has(`${x + dx},${y + dy}`));
+    const playerForms = new Set([...STARTERS, ...RECRUITS]);
+    for (const id of [...playerForms]) {
+      let current = SPECIES[id];
+      while (current?.evolves && !playerForms.has(current.evolves.into)) {
+        playerForms.add(current.evolves.into);
+        current = SPECIES[current.evolves.into];
+      }
+    }
+    if (groundEnemy) for (const id of playerForms) {
+      if (!SPECIES[id]) continue;
+      const route = routeFor(id, groundEnemy);
+      for (const [x, y] of allyCells) if (canDeploy(map, id, [x, y], 'ally') && !route.has(`${x},${y}`))
+        errors.push(`Encounter ${encounter.id}: ${id} cannot reach the enemy zone from ally deployment ${x},${y}`);
+    }
     for (const id of encounter.enemies) if (!SPECIES[id]) errors.push(`Encounter ${encounter.id}: unknown species ${id}`);
     encounter.enemies.forEach((id, index) => {
       const species = SPECIES[id], spawn = map.enemySpawns[index];
       if (!species || !spawn) return;
       const [x, y] = spawn;
-      const canFly = species.mobility?.fly ?? species.types.includes('Flying');
-      const canSwim = species.mobility?.swim ?? species.types.includes('Water');
-      if (map.tiles[y]?.[x]?.kind === 'water' && !canFly && !canSwim) errors.push(`Encounter ${encounter.id}: ${id} cannot occupy deep-water spawn ${x},${y}`);
+      if (!canDeploy(map, id, spawn, 'enemy')) errors.push(`Encounter ${encounter.id}: ${id} cannot occupy enemy spawn ${x},${y}`);
+      const route = routeFor(id, map.playerSpawns[0]);
+      for (const [cellX, cellY] of enemyCells) {
+        if (!canDeploy(map, id, [cellX, cellY], 'enemy')) continue;
+        if (!route.has(`${cellX},${cellY}`)) errors.push(`Encounter ${encounter.id}: ${id} cannot reach ally ground from enemy deployment ${cellX},${cellY}`);
+        if (map.tiles[cellY][cellX].kind === 'water' && !hasGroundShore(cellX, cellY))
+          errors.push(`Encounter ${encounter.id}: deep-water enemy deployment ${cellX},${cellY} has no reachable shore for grounded opponents`);
+      }
     });
     const occupied = new Set<string>();
     for (const id of encounter.enemies) {

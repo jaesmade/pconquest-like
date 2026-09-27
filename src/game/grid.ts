@@ -1,4 +1,4 @@
-import type { Battle, GridPoint, Unit } from './types';
+import type { Battle, BattleMap, GridPoint, Mobility, Unit } from './types';
 import { canCrossElevation } from './elevation';
 import { objectBlocksMovement, objectBlocksSight } from '../content/terrainObjects';
 
@@ -51,12 +51,36 @@ const pathFrom = (key: string, start: string, previous: Map<string, string>): Gr
   return points.reverse();
 };
 
+/** Static movement rule shared by battle navigation and authored-map checks. */
+export function canTraverseTerrain(map: BattleMap, mobility: Pick<Mobility, 'canFly' | 'canSwim'>, x: number, y: number, fromX: number, fromY: number): boolean {
+  const tile = map.tiles[y]?.[x], previous = map.tiles[fromY]?.[fromX];
+  if (!tile || !previous || tile.kind === 'wall' || objectBlocksMovement(tile)) return false;
+  if (tile.kind === 'water' && !mobility.canSwim && !mobility.canFly) return false;
+  return canCrossElevation(previous, tile, x - fromX, y - fromY, mobility.canFly);
+}
+
+/** Occupancy-free reachability for map and encounter validation; AP is not a route limit. */
+export function terrainReachable(map: BattleMap, start: GridPoint, mobility: Pick<Mobility, 'canFly' | 'canSwim'>): Set<string> {
+  const [startX, startY] = start, startTile = map.tiles[startY]?.[startX];
+  const seen = new Set<string>();
+  if (!startTile || startTile.kind === 'wall' || objectBlocksMovement(startTile)
+    || (startTile.kind === 'water' && !mobility.canSwim && !mobility.canFly)) return seen;
+  const frontier: GridPoint[] = [start];
+  seen.add(`${startX},${startY}`);
+  for (let index = 0; index < frontier.length; index++) {
+    const [x, y] = frontier[index];
+    for (const [dx, dy] of directions) {
+      const nextX = x + dx, nextY = y + dy, key = `${nextX},${nextY}`;
+      if (seen.has(key) || !canTraverseTerrain(map, mobility, nextX, nextY, x, y)) continue;
+      seen.add(key);
+      frontier.push([nextX, nextY]);
+    }
+  }
+  return seen;
+}
+
 export function canEnter(battle: Battle, unit: Unit, x: number, y: number, fromX = unit.x, fromY = unit.y, occupied = occupiedTiles(battle)): boolean {
-  const tile = battle.map.tiles[y]?.[x], previous = battle.map.tiles[fromY]?.[fromX];
-  if (!tile || !previous || tile.kind === 'wall' || objectBlocksMovement(tile) || occupied.has(`${x},${y}`)) return false;
-  if (tile.kind === 'water' && !unit.mobility.canSwim && !unit.mobility.canFly) return false;
-  if (!canCrossElevation(previous, tile, x - fromX, y - fromY, unit.mobility.canFly)) return false;
-  return true;
+  return !occupied.has(`${x},${y}`) && canTraverseTerrain(battle.map, unit.mobility, x, y, fromX, fromY);
 }
 
 export function stepCost(battle: Battle, unit: Unit, x: number, y: number, fromX: number, fromY: number): number {

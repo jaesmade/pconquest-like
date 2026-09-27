@@ -91,6 +91,8 @@ Each map tile has an elevation level of 0, 1, or 2 and a terrain kind. Show heig
 
 The unit's saved mobility state updates on each tile entry and forced displacement. Mega forms may change flight or swim capability immediately. Terrain damage and timed effects resolve on tile entry or at the next round boundary. Display reachable tiles, movement cost, height, and expected hazard damage during movement preview.
 
+Map authoring must keep every ground-eligible ally and enemy deployment cell, plus any capture objective, connected by a grounded route using the same water, slope, elevation, and solid-object rules as battle movement. Encounter validation must also check legal placements for swimmers and flyers against their mobility profiles. Water-only enemy placements need a reachable adjacent shore for grounded opponents.
+
 ## Weather
 
 One weather state can be active at a time. An encounter chooses its starting weather from that map's allowed weather states. Weather damage modifiers multiply move damage after the type matchup; defensive boosts modify the relevant Defense stat during damage calculation. For this plan, “snow type” means **Ice type**.

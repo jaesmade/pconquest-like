@@ -1,5 +1,6 @@
 import type { BattleMap, DeploymentZone, GridPoint, SlopeDirection, TerrainObjectId, Tile, Weather } from '../game/types';
 import { objectBlocksMovement } from './terrainObjects';
+import { terrainReachable } from '../game/grid';
 
 type MapSource = {
   id: string;
@@ -69,25 +70,25 @@ export function createMap(source: MapSource): BattleMap {
   }
   const points = [...source.playerSpawns, ...source.enemySpawns, ...(source.capture ? [source.capture] : [])];
   for (const [x, y] of points) if (!tiles[y]?.[x] || tiles[y][x].kind === 'wall' || objectBlocksMovement(tiles[y][x])) throw new Error(`Map ${source.id}: invalid spawn or capture tile at ${x},${y}.`);
+  for (const [x, y] of source.playerSpawns) if (tiles[y][x].kind !== 'plain') throw new Error(`Map ${source.id}: mixed-party player spawn ${x},${y} must be plain ground.`);
+  for (const [x, y] of source.enemySpawns) if (tiles[y][x].kind === 'lava') throw new Error(`Map ${source.id}: enemy spawn ${x},${y} cannot be lava.`);
   const spawnKeys = [...source.playerSpawns, ...source.enemySpawns].map(([x, y]) => `${x},${y}`);
   if (!source.playerSpawns.length || !source.enemySpawns.length) throw new Error(`Map ${source.id}: both teams need spawn tiles.`);
   if (new Set(spawnKeys).size !== spawnKeys.length) throw new Error(`Map ${source.id}: spawn tiles must be unique.`);
   for (const [x, y] of source.playerSpawns) if (zones[y][x] !== 'ally') throw new Error(`Map ${source.id}: player spawn ${x},${y} must be in the ally zone.`);
   for (const [x, y] of source.enemySpawns) if (zones[y][x] !== 'enemy') throw new Error(`Map ${source.id}: enemy spawn ${x},${y} must be in the enemy zone.`);
-  // A Flying unit can cross water and elevation, but solid objects cannot isolate the teams or objective.
-  const connected = new Set<string>();
-  const frontier: GridPoint[] = [source.playerSpawns[0]];
-  for (let index = 0; index < frontier.length; index++) {
-    const [x, y] = frontier[index], key = `${x},${y}`;
-    if (connected.has(key)) continue;
-    connected.add(key);
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nextX = x + dx, nextY = y + dy;
-      if (tiles[nextY]?.[nextX] && tiles[nextY][nextX].kind !== 'wall' && !objectBlocksMovement(tiles[nextY][nextX]) && !connected.has(`${nextX},${nextY}`)) frontier.push([nextX, nextY]);
-    }
+  const map: BattleMap = { id: source.id, name: source.name, weather: source.weather, tiles, zones, playerSpawns: source.playerSpawns, enemySpawns: source.enemySpawns, capture: source.capture };
+  const groundStarts: GridPoint[] = [];
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (zones[y][x] !== 'neutral' && tiles[y][x].kind === 'plain' && !objectBlocksMovement(tiles[y][x])) groundStarts.push([x, y]);
   }
-  for (const [x, y] of points) if (!connected.has(`${x},${y}`)) throw new Error(`Map ${source.id}: spawn or capture tile at ${x},${y} is isolated by walls.`);
-  return { id: source.id, name: source.name, weather: source.weather, tiles, zones, playerSpawns: source.playerSpawns, enemySpawns: source.enemySpawns, capture: source.capture };
+  const grounded = { canFly: false, canSwim: false };
+  const connected = terrainReachable(map, source.playerSpawns[0], grounded);
+  for (const [x, y] of groundStarts) if (!connected.has(`${x},${y}`))
+    throw new Error(`Map ${source.id}: ${zones[y][x]} deployment tile ${x},${y} has no grounded route to the opposing zone.`);
+  if (source.capture && !connected.has(`${source.capture[0]},${source.capture[1]}`))
+    throw new Error(`Map ${source.id}: capture tile ${source.capture[0]},${source.capture[1]} has no grounded route from the ally zone.`);
+  return map;
 }
 
 export const MAPS: Record<string, BattleMap> = Object.fromEntries([

@@ -11,7 +11,7 @@ The early run uses the standard-style damage calculation in `src/game/damage.ts`
 | Storm Ridge | 12 | 12 | Rain, Water Absorb, and tougher terrain |
 | Crown Citadel | 13 | 14 | Sandstorm and capture objective |
 
-Each encounter awards 65 XP to every owned Pokémon, enough for one level under the current `xpForLevel` curve. New runs begin at level 10. Recruits arrive at the highest level already in the party, so a late recruit is useful immediately. Bulbasaur and Squirtle can evolve at level 12, after the second encounter. Early learned moves unlock at levels 11–13 rather than being granted immediately at level 10.
+Each encounter awards 65 XP to every owned Pokémon, enough for one level under the current `xpForLevel` curve. New runs begin at level 10 with a six-point party draft; current draft choices cost two points each, yielding three Pokémon. A run can own up to 20 Pokémon, while solo battles deploy up to three. Recruits arrive at the highest level already in the party, so a late recruit is useful immediately. Bulbasaur and Squirtle can evolve at level 12, after the second encounter. Early learned moves unlock at levels 11–13 rather than being granted immediately at level 10.
 
 At level `L`, HP is `floor(2 × base HP × L / 100) + L + 10`; Attack, Defense, Special Attack, Special Defense, and Speed are each `floor(2 × base stat × L / 100) + 5`. Movement stays at its species tile-range value at every level. At level 10 the current base HP span of 52–78 becomes 30–35 HP. Basic damaging moves have 42–50 power; Thunderbolt is the 75-power, 4-AP area move. With equal attacking and defending stats, a 50-power STAB attack at level 10 deals 9–12 neutral damage or 18–24 damage on a 2× target before weather, abilities, or critical hits. These numbers imply much shorter fights than the prior HP curve. Speed increases with level and changes AP gain; Movement does not.
 
@@ -21,7 +21,7 @@ Unused AP now banks in full within each battle, for either side. A unit adds its
 
 ## Save behavior
 
-Schema v14 preserves the v11 HP rescaling for older saves and migrates pre-v13 active Stealth Rock tiles to temporary legacy zones with their original expiry. Pre-v14 active stat stages are capped at ±3 and receive a fresh 200 battle-time timer. A v11 battle resumes with each unit's Movement restored from its species record; battles saved before v11 return to preparation because their other stats used the older formula. Versions before v9 also retain their earlier level and XP migration. Current and recovery copies remain in IndexedDB.
+Schema v15 accepts up to 20 owned Pokémon and retains all prior migrations; schema v14 preserved the v11 HP rescaling for older saves and migrates pre-v13 active Stealth Rock tiles to temporary legacy zones with their original expiry. Pre-v14 active stat stages are capped at ±3 and receive a fresh 200 battle-time timer. A v11 battle resumes with each unit's Movement restored from its species record; battles saved before v11 return to preparation because their other stats used the older formula. Versions before v9 also retain their earlier level and XP migration. Current and recovery copies remain in IndexedDB.
 
 ## Next tuning evidence
 

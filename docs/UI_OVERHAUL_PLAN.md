@@ -2,7 +2,7 @@
 
 ## Implementation progress (first slice)
 
-- The title now appears after loading a save, with Continue, Start Game/New Run, Options (sound), and Exit information. The battle has a pause overlay with Resume and Title. New Run asks before replacing an active save.
+- The title flow now begins with a splash, then shows Continue when available, New Run, Lab, Options (sound), and Exit information. The battle has a pause overlay with Resume and Title. New Run asks before replacing an active save.
 - Battle uses a viewport stage, a six-entry portrait turn strip from the authoritative turn order, a unit-anchored action panel, a compact actor HUD, status/stat icons, and a collapsible log. Narrow viewports place the action panel as a bottom sheet. Existing unit sheets supply temporary portraits and model animations.
 - Ability and held-item triggers emit bounded cosmetic events. The renderer displays short in-world callouts and plays named ability or item sounds. These cues are omitted from saves and do not consume battle RNG. Passive Leftovers and Sitrus Berry recovery now have activation cues.
 - Named SVG item and status placeholders live under `public/assets/ui/icons/`; the animation and audio guides describe replacement.
@@ -22,6 +22,20 @@
 - Hovering over a movement tile previews the authoritative route, step count, AP cost, remaining AP, terrain, and path overlay. Clicking a reachable tile commits the move. The submenu button can also act on the previewed tile; Back consumes no AP. Reachability is calculated once per movement state and shared with highlights and the preview.
 - Attack selection retains the range and type effectiveness preview. After choosing a move, hovering previews a target and clicking a valid tile attacks immediately. The submenu button can also act on the previewed target. Inspecting another Pokémon or terrain tile shows a compact readout without changing the active actor. The panel reopens after a committed animation when the ally can still act.
 
+## Implementation progress (start screen overhaul)
+
+- Startup now opens on a full-screen **Pokémon Tactics** splash. Any key or pointer press enters the main menu. The menu follows the supplied visual references: pale aqua checker-grid backdrop, dark navy and coral pixel title, and vertically stacked gray buttons with raspberry borders.
+- The menu keeps **Continue** when an active run can resume, then **New Run**, **Lab**, **Options**, and **Exit**. Existing run replacement confirmation, Lab setup, sound toggle, and saved-progress exit message remain functional.
+- The title wordmark and menu labels use the pixel font family. Menu controls support mouse, touch, Tab, Enter/Space, visible focus, and Up/Down/Home/End navigation. The splash prompt respects reduced-motion preferences.
+- Layout is built with responsive CSS and safe-area padding; the checkerboard, color wash, and scanline texture are CSS layers rather than baked screenshot artwork. Details and review criteria are in [START_SCREEN_OVERHAUL.md](START_SCREEN_OVERHAUL.md).
+
+## Implementation progress (party selection)
+
+- New runs use the two-panel point-budget builder documented in [PARTY_BUILDER.md](PARTY_BUILDER.md): removable roster cards at left; a searchable, paged species catalog, point balance, and Start Run control at right.
+- Hovering or keyboard-focusing a catalog card updates a stats inspector with the candidate's level-10 HP, Attack, Defense, Special Attack, Special Defense, Speed, Movement, type, and ability.
+- The starting draft has six points. Species cost two by default and content can override a cost; current eligible choices use the default. The run owns up to 20 Pokémon and still deploys up to three per solo encounter.
+- The layout uses responsive CSS, a scrollable roster/catalog, keyboard-operable controls, and a single-column narrow-screen mode. Save schema v15 accepts existing roster saves and raises the owned-Pokémon validation ceiling to 20.
+
 ## Goal and current baseline
 
 Make the battle feel like the main game screen: the map fills the browser viewport, the active Pokémon's commands appear beside it, and the next turns are readable as portraits over the battlefield. Add a title screen with **Start Game**, **Options**, and **Exit** before the existing run flow.
@@ -31,16 +45,18 @@ The app uses React for menus and HUD, Phaser 3.90 for the board, and a 64-pixel 
 ## Screen flow
 
 ```text
-Boot/load save → Title
-                 ├─ Start Game → Continue saved run / New Run → current starter, route, preparation, battle flow
+Boot/load save → Splash → any key/click → Title menu
+                 ├─ Continue → current starter, route, preparation, battle flow
+                 ├─ New Run → current starter, route, preparation, battle flow
                  ├─ Options → settings panel → Title
+                 ├─ Lab → Lab setup → test battle
                  └─ Exit → saved-progress exit panel → Title or close tab
 
 Battle → Pause overlay → Resume / Options / Exit to Title
 Battle result → current XP and evolution flow → Title when run ends
 ```
 
-- Always show the title after loading. **Start Game** goes straight to starter selection when there is no active run; otherwise it offers **Continue** and **New Run**. Show the existing run's encounter and party summary beside Continue. Confirm New Run only when it would replace an active save.
+- Always show the splash, then the title menu, after loading. The menu opens starter selection through **New Run** when there is no active run; otherwise it offers **Continue** and **New Run**. Show the existing run's encounter and party summary beside Continue. Confirm New Run only when it would replace an active save.
 - **Options** initially includes master/music/effects volume, reduced motion, UI scale, battle zoom, and fullscreen. Persist preferences separately from run and battle state. Do not let opening Options advance the turn or trigger a save migration.
 - Browsers generally cannot close a tab they did not open. **Exit** on the title shows a quiet exit panel confirming saved progress and saying the tab can be closed; if launched in a context that permits `window.close()`, it may close after the user's click. In battle, **Exit to Title** saves at the safe boundary and returns to the title.
 - Use a screen/overlay state model (`title`, `game`, `options`, `pause`, `exit`) instead of mixing menu booleans into `Run.phase`. The gameplay phase continues to own route, preparation, battle, intermission, and result.

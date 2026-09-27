@@ -8,6 +8,7 @@ import { TYPES } from './typeChart';
 import { canDeploy, zoneCells } from '../game/deployment';
 import { terrainReachable } from '../game/grid';
 import { mobilityFor } from '../game/mobility';
+import { STARTING_PARTY_POINTS } from './roster';
 
 /** Content references are checked once at startup so new packs fail with useful IDs. */
 export function validateCatalog(): string[] {
@@ -29,6 +30,8 @@ export function validateCatalog(): string[] {
   }
   const formLinks = new Set<string>();
   for (const [id, species] of Object.entries(SPECIES)) {
+    if (species.partyCost !== undefined && (!Number.isInteger(species.partyCost) || species.partyCost < 1 || species.partyCost > STARTING_PARTY_POINTS))
+      errors.push(`Species ${id}: party cost must be an integer from 1 to ${STARTING_PARTY_POINTS}`);
     if (!ABILITIES[species.ability]) errors.push(`Species ${id}: unknown ability ${species.ability}`);
     for (const type of species.types) if (!TYPES.includes(type)) errors.push(`Species ${id}: unknown type ${type}`);
     for (const move of [...species.moves, ...Object.values(species.learn)]) if (!MOVES[move]) errors.push(`Species ${id}: unknown move ${move}`);

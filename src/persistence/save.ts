@@ -6,6 +6,7 @@ import { resolvePlayerDeployment } from '../game/deployment';
 import { objectBlocksMovement } from '../content/terrainObjects';
 import { rebuildHazardTiles } from '../game/hazards';
 import { emptyStageExpiry, MAX_STAGE, STAGE_DURATION, STAGE_STATS } from '../game/stages';
+import { MAX_RUN_POKEMON } from '../content/roster';
 import type { Battle, BattleMap, HazardZone, Run, TileChange, Unit } from '../game/types';
 
 const OLD_KEYS = [['pokemon-tactics-save-v6', 6], ['pokemon-tactics-save-v5', 5], ['pokemon-tactics-save-v4', 4], ['pokemon-tactics-save-v3', 3], ['pokemon-tactics-save-v2', 2]] as const;
@@ -18,8 +19,8 @@ type MapSnapshot = { id: string; signature: string; objectSignature?: string; ch
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents' | 'hpEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV14 = { schemaVersion: 14; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV14 | { schemaVersion: 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
+type SaveV15 = { schemaVersion: 15; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV15 | { schemaVersion: 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
 // Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
 const LEGACY_HP_BASE: Record<string, number> = {
   bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
@@ -46,7 +47,7 @@ function migrateRun(run: Run, version: number): Run {
   if (!ENCOUNTERS.some(encounter => encounter.id === next.encounterId)) return freshRun(next.unlocks);
   if (!Number.isInteger(next.seed)) next.seed = newSeed();
   if (!Number.isInteger(next.rngState)) next.rngState = next.seed;
-  if (next.party.length > 6 || next.party.some(mon => !mon || typeof mon.id !== 'string' || !mon.id || !SPECIES[mon.species])
+  if (next.party.length > MAX_RUN_POKEMON || next.party.some(mon => !mon || typeof mon.id !== 'string' || !mon.id || !SPECIES[mon.species])
     || new Set(next.party.map(mon => mon.id)).size !== next.party.length) return freshRun(next.unlocks);
   for (const mon of next.party) {
     if (version < 9) {
@@ -247,20 +248,20 @@ function snapshotMap(battle: Battle): MapSnapshot {
   return { id: map.id, signature: mapSignature(authored, true), objectSignature: objectSignature(authored), changes };
 }
 
-export function snapshotRun(run: Run): SaveV14 {
+export function snapshotRun(run: Run): SaveV15 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, hpEvents: _hpEvents, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 14, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 15, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;

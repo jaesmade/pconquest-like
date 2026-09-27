@@ -2,7 +2,9 @@ import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import Sprite from './ui/Sprite';
 import PrepareScreen from './ui/PrepareScreen';
-import { ENCOUNTERS, ITEMS, itemCanEquip, itemFor, MAPS, MOVES, SPECIES, STARTERS } from './content/data';
+import PartyBuilder from './ui/PartyBuilder';
+import { ENCOUNTERS, ITEMS, itemCanEquip, itemFor, MAPS, MOVES, SPECIES } from './content/data';
+import { MAX_RUN_POKEMON } from './content/roster';
 import { active, applyRouteChoice, commitEnemyAction, completeBattle, createLabBattle, evolve, finishTurn, moveUnit, newRun, nextEncounter, passTurn, startBattle, statsAtLevel, useMove, useSpecial, unitAt } from './game/engine';
 import { EnemyPlanner } from './game/enemyPlanner';
 import { cloneBattleForCommand } from './game/clone';
@@ -22,7 +24,8 @@ const defaultLab: LabConfig = { allySpecies: 'bulbasaur', enemySpecies: 'charman
 
 function App({ initialRun }: { initialRun: Run }) {
   const [run, setRun] = useState<Run>(initialRun);
-  const [screen, setScreen] = useState<'title' | 'game' | 'options' | 'exit' | 'lab-setup' | 'lab'>('title');
+  const [starterDraft, setStarterDraft] = useState<string[]>([]);
+  const [screen, setScreen] = useState<'splash' | 'title' | 'game' | 'options' | 'exit' | 'lab-setup' | 'lab'>('splash');
   const [labConfig, setLabConfig] = useState<LabConfig>(defaultLab);
   const [labBattle, setLabBattle] = useState<Battle>();
   const [labSession, setLabSession] = useState(0);
@@ -50,6 +53,17 @@ function App({ initialRun }: { initialRun: Run }) {
     window.addEventListener('keydown', unlock);
     return () => { window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
   }, []);
+  useEffect(() => {
+    if (screen !== 'splash') return;
+    const begin = () => setScreen('title');
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space') event.preventDefault();
+      begin();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointerdown', begin);
+    return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('pointerdown', begin); };
+  }, [screen]);
   useEffect(() => {
     gameAudio.setMusic(screen === 'lab' ? 'battle' : screen !== 'game' ? 'menu' : run.phase === 'battle' ? 'battle' : run.phase === 'starter' || run.phase === 'result' ? 'menu' : 'route');
   }, [run.phase, screen]);
@@ -190,13 +204,26 @@ function App({ initialRun }: { initialRun: Run }) {
   };
 
   return <div className={`${animating ? 'app-shell animating' : 'app-shell'} ${(screen === 'game' && run.phase === 'battle') || screen === 'lab' ? 'in-battle' : ''}`}>
-    {screen !== 'game' && screen !== 'lab' && <main className="title-screen"><div className="title-card"><span className="eyebrow">GRID TACTICS · ROGUELIKE</span><h1>Pokémon Tactics</h1><p>Command your team across changing terrain. Make every action point count.</p>
-      {screen === 'title' && <div className="title-actions">
-        {run.phase !== 'starter' && <button className="primary" onClick={() => setScreen('game')}>Continue · Encounter {run.encounter + 1}</button>}
-        <button onClick={() => { if (run.phase !== 'starter' && !window.confirm('Start a new run? This replaces the current saved run.')) return; setRun(freshRun(run.unlocks)); resetSelection(); setAnimating(false); setScreen('game'); }}>{run.phase === 'starter' ? 'Start game' : 'New run'}</button>
-        <button onClick={() => setScreen('lab-setup')}>Battle Lab · 1v1 testing</button><button onClick={() => setScreen('options')}>Options</button><button onClick={() => setScreen('exit')}>Exit</button>
-      </div>}
-      {screen === 'lab-setup' && <div className="lab-setup"><h2>Battle Lab</h2><p>Control both Pokémon on a 5×5 arena. All moves learned at the chosen level are available. Replaying the same seed repeats combat rolls.</p>
+    {screen !== 'game' && screen !== 'lab' && <main className={`title-screen ${screen === 'splash' ? 'splash-screen' : ''}`} onClick={screen === 'splash' ? () => setScreen('title') : undefined}>
+      <div className={`title-layout ${screen === 'splash' ? 'splash-layout' : ''}`}>
+        <header className="title-brand" aria-label="Pokémon Tactics"><h1><span>Pokémon</span><span>Tactics</span></h1></header>
+        {screen === 'splash' && <button className="splash-prompt" onClick={() => setScreen('title')}>Press any key to start</button>}
+        {screen === 'title' && <nav className="title-menu" aria-label="Main menu" onKeyDown={event => {
+          if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+          const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+          if (!buttons.length) return;
+          event.preventDefault();
+          const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+          buttons[next].focus();
+        }}>
+          {run.phase !== 'starter' && run.phase !== 'result' && <button className="menu-button" autoFocus onClick={() => setScreen('game')}>Continue</button>}
+          <button className="menu-button" autoFocus={run.phase === 'starter' || run.phase === 'result'} onClick={() => { if (run.phase !== 'starter' && !window.confirm('Start a new run? This replaces the current saved run.')) return; setStarterDraft([]); setRun(freshRun(run.unlocks)); resetSelection(); setAnimating(false); setScreen('game'); }}>New Run</button>
+          <button className="menu-button" onClick={() => setScreen('lab-setup')}>Lab</button>
+          <button className="menu-button" onClick={() => setScreen('options')}>Options</button>
+          <button className="menu-button menu-exit" onClick={() => setScreen('exit')}>Exit</button>
+        </nav>}
+        {screen === 'lab-setup' && <section className="title-panel lab-setup"><h2>Battle Lab</h2><p>Control both Pokémon on a 5×5 arena. All moves learned at the chosen level are available. Replaying the same seed repeats combat rolls.</p>
         {(['ally', 'enemy'] as const).map(side => <fieldset key={side}><legend>{side === 'ally' ? 'Ally' : 'Opponent'}</legend>
           <label>Pokémon<select value={labConfig[`${side}Species`]} onChange={event => setLabConfig(previous => ({ ...previous, [`${side}Species`]: event.target.value, [`${side}Item`]: 'None' }))}>{Object.entries(SPECIES).map(([id, species]) => <option value={id} key={id}>{species.name}</option>)}</select></label>
           <label>Level<input type="number" min="1" max="100" value={labConfig[`${side}Level`]} onChange={event => setLabConfig(previous => ({ ...previous, [`${side}Level`]: Math.max(1, Math.min(100, Number(event.target.value) || 1)) }))} /></label>
@@ -204,24 +231,25 @@ function App({ initialRun }: { initialRun: Run }) {
         </fieldset>)}
         <div className="lab-setup-row"><label>Weather<select value={labConfig.weather} onChange={event => setLabConfig(previous => ({ ...previous, weather: event.target.value as Weather }))}>{(['clear', 'sun', 'rain', 'snow', 'sandstorm'] as const).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
           <label>Seed<input type="number" min="1" max="4294967295" step="1" value={labConfig.seed} onChange={event => setLabConfig(previous => ({ ...previous, seed: Math.max(1, Math.min(4294967295, Math.floor(Number(event.target.value) || 1))) }))} /></label></div>
-        <div className="title-actions"><button className="primary" onClick={startLab}>Start Battle Lab</button><button onClick={() => setScreen('title')}>Back to title</button></div>
-      </div>}
-      {screen === 'options' && <div className="title-actions"><h2>Options</h2><button data-audio-toggle aria-pressed={!soundMuted} onClick={() => { const next = !soundMuted; gameAudio.setMuted(next); setSoundMuted(next); if (!next) void gameAudio.unlock(); }}>Sound: {soundMuted ? 'Off' : 'On'}</button><button onClick={() => setScreen('title')}>Back</button></div>}
-      {screen === 'exit' && <div className="title-actions"><h2>Exit</h2><p>Your run is saved in this browser. Close the tab when you are ready.</p><button onClick={() => setScreen('title')}>Back to title</button></div>}
-      {saveFailed && <p role="alert">Progress could not be saved in this browser.</p>}
-    </div></main>}
-    {screen === 'game' && run.phase !== 'battle' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button>{run.phase !== 'starter' && <> · Encounter {Math.min(run.encounter + 1, ENCOUNTERS.length)} / {ENCOUNTERS.length} · Party {run.party.length} / 6</>}</div></header>}
+        <div className="title-actions"><button className="menu-button" autoFocus onClick={startLab}>Start Battle Lab</button><button className="menu-button" onClick={() => setScreen('title')}>Back to title</button></div>
+        </section>}
+        {screen === 'options' && <section className="title-panel"><h2>Options</h2><div className="title-actions"><button className="menu-button" autoFocus data-audio-toggle aria-pressed={!soundMuted} onClick={() => { const next = !soundMuted; gameAudio.setMuted(next); setSoundMuted(next); if (!next) void gameAudio.unlock(); }}>Sound: {soundMuted ? 'Off' : 'On'}</button><button className="menu-button" onClick={() => setScreen('title')}>Back</button></div></section>}
+        {screen === 'exit' && <section className="title-panel"><h2>Exit</h2><p>Your run is saved in this browser. Close the tab when you are ready.</p><div className="title-actions"><button className="menu-button" autoFocus onClick={() => setScreen('title')}>Back to title</button></div></section>}
+        {saveFailed && screen !== 'splash' && <p className="title-save-warning" role="alert">Progress could not be saved in this browser.</p>}
+      </div>
+    </main>}
+    {screen === 'game' && run.phase !== 'battle' && run.phase !== 'starter' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button> · Encounter {Math.min(run.encounter + 1, ENCOUNTERS.length)} / {ENCOUNTERS.length} · Pokémon {run.party.length} / {MAX_RUN_POKEMON}</div></header>}
     {screen === 'game' && <>
-    {run.phase === 'starter' && <main className="narrow"><section className="hero"><span className="eyebrow">NEW RUN</span><h2>Choose your lead Pokémon</h2><p>Two companions join your starting party. Pick three before each tactical battle and grow your team along the route.</p></section><div className="starter-grid">{STARTERS.map(id => <button className="starter-card" key={id} onClick={() => setRun(newRun(id, run.unlocks))}><Sprite id={id} /><strong>{SPECIES[id].name}</strong><span>{SPECIES[id].types.join(' / ')}</span><small>{SPECIES[id].ability} · {SPECIES[id].moves.map(pretty).join(' / ')}</small></button>)}</div></main>}
-    {run.phase === 'route' && <main className="narrow"><section className="hero"><span className="eyebrow">ROUTE {run.encounter + 1}</span><h2>{MAPS[encounter.mapId].name}</h2><p>Choose a stop before the next encounter. Rest restores 40% max HP to the whole party. Recruit adds a Pokémon until the party reaches six.</p></section><div className="route-choice"><button className="choice" onClick={() => setRun(applyRouteChoice(run, 'rest'))}><b>✚ Rest camp</b><span>Restore and revive your party.</span></button><button className="choice" disabled={run.party.length >= 6} onClick={() => setRun(applyRouteChoice(run, 'recruit'))}><b>◇ Recruit trail</b><span>Meet another Pokémon for your run.</span></button></div><PartyList run={run} /></main>}
+    {run.phase === 'starter' && <PartyBuilder selection={starterDraft} onSelectionChange={setStarterDraft} onStart={selection => setRun(newRun(selection, run.unlocks))} onBack={() => setScreen('title')} />}
+    {run.phase === 'route' && <main className="narrow"><section className="hero"><span className="eyebrow">ROUTE {run.encounter + 1}</span><h2>{MAPS[encounter.mapId].name}</h2><p>Choose a stop before the next encounter. Rest restores 40% max HP to the whole party. Recruit adds a Pokémon until your run roster reaches {MAX_RUN_POKEMON}.</p></section><div className="route-choice"><button className="choice" onClick={() => setRun(applyRouteChoice(run, 'rest'))}><b>✚ Rest camp</b><span>Restore and revive your party.</span></button><button className="choice" disabled={run.party.length >= MAX_RUN_POKEMON} onClick={() => setRun(applyRouteChoice(run, 'recruit'))}><b>◇ Recruit trail</b><span>Meet another Pokémon for your run.</span></button></div><PartyList run={run} /></main>}
     {run.phase === 'prepare' && <PrepareScreen run={run} onToggle={toggleDeploy} onEquipMove={equipMove} onEquipItem={chooseItem} onDeploymentChange={deployment => patch(next => { next.deployment = deployment; })} onStart={start} />}
     {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={paused} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></Suspense>}
     {run.phase === 'intermission' && <main className="narrow"><section className="hero"><span className="eyebrow">ENCOUNTER CLEARED</span><h2>Party growth</h2><p>Every party member gained XP, including reserves. You can evolve eligible Pokémon now and adjust learned moves before the next battle.</p></section><div className="report">{run.report.map((item, i) => <p key={i}>{item}</p>)}</div><div className="prep-list">{run.party.map(mon => { const evolution = SPECIES[mon.species].evolves; return <article className="prep-card" key={mon.id}><div className="prep-head"><Sprite id={mon.species} /><div><strong>{SPECIES[mon.species].name}</strong><small> Lv {mon.level} · {mon.hp}/{maxHp(mon)} HP</small></div></div><p>Learned: {mon.learned.map(pretty).join(', ')}</p>{evolution && mon.level >= evolution.level && <button onClick={() => setRun(evolve(run, mon.id))}>Evolve into {SPECIES[evolution.into].name}</button>}</article>; })}</div><div className="sticky-actions"><button className="primary" onClick={() => setRun(nextEncounter(run))}>{!encounter.nextId ? 'Complete run →' : 'Continue route →'}</button></div></main>}
-    {run.phase === 'result' && <main className="narrow"><section className="hero result"><span className="eyebrow">RUN COMPLETE</span><h2>{run.result === 'win' ? 'Citadel secured' : 'Your team fell'}</h2><p>{run.result === 'win' ? 'The next run is ready. Your first victory has been saved locally.' : 'The route ends here. Try a different lead, moves, or terrain approach.'}</p><button className="primary" onClick={() => setRun(freshRun(run.unlocks))}>Start a new run</button></section></main>}
+    {run.phase === 'result' && <main className="narrow"><section className="hero result"><span className="eyebrow">RUN COMPLETE</span><h2>{run.result === 'win' ? 'Citadel secured' : 'Your team fell'}</h2><p>{run.result === 'win' ? 'The next run is ready. Your first victory has been saved locally.' : 'The route ends here. Try a different lead, moves, or terrain approach.'}</p><button className="primary" onClick={() => { setStarterDraft([]); setRun(freshRun(run.unlocks)); }}>Start a new run</button></section></main>}
     {paused && <div className="pause-backdrop" role="dialog" aria-modal="true" aria-label="Paused"><div className="pause-panel"><h2>Paused</h2><button autoFocus className="primary" onClick={() => { setPaused(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.battle-pause')?.focus()); }}>Resume</button><button onClick={() => { setPaused(false); setScreen('title'); }}>Title screen</button></div></div>}
     </>}
     {screen === 'lab' && labBattle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading Battle Lab…</h2></section></main>}><BattleScreen key={labSession} run={run} battle={labBattle} labSeed={labConfig.seed} controlBoth mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={false} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={startLab} onPause={() => { setAnimating(false); setScreen('lab-setup'); }} onLabReset={startLab} /></Suspense>}
-    {screen === 'game' && run.phase !== 'battle' && <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>}
+    {screen === 'game' && run.phase !== 'battle' && run.phase !== 'starter' && <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>}
   </div>;
 }
 function PartyList({ run }: { run: Run }) { return <section className="party-list"><span className="eyebrow">YOUR PARTY</span>{run.party.map(mon => <div key={mon.id}><Sprite id={mon.species} /><b>{SPECIES[mon.species].name}</b><span>Lv {mon.level}</span><span>{mon.hp}/{maxHp(mon)} HP</span><small>{mon.item}</small></div>)}</section>; }

@@ -29,6 +29,7 @@ export function cloneBattleForCommand(battle: Battle): Battle {
       hpAfter: event.hpAfter ? { ...event.hpAfter } : undefined,
     })),
     feedbackEvents: battle.feedbackEvents?.map(event => ({ ...event })),
+    hpEvents: battle.hpEvents?.map(event => ({ ...event })) ?? [],
   };
 }
 

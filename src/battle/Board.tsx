@@ -5,7 +5,7 @@ import battleAssets from '../../public/assets/battle-asset-manifest.json';
 import isoAssets from '../../public/assets/environment/isometric/isometric-manifest.json';
 import { abilityAbsorption, effectiveness, mapHeight, mapWidth, megaFormFor, MOVES } from '../content/data';
 import { TERRAIN_OBJECTS } from '../content/terrainObjects';
-import type { AttackVisualEvent, Battle, FeedbackEvent, Unit } from '../game/types';
+import type { AttackVisualEvent, Battle, FeedbackEvent, HpVisualEvent, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange } from '../game/engine';
 import { hasLineOfSight, type MovementPath } from '../game/grid';
 import { mobilityState } from '../game/mobility';
@@ -52,7 +52,13 @@ class BattleScene extends Phaser.Scene {
   seen = new Map<string, number>();
   seenAttacks = new Set<string>();
   seenFeedback = new Set<string>();
+  seenHp = new Set<string>();
   pendingFeedback: FeedbackEvent[] = [];
+  pendingHp = new Map<string, HpVisualEvent[]>();
+  pendingMovementHp = new Map<string, HpVisualEvent[]>();
+  afterAttacksHp: HpVisualEvent[] = [];
+  immediateHp: HpVisualEvent[] = [];
+  hpPopups = new Map<string, Phaser.GameObjects.Text[]>();
   pendingAttacks: AttackVisualEvent[] = [];
   playingAttack?: AttackVisualEvent;
   draining = false;
@@ -130,6 +136,7 @@ class BattleScene extends Phaser.Scene {
     this.scale.on(Phaser.Scale.Events.RESIZE, () => this.resizeViewport());
     this.resizeViewport(true);
     this.renderBattle();
+    this.playHpCues(this.immediateHp.splice(0));
     this.playFeedback();
     void this.playNextAttack();
     this.updateAnimationState();
@@ -257,7 +264,29 @@ class BattleScene extends Phaser.Scene {
     this.pendingFeedback = [...this.pendingFeedback, ...cues].slice(-4);
     const currentFeedback = new Set((props.battle.feedbackEvents ?? []).map(event => event.id));
     for (const id of this.seenFeedback) if (!currentFeedback.has(id)) this.seenFeedback.delete(id);
+    const retainedAttacks = new Set([...(this.playingAttack ? [this.playingAttack.id] : []), ...this.pendingAttacks.map(event => event.id)]);
+    for (const event of props.battle.hpEvents ?? []) {
+      if (this.seenHp.has(event.id)) continue;
+      this.seenHp.add(event.id);
+      if (event.attackId && retainedAttacks.has(event.attackId)) {
+        const cues = this.pendingHp.get(event.attackId) ?? [];
+        cues.push(event); this.pendingHp.set(event.attackId, cues);
+      } else {
+        const unit = props.battle.units.find(candidate => candidate.id === event.unitId);
+        if (event.duringMove && unit?.hp && unit.visual === 'move' && this.sprites.has(unit.id)) {
+          const cues = this.pendingMovementHp.get(unit.id) ?? [];
+          cues.push(event); this.pendingMovementHp.set(unit.id, cues);
+        } else if (!event.attackId && retainedAttacks.size) this.afterAttacksHp.push(event);
+        else this.immediateHp.push(event);
+      }
+    }
+    for (const [attackId, cues] of this.pendingHp) if (!retainedAttacks.has(attackId)) {
+      this.immediateHp.push(...cues); this.pendingHp.delete(attackId);
+    }
+    const currentHp = new Set((props.battle.hpEvents ?? []).map(event => event.id));
+    for (const id of this.seenHp) if (!currentHp.has(id)) this.seenHp.delete(id);
     if (this.ground) {
+      this.playHpCues(this.immediateHp.splice(0));
       if (boardChanged) this.renderBattle(); else if (targetChanged) this.renderTarget();
       if (activeChanged && !props.battle.result && this.fitZoom() < 0.75) this.command('center');
       if (props.cameraAction && props.cameraAction.id !== this.cameraActionId) {
@@ -281,6 +310,32 @@ class BattleScene extends Phaser.Scene {
       this.tweens.add({ targets: label, y: label.y - 17, alpha: 0, duration: 850, onComplete: () => label.destroy() });
     }
   }
+  private playHpCues(cues: HpVisualEvent[]) {
+    for (const cue of cues) {
+      const unit = this.battle.units.find(candidate => candidate.id === cue.unitId);
+      if (!unit) continue;
+      this.displayedHp.set(unit.id, cue.hpAfter);
+      if (this.hp.has(unit.id)) this.drawHpBar(unit);
+      const labels = this.hpPopups.get(unit.id) ?? [];
+      if (labels.length >= 3) {
+        const oldest = labels.shift()!;
+        this.tweens.killTweensOf(oldest); oldest.destroy();
+      }
+      const [x, y] = this.unitCenter(unit, [cue.x, cue.y]);
+      const label = this.add.text(x + 25, y - 48 - labels.length * 16, `${cue.kind === 'heal' ? '+' : '-'}${cue.amount}`, {
+        fontFamily: 'monospace', fontSize: '18px', fontStyle: 'bold', color: cue.kind === 'heal' ? '#78efa4' : '#ff7777',
+        stroke: '#102127', strokeThickness: 4,
+      }).setOrigin(0, 0.5).setDepth(5100);
+      labels.push(label); this.hpPopups.set(unit.id, labels);
+      const finish = () => {
+        const active = this.hpPopups.get(unit.id);
+        if (active) { const index = active.indexOf(label); if (index >= 0) active.splice(index, 1); if (!active.length) this.hpPopups.delete(unit.id); }
+        label.destroy();
+      };
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.time.delayedCall(650, finish);
+      else this.tweens.add({ targets: label, y: label.y - 24, alpha: 0, duration: 800, ease: 'Cubic.easeOut', onComplete: finish });
+    }
+  }
   private tileCenter([x, y]: [number, number]): [number, number] { const center = isoTileCenter(this.battle.map, x, y); return [center.x, center.y - 4]; }
   private unitCenter(unit: Unit, [x, y]: [number, number]): [number, number] {
     const [centerX, centerY] = this.tileCenter([x, y]);
@@ -289,7 +344,9 @@ class BattleScene extends Phaser.Scene {
   }
   private markerCenter([x, y]: [number, number]): [number, number] { const center = isoTileCenter(this.battle.map, x, y); return [center.x, center.y + 5]; }
   private awaitingImpact(id: string): boolean {
-    return !!this.playingAttack?.targetIds.includes(id) || this.pendingAttacks.some(event => event.targetIds.includes(id));
+    return !!this.playingAttack?.targetIds.includes(id) || this.pendingAttacks.some(event => event.targetIds.includes(id))
+      || [...this.pendingHp.values()].some(cues => cues.some(cue => cue.unitId === id)) || this.pendingMovementHp.has(id)
+      || this.afterAttacksHp.some(cue => cue.unitId === id);
   }
   private drawHpBar(unit: Unit) {
     const [x, y] = this.unitCenter(unit, [unit.x, unit.y]);
@@ -316,6 +373,7 @@ class BattleScene extends Phaser.Scene {
       this.playingAttack = undefined;
       this.renderBattle();
     }
+    this.playHpCues(this.afterAttacksHp.splice(0));
     this.draining = false; this.updateAnimationState();
     this.catchingUp = false;
     if (this.pendingAttacks.length && this.scene.isActive()) void this.playNextAttack();
@@ -361,10 +419,18 @@ class BattleScene extends Phaser.Scene {
       effect.play(key);
       effect.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => effect.destroy());
     }
+    const hpCues = this.pendingHp.get(event.id) ?? [];
+    this.pendingHp.delete(event.id);
+    const hpCueTargets = new Set(hpCues.map(cue => cue.unitId));
+    this.playHpCues(hpCues);
     for (const id of event.targetIds) {
       const target = this.battle.units.find(unit => unit.id === id), sprite = this.sprites.get(id);
       if (!target || !sprite) continue;
       const hpAtImpact = event.hpAfter?.[id] ?? target.hp;
+      if (!hpCueTargets.has(id)) {
+        const previous = this.displayedHp.get(id) ?? hpAtImpact;
+        if (previous !== hpAtImpact) this.playHpCues([{ id: `${event.id}-${id}`, unitId: id, kind: previous > hpAtImpact ? 'damage' : 'heal', amount: Math.abs(previous - hpAtImpact), hpAfter: hpAtImpact, x: target.x, y: target.y }]);
+      }
       this.displayedHp.set(id, hpAtImpact);
       this.drawHpBar(target);
       const hurtKey = unitAnimationKey(target.species, target.facing, 'hurt');
@@ -499,13 +565,28 @@ class BattleScene extends Phaser.Scene {
     this.movingUnits.add(unit.id); this.updateAnimationState();
     const step = (index: number, previous: [number, number]) => {
       if (!sprite.active) { this.movingUnits.delete(unit.id); this.updateAnimationState(); return; }
-      if (index >= path.length) { sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)), true); this.movingUnits.delete(unit.id); this.updateAnimationState(); return; }
+      if (index >= path.length) {
+        const remaining = this.pendingMovementHp.get(unit.id) ?? [];
+        this.pendingMovementHp.delete(unit.id);
+        this.playHpCues(remaining);
+        sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)), true);
+        this.movingUnits.delete(unit.id); this.updateAnimationState(); return;
+      }
       const point = path[index];
       sprite.play(unitAnimationKey(unit.species, facingBetween(previous, point, unit.facing), 'walk'), true);
       this.showMarkers(unit, markers, point);
       const [x, y] = this.unitCenter(unit, point), [markerX, markerY] = this.markerCenter(point);
       this.tweens.add({ targets: [markers.shadow, markers.ripple], x: markerX, y: markerY, duration: MOVE_STEP_MS, ease: 'Linear' });
-      this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Linear', onUpdate: () => sprite.setDepth(100 + sprite.y + 33), onComplete: () => step(index + 1, point) });
+      this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Linear', onUpdate: () => sprite.setDepth(100 + sprite.y + 33), onComplete: () => {
+        const cues = this.pendingMovementHp.get(unit.id) ?? [];
+        const arrived = cues.filter(cue => cue.x === point[0] && cue.y === point[1]);
+        if (arrived.length) {
+          const remaining = cues.filter(cue => cue.x !== point[0] || cue.y !== point[1]);
+          if (remaining.length) this.pendingMovementHp.set(unit.id, remaining); else this.pendingMovementHp.delete(unit.id);
+          this.playHpCues(arrived);
+        }
+        step(index + 1, point);
+      } });
     };
     step(0, start);
   }

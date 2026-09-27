@@ -20,6 +20,10 @@ const log = (battle: Battle, message: string) => { battle.log = [message, ...bat
 const feedback = (battle: Battle, kind: 'ability' | 'item', key: string, unit: Unit) => {
   battle.feedbackEvents = [...(battle.feedbackEvents ?? []), { id: crypto.randomUUID(), kind, key, unitId: unit.id }].slice(-24);
 };
+const hpFeedback = (battle: Battle, unit: Unit, kind: 'damage' | 'heal', amount: number, visual?: AttackVisualEvent, duringMove = false) => {
+  if (amount <= 0) return;
+  battle.hpEvents = [...(battle.hpEvents ?? []), { id: crypto.randomUUID(), unitId: unit.id, kind, amount, hpAfter: unit.hp, x: unit.x, y: unit.y, attackId: visual?.id, duringMove: duringMove || undefined }].slice(-48);
+};
 const alive = (unit: Unit) => unit.hp > 0;
 export const MAX_LEVEL = 100;
 export const RUN_START_LEVEL = 10;
@@ -58,7 +62,7 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   if (selected.some(mon => !deployment[mon.id])) throw new Error(`Map ${map.id}: no legal ally deployment for the selected team.`);
   next.deployment = deployment;
   const players = selected.map(mon => { const [x, y] = deployment[mon.id]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
-  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], captureHeld: false, encounterId: definition.id };
+  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: definition.id };
   const occupied = new Set(players.map(unit => `${unit.x},${unit.y}`));
   if (enemyDeployment && enemyDeployment.length !== definition.enemies.length) throw new Error(`Map ${map.id}: enemy deployment count does not match the team.`);
   for (const [index, id] of definition.enemies.entries()) {
@@ -117,7 +121,7 @@ export function createLabBattle(config: LabConfig): Battle {
   const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: 'defeat', units: [ally, enemy], weather: config.weather,
     weatherUntil: config.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0,
     current: '', rngState: config.seed >>> 0 || 1, log: [`Battle Lab · seed ${config.seed >>> 0 || 1}. Control both Pokémon.`],
-    visualEvents: [], feedbackEvents: [], captureHeld: false, encounterId: 'battle-lab' };
+    visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: 'battle-lab' };
   beginRound(battle, true);
   return battle;
 }
@@ -141,18 +145,20 @@ function endCurrentTurn(battle: Battle) {
   battle.turnIndex++;
   activateNext(battle);
 }
-function hit(battle: Battle, unit: Unit, amount: number, source: string) {
+function hit(battle: Battle, unit: Unit, amount: number, source: string, visual?: AttackVisualEvent, duringMove = false) {
   if (!alive(unit)) return;
+  const lost = Math.min(unit.hp, amount);
   unit.hp = Math.max(0, unit.hp - amount);
+  hpFeedback(battle, unit, 'damage', lost, visual, duringMove);
   unit.visual = unit.hp ? 'hurt' : 'faint'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;
   log(battle, `${unit.name} took ${amount} damage from ${source}${unit.hp ? '.' : ' and fainted!'}`);
   const thresholdHeal = itemThresholdHeal(unit);
-  if (thresholdHeal) { const item = unit.item; if (thresholdHeal.consume) unit.item = 'None'; heal(battle, unit, max(unit.maxHp * thresholdHeal.fraction), item); }
+  if (thresholdHeal) { const item = unit.item; if (thresholdHeal.consume) unit.item = 'None'; heal(battle, unit, max(unit.maxHp * thresholdHeal.fraction), item, visual, duringMove); }
 }
-function heal(battle: Battle, unit: Unit, amount: number, source: string) {
+function heal(battle: Battle, unit: Unit, amount: number, source: string, visual?: AttackVisualEvent, duringMove = false) {
   if (!alive(unit)) return;
   const restored = Math.min(amount, unit.maxHp - unit.hp);
-  if (restored > 0) { unit.hp += restored; unit.visual = 'buff'; unit.visualNonce = (unit.visualNonce ?? 0) + 1; log(battle, `${unit.name} recovered ${restored} HP with ${source}.`); if (itemFor(source)) feedback(battle, 'item', source, unit); }
+  if (restored > 0) { unit.hp += restored; hpFeedback(battle, unit, 'heal', restored, visual, duringMove); unit.visual = 'buff'; unit.visualNonce = (unit.visualNonce ?? 0) + 1; log(battle, `${unit.name} recovered ${restored} HP with ${source}.`); if (itemFor(source)) feedback(battle, 'item', source, unit); }
 }
 function checkResult(battle: Battle) {
   const wasHeld = battle.captureHeld;
@@ -164,10 +170,10 @@ function checkResult(battle: Battle) {
     if (battle.objective === 'defeat' || battle.captureHeld) battle.result = 'win';
   }
 }
-function applyTileEntry(battle: Battle, unit: Unit) {
+function applyTileEntry(battle: Battle, unit: Unit, visual?: AttackVisualEvent, duringMove = false) {
   const tile = battle.map.tiles[unit.y][unit.x];
-  if (tile.kind === 'lava' && !unit.mobility.canFly) hit(battle, unit, max(unit.maxHp / 10), 'lava');
-  if (alive(unit) && tile.hazardUntil && tile.hazardUntil > battle.time) hit(battle, unit, max(unit.maxHp / 8), 'Stealth Rock');
+  if (tile.kind === 'lava' && !unit.mobility.canFly) hit(battle, unit, max(unit.maxHp / 10), 'lava', visual, duringMove);
+  if (alive(unit) && tile.hazardUntil && tile.hazardUntil > battle.time) hit(battle, unit, max(unit.maxHp / 8), 'Stealth Rock', visual, duringMove);
   checkResult(battle);
 }
 export function moveUnit(battle: Battle, x: number, y: number): string | undefined {
@@ -188,7 +194,7 @@ function travelPath(battle: Battle, unit: Unit, points: GridPoint[]) {
     unit.x = nextX; unit.y = nextY;
     syncMobility(unit, battle.map.tiles[nextY][nextX]);
     travelled.push([nextX, nextY]);
-    applyTileEntry(battle, unit);
+    applyTileEntry(battle, unit, undefined, true);
     if (!alive(unit) || battle.result) break;
   }
   unit.visualPath = travelled;
@@ -268,7 +274,7 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   const miss = hitChance < 1 && random(battle) >= hitChance;
   if (miss) { feedback(battle, 'ability', target.ability, target); log(battle, `${source.name}'s ${move.name} missed ${target.name}.`); return; }
   const absorption = abilityAbsorption(target.ability, move.type);
-  if (absorption?.kind === 'heal') { feedback(battle, 'ability', target.ability, target); heal(battle, target, max(target.maxHp * (absorption.healFraction ?? 0)), target.ability); return; }
+  if (absorption?.kind === 'heal') { feedback(battle, 'ability', target.ability, target); heal(battle, target, max(target.maxHp * (absorption.healFraction ?? 0)), target.ability, visual); return; }
   if (absorption?.kind === 'charge') { feedback(battle, 'ability', target.ability, target); if (absorption.status) target.status[absorption.status] = 1; log(battle, `${target.name} absorbed ${move.type} with ${target.ability}.`); return; }
   const preview = damagePreview(battle, source, target, moveId);
   if (!preview.type) { log(battle, `${target.name} is immune to ${move.type}.`); return; }
@@ -281,7 +287,7 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
     visual.abilityTriggered = true;
   }
   visual.targetIds.push(target.id);
-  hit(battle, target, damage, `${move.name}${secondary ? ' chain' : ''}${critical ? ' (critical)' : ''} · ${preview.type}×`);
+  hit(battle, target, damage, `${move.name}${secondary ? ' chain' : ''}${critical ? ' (critical)' : ''} · ${preview.type}×`, visual);
   // A chain is a separate damage-only hit: it rolls against this defender, but cannot
   // repeat the primary hit's contact reactions, status effects, or further chains.
   if (secondary) return;
@@ -304,7 +310,7 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
         target.x = nextX; target.y = nextY;
         syncMobility(target, battle.map.tiles[nextY][nextX]);
         visual.tiles.push([nextX, nextY]);
-        applyTileEntry(battle, target);
+        applyTileEntry(battle, target, visual);
         if (!alive(target) || battle.result) break;
       }
       log(battle, `${target.name} was ${effect.direction === 'push' ? 'pushed' : 'pulled'}.`);

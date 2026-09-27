@@ -16,7 +16,7 @@ const STORE = 'snapshots';
 type SaveEnvelope = { schemaVersion: number; savedAt: string; run: Run };
 type MapSnapshot = { id: string; signature: string; objectSignature?: string; changes: TileChange[] };
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
-type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
+type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents' | 'hpEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
 type SaveV14 = { schemaVersion: 14; savedAt: string; run: RunSnapshot };
 type StoredSnapshot = SaveV14 | { schemaVersion: 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
@@ -183,6 +183,7 @@ function migrateRun(run: Run, version: number): Run {
       battle.captureHeld = !!battle.map.capture && battle.units.some(unit => unit.hp > 0 && unit.side === 'player'
         && unit.x === battle.map.capture![0] && unit.y === battle.map.capture![1]);
       battle.visualEvents = [];
+      battle.hpEvents = [];
       for (const unit of battle.units) {
         syncMobility(unit, battle.map.tiles[unit.y][unit.x]);
         delete unit.visual; delete unit.visualNonce; delete unit.visualFrom; delete unit.visualPath;
@@ -248,7 +249,7 @@ function snapshotMap(battle: Battle): MapSnapshot {
 
 export function snapshotRun(run: Run): SaveV14 {
   const battle = run.battle;
-  const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, tileChanges: _changes, ...state }) => ({
+  const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, hpEvents: _hpEvents, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
@@ -290,7 +291,7 @@ function restoreRun(value: unknown): Run | undefined {
     }
   }
   const tileChanges = Object.fromEntries(saved.map.changes.map(change => [`${change.x},${change.y}`, change]));
-  return migrateRun({ ...run, battle: { ...saved, map, tileChanges, visualEvents: [], feedbackEvents: [] } } as Run, envelope.schemaVersion);
+  return migrateRun({ ...run, battle: { ...saved, map, tileChanges, visualEvents: [], feedbackEvents: [], hpEvents: [] } } as Run, envelope.schemaVersion);
 }
 
 function openDatabase(): Promise<IDBDatabase> {

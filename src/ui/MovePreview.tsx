@@ -23,7 +23,7 @@ export default function MovePreview({ battle, attacker, moveId, target }: Props)
   const selectedTargets = battle.units.filter(unit => unit.hp > 0 && unit.side !== attacker.side && selectedTiles.some(([x, y]) => unit.x === x && unit.y === y));
   const range = move.target === 'self' ? 'Self' : `${move.range} tiles${move.range > 0 ? ' (+1 from high ground)' : ''}`;
   return <div className="move-preview">
-    <div className="move-preview-title"><b>{move.name} · {move.apCost} AP · range: {range}</b><small>{move.area ? `${move.area.width}×${move.area.height} area` : move.target === 'self' ? 'Self' : 'One enemy'}</small></div>
+    <div className="move-preview-title"><b>{move.name} · {move.apCost} AP · range: {range}</b><small>{move.delivery ? `${move.delivery === 'melee' ? 'Melee' : 'Ranged'} · ` : ''}{move.area ? `${move.area.width}×${move.area.height} area` : move.target === 'self' ? 'Self' : 'One enemy'}</small></div>
     {move.power ? <>
       <span className="eyebrow">TYPE EFFECTIVENESS IN REACH</span>
       {inRange.length ? inRange.map(unit => <div className="matchup" key={unit.id}><strong>{unit.name}</strong><span>{matchup(battle, attacker, unit, moveId)}</span></div>) : <p className="hint">No enemy in range yet.</p>}

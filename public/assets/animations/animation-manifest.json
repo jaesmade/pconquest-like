@@ -1,29 +1,31 @@
 {
-  "schemaVersion": 1,
-  "frameWidth": 32,
-  "frameHeight": 32,
-  "columns": 20,
+  "schemaVersion": 2,
   "directions": ["south", "west", "east", "north"],
-  "clips": {
-    "idle": { "startColumn": 0, "frameCount": 2, "fps": 3, "loop": true },
-    "move": { "startColumn": 2, "frameCount": 4, "fps": 8, "loop": true },
-    "attack": { "startColumn": 6, "frameCount": 3, "fps": 10, "loop": false },
-    "hurt": { "startColumn": 9, "frameCount": 2, "fps": 12, "loop": false },
-    "buff": { "startColumn": 11, "frameCount": 2, "fps": 8, "loop": false },
-    "debuff": { "startColumn": 13, "frameCount": 2, "fps": 8, "loop": false },
-    "special": { "startColumn": 15, "frameCount": 3, "fps": 8, "loop": false },
-    "faint": { "startColumn": 18, "frameCount": 2, "fps": 6, "loop": false }
-  },
   "fallbackUnit": "placeholder",
   "units": {
-    "bulbasaur": "/assets/animations/units/bulbasaur/bulbasaur-battle-32px.png",
-    "squirtle": "/assets/animations/units/squirtle/squirtle-battle-32px.png",
-    "lapras": "/assets/animations/units/lapras/lapras-battle-32px.png",
-    "geodude": "/assets/animations/units/geodude/geodude-battle-32px.png",
-    "pikachu": "/assets/animations/units/pikachu/pikachu-battle-32px.png",
-    "meowth": "/assets/animations/units/meowth/meowth-battle-32px.png",
-    "charizard-mega-x": "/assets/animations/units/placeholder/placeholder-battle-32px.png",
-    "placeholder": "/assets/animations/units/placeholder/placeholder-battle-32px.png"
+    "bulbasaur": "placeholder",
+    "squirtle": "placeholder",
+    "lapras": "placeholder",
+    "geodude": "placeholder",
+    "pikachu": "placeholder",
+    "meowth": "placeholder",
+    "charizard-mega-x": "placeholder",
+    "placeholder": "placeholder"
+  },
+  "unitSets": {
+    "placeholder": {
+      "facingRows": [7, 5, 1, 3],
+      "normal": null,
+      "clips": {
+        "idle": { "url": "/assets/animations/units/placeholder/placeholder-idle-32x40.png", "frameWidth": 32, "frameHeight": 40, "frames": 5, "rows": 8, "fps": 5, "loop": true },
+        "walk": { "url": "/assets/animations/units/placeholder/placeholder-walk-32x40.png", "frameWidth": 32, "frameHeight": 40, "frames": 7, "rows": 8, "fps": 8, "loop": true },
+        "attack": { "url": "/assets/animations/units/placeholder/placeholder-attack-80x88.png", "frameWidth": 80, "frameHeight": 88, "frames": 11, "rows": 8, "fps": 26, "impactFrame": 4, "loop": false },
+        "shoot": { "url": "/assets/animations/units/placeholder/placeholder-shoot-64x64.png", "frameWidth": 64, "frameHeight": 64, "frames": 12, "rows": 8, "fps": 25, "impactFrame": 2, "loop": false },
+        "charge": { "url": "/assets/animations/units/placeholder/placeholder-charge-32x40.png", "frameWidth": 32, "frameHeight": 40, "frames": 10, "rows": 8, "fps": 30, "impactFrame": 5, "loop": false },
+        "sleep": { "url": "/assets/animations/units/placeholder/placeholder-sleep-32x40.png", "frameWidth": 32, "frameHeight": 40, "frames": 7, "rows": 1, "fps": 6, "loop": true },
+        "hurt": { "url": "/assets/animations/units/placeholder/placeholder-hurt-56x56.png", "frameWidth": 56, "frameHeight": 56, "frames": 2, "rows": 8, "fps": 12, "loop": false }
+      }
+    }
   },
   "effects": {
     "attack-impact": "/assets/animations/effects/effect-attack-impact-32px.png",
@@ -34,9 +36,9 @@
     "status": "/assets/animations/effects/effect-status-32px.png"
   },
   "attacks": {
-    "tackle": { "url": "/assets/animations/attacks/attack-tackle-32px.png", "style": "projectile" },
+    "tackle": { "url": "/assets/animations/attacks/attack-tackle-32px.png", "style": "melee" },
     "ember": { "url": "/assets/animations/attacks/attack-ember-32px.png", "style": "projectile" },
-    "vineWhip": { "url": "/assets/animations/attacks/attack-vine-whip-32px.png", "style": "projectile" },
+    "vineWhip": { "url": "/assets/animations/attacks/attack-vine-whip-32px.png", "style": "melee" },
     "waterPulse": { "url": "/assets/animations/attacks/attack-water-pulse-32px.png", "style": "projectile" },
     "thunderShock": { "url": "/assets/animations/attacks/attack-thunder-shock-32px.png", "style": "projectile" },
     "rockThrow": { "url": "/assets/animations/attacks/attack-rock-throw-32px.png", "style": "projectile" },

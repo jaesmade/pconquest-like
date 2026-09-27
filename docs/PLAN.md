@@ -166,9 +166,9 @@ Paralysis halves effective Speed for 200 battle-time units. Keep the chance for 
 
 ## Move design
 
-Each move record has a type, category, power, range, target shape, AP cost, contact tag, and optional effects. Category is **Physical**, **Special**, or **Status**. Physical damage uses Attack and Defense; Special damage uses Special Attack and Special Defense. Status moves normally have no damage calculation. Moves have 100% base accuracy unless an effect such as Sand Veil modifies hit chance. A move must hit before it rolls for a critical hit or secondary effect.
+Each move record has a type, category, power, range, target shape, AP cost, tags, and optional effects. Category is **Physical**, **Special**, or **Status**. Physical damage uses Attack and Defense; Special damage uses Special Attack and Special Defense. Every damaging move also has an attack **delivery** of **Melee** or **Ranged**. Melee describes a direct body, limb, or held-part strike; it can reach beyond one tile, as Vine Whip does. Ranged describes a launched, projected, or distant-area attack; Physical moves such as Rock Throw and Ice Shard can be Ranged. Delivery does not change the damage stat, tile range, contact tag, line of sight, or animation sheet style by itself. Status moves have no attack delivery. Moves have 100% base accuracy unless an effect such as Sand Veil modifies hit chance. A move must hit before it rolls for a critical hit or secondary effect.
 
-The former cooldown tiers are AP costs in the early build: standard moves cost 1 AP, Stealth Rock costs 2, Thunderbolt costs 3, and major weather moves cost 4. A Pokémon chooses one equipped move for its single Attack command each turn. Speed determines the AP gained each round.
+The former cooldown tiers are AP costs in the early build: standard moves cost 1 AP, Stealth Rock costs 2, Thunderbolt costs 4, and major weather moves cost 4. A Pokémon chooses one equipped move for its single Attack command each turn. Speed determines the AP gained each round.
 
 Each hit from a damaging Physical or Special move has a **1-in-24 critical chance** (about 4.17%). On a critical hit, multiply the final nonzero move damage by **1.5**, after stats, type effectiveness, same-type bonus, and weather are applied. Roll separately for each target of an area move. Type immunity still results in 0 damage. Status moves and damage from weather, terrain, or ongoing conditions cannot critically hit in the early build. Mark critical hits in the battle animation and action log.
 
@@ -197,6 +197,13 @@ The initial move list is grouped by AP cost and intended power. Exact damage pow
 | 3        | Thunderbolt   | Electric / Special | 2×2 area placed within 4 tiles on the square grid   | Strong damage; chance to paralyze each hit target, halving its Speed.         |
 | 4        | Sandstorm     | Rock / Status      | Whole battlefield                                   | Replaces the current weather with sandstorm and resets its duration.          |
 | 4        | Sunny Day     | Fire / Status      | Whole battlefield                                   | Replaces the current weather with sun and resets its duration.                |
+
+The initial damaging moves are classified by delivery independently of their damage category and `contact`/`projectile` tags:
+
+| Delivery | Moves |
+| -------- | ----- |
+| Melee | Tackle, Vine Whip |
+| Ranged | Ember, Water Pulse, Thunder Shock, Rock Throw, Mud Slap, Ice Shard, Thunderbolt |
 
 Stealth Rock lasts 200 battle-time units and deals 1/8 of maximum HP, rounded up, when a Pokémon enters any tile in its 3×3 zone. It affects both teams and Flying Pokémon; one active zone per caster can exist, and a new placement replaces the old one. Sandstorm and Sunny Day use the weather effects above. Thunderbolt uses a 2×2 target area that can be placed within four tiles on the square grid.
 

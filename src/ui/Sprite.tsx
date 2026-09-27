@@ -1,6 +1,7 @@
-import manifest from '../../public/assets/animations/animation-manifest.json';
+import { unitSet } from '../battle/unitAnimations';
 
 export default function Sprite({ id }: { id: string }) {
-  const units: Record<string, string> = manifest.units;
-  return <span className="portrait" style={{ backgroundImage: `url(${units[id] ?? units[manifest.fallbackUnit]})` }} aria-hidden="true" />;
+  const set = unitSet(id);
+  const portrait = set.normal;
+  return <span className="portrait" style={{ backgroundImage: `url(${portrait ?? set.clips.idle.url})`, backgroundSize: portrait ? 'contain' : `${set.clips.idle.frames * 100}% auto`, backgroundRepeat: 'no-repeat' }} aria-hidden="true" />;
 }

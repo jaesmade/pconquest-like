@@ -11,11 +11,12 @@ import { mobilityState } from '../game/mobility';
 import { enqueueAttackCues } from './visualQueue';
 import { gameAudio } from '../audio/audio';
 import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoWorldSize } from './isometric';
+import { facingBetween, impactDelay, restingClip, unitAnimationKey, unitSet, unitSetId, unitTextureKey, visualClip } from './unitAnimations';
 
-const clips = manifest.clips as Record<string, { startColumn: number; frameCount: number; fps: number; loop: boolean }>;
 export type BoardView = { left: number; top: number; zoom: number; width: number; height: number };
 export type CameraCommand = 'zoom-in' | 'zoom-out' | 'fit' | 'center' | 'focus';
 type Props = { battle: Battle; mode: 'move' | 'attack' | 'inspect'; controlBoth?: boolean; chosenMove?: string; target?: [number, number]; moveRoutes?: Map<string, MovementPath>; onTile: (x: number, y: number) => void; onAnimationState?: (playing: boolean) => void; onViewChange?: (view: BoardView) => void; cameraAction?: { id: number; command: CameraCommand; point?: [number, number] } };
+const MOVE_STEP_MS = 375;
 
 class BattleScene extends Phaser.Scene {
   battle!: Battle;
@@ -37,6 +38,7 @@ class BattleScene extends Phaser.Scene {
   sprites = new Map<string, Phaser.GameObjects.Sprite>();
   markers = new Map<string, { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }>();
   hp = new Map<string, Phaser.GameObjects.Graphics>();
+  displayedHp = new Map<string, number>();
   cover = new Map<string, Phaser.GameObjects.Image>();
   seen = new Map<string, number>();
   seenAttacks = new Set<string>();
@@ -52,9 +54,11 @@ class BattleScene extends Phaser.Scene {
     for (const asset of battleAssets.assets) this.load.image(asset.id, asset.url);
     for (const [kind, urls] of Object.entries(isoAssets.tiles)) urls.forEach((url, level) => this.load.svg(`iso-${kind}-h${level}-96px`, url));
     for (const [id, url] of Object.entries(isoAssets.decorations)) this.load.svg(`iso-${id}`, url);
-    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id))]);
+    const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
     const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
-    for (const [id, url] of Object.entries(manifest.units)) if (unitIds.has(id)) this.load.spritesheet(id, url, { frameWidth: 32, frameHeight: 32 });
+    for (const id of unitIds) for (const [clip, spec] of Object.entries(unitSet(id).clips)) {
+      this.load.spritesheet(unitTextureKey(id, clip as keyof typeof manifest.unitSets.placeholder.clips), spec.url, { frameWidth: spec.frameWidth, frameHeight: spec.frameHeight });
+    }
     for (const [id, url] of Object.entries(manifest.effects)) this.load.spritesheet(`effect-${id}`, url, { frameWidth: 32, frameHeight: 32 });
     for (const [id, asset] of Object.entries(manifest.attacks)) if (moveIds.has(id)) this.load.spritesheet(`attack-${id}`, asset.url, { frameWidth: 32, frameHeight: 32 });
   }
@@ -65,11 +69,11 @@ class BattleScene extends Phaser.Scene {
     this.ground = this.add.graphics().setDepth(1);
     this.targetOverlay = this.add.graphics().setDepth(2);
     this.drawTerrain();
-    const unitIds = new Set([manifest.fallbackUnit, ...this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id))]);
+    const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
     const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
-    for (const id of Object.keys(manifest.units).filter(id => unitIds.has(id))) for (let direction = 0; direction < 4; direction++) for (const [clip, data] of Object.entries(clips)) {
-      const start = direction * manifest.columns + data.startColumn;
-      this.anims.create({ key: `${id}-${direction}-${clip}`, frames: this.anims.generateFrameNumbers(id, { start, end: start + data.frameCount - 1 }), frameRate: data.fps, repeat: data.loop ? -1 : 0 });
+    for (const id of unitIds) for (const [clip, spec] of Object.entries(unitSet(id).clips)) for (let row = 0; row < spec.rows; row++) {
+      const texture = unitTextureKey(id, clip as keyof typeof manifest.unitSets.placeholder.clips);
+      this.anims.create({ key: `${texture}-${row}`, frames: this.anims.generateFrameNumbers(texture, { start: row * spec.frames, end: (row + 1) * spec.frames - 1 }), frameRate: spec.fps, repeat: spec.loop ? -1 : 0 });
     }
     for (const id of Object.keys(manifest.effects)) this.anims.create({ key: `effect-${id}`, frames: this.anims.generateFrameNumbers(`effect-${id}`, { start: 0, end: 3 }), frameRate: manifest.effectFps });
     for (const id of Object.keys(manifest.attacks).filter(id => moveIds.has(id))) {
@@ -247,9 +251,20 @@ class BattleScene extends Phaser.Scene {
   private unitCenter(unit: Unit, [x, y]: [number, number]): [number, number] {
     const [centerX, centerY] = this.tileCenter([x, y]);
     const state = mobilityState(unit.mobility.canFly, unit.mobility.canSwim, this.battle.map.tiles[y][x]);
-    return [centerX, centerY - 16 + (state === 'flying' ? -10 : state === 'swimming' ? 4 : 0)];
+    return [centerX, centerY - 8 + (state === 'flying' ? -10 : state === 'swimming' ? 4 : 0)];
   }
   private markerCenter([x, y]: [number, number]): [number, number] { const center = isoTileCenter(this.battle.map, x, y); return [center.x, center.y + 5]; }
+  private awaitingImpact(id: string): boolean {
+    return !!this.playingAttack?.targetIds.includes(id) || this.pendingAttacks.some(event => event.targetIds.includes(id));
+  }
+  private drawHpBar(unit: Unit) {
+    const [x, y] = this.unitCenter(unit, [unit.x, unit.y]);
+    let bar = this.hp.get(unit.id);
+    if (!bar) { bar = this.add.graphics().setDepth(7); this.hp.set(unit.id, bar); }
+    bar.clear(); bar.fillStyle(0x10242b); bar.fillRect(x - 24, y - 38, 48, 7);
+    bar.fillStyle(unit.side === 'player' ? 0x9ee3b5 : 0xf69b8c);
+    bar.fillRect(x - 23, y - 37, 46 * (this.displayedHp.get(unit.id) ?? unit.hp) / unit.maxHp, 5);
+  }
   private showMarkers(unit: Unit, markers: { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }, [x, y]: [number, number]) {
     const state = mobilityState(unit.mobility.canFly, unit.mobility.canSwim, this.battle.map.tiles[y][x]);
     markers.shadow.setVisible(state === 'flying');
@@ -274,16 +289,10 @@ class BattleScene extends Phaser.Scene {
   private async playAttackEvent(event: AttackVisualEvent, fast: boolean) {
     gameAudio.playMove(event.moveId);
     const asset = manifest.attacks[event.moveId as keyof typeof manifest.attacks];
-    if (!asset) {
-      const [x, y] = this.tileCenter(event.to);
-      const fallback = this.add.sprite(x, y, 'effect-attack-impact').setScale(1.55).setDepth(11);
-      fallback.play('effect-attack-impact');
-      fallback.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => fallback.destroy());
-      await this.wait(fast ? 160 : Math.round(1000 * manifest.effectFrameCount / manifest.effectFps));
-      return;
-    }
+    const move = MOVES[event.moveId];
     const attacker = this.battle.units.find(unit => unit.id === event.sourceId);
     const attackerSprite = this.sprites.get(event.sourceId);
+    const clip = move?.category === 'Status' ? 'charge' : move?.delivery === 'melee' ? 'attack' : 'shoot';
     if (attacker && attackerSprite) {
       const [sourceX, sourceY] = this.unitCenter(attacker, event.from);
       const markers = this.markers.get(event.sourceId);
@@ -294,12 +303,11 @@ class BattleScene extends Phaser.Scene {
       }
       this.tweens.killTweensOf(attackerSprite);
       attackerSprite.setPosition(sourceX, sourceY);
-      const facing = event.to[0] > event.from[0] ? 2 : event.to[0] < event.from[0] ? 1 : event.to[1] < event.from[1] ? 3 : 0;
-      const texture = Object.hasOwn(manifest.units, attacker.species) ? attacker.species : manifest.fallbackUnit;
-      attackerSprite.play(`${texture}-${facing}-${asset.style === 'weather' || asset.style === 'self' ? 'special' : 'attack'}`, true);
+      const facing = facingBetween(event.from, event.to, attacker.facing);
+      attackerSprite.play(unitAnimationKey(attacker.species, facing, clip), true);
     }
-    await this.wait(fast ? 50 : 100);
-    if (asset.style === 'projectile') {
+    await this.wait(impactDelay(attacker?.species ?? manifest.fallbackUnit, clip, fast));
+    if (asset?.style === 'projectile') {
       const [sx, sy] = attacker ? this.unitCenter(attacker, event.from) : this.tileCenter(event.from), [tx, ty] = this.tileCenter(event.to);
       const projectile = this.add.sprite(sx, sy, `attack-${event.moveId}`).setScale(1.5).setDepth(10);
       projectile.play(`attack-${event.moveId}-travel`);
@@ -308,27 +316,36 @@ class BattleScene extends Phaser.Scene {
       await new Promise<void>(resolve => this.tweens.add({ targets: projectile, x: tx, y: ty, duration, ease: 'Sine.easeInOut', onComplete: () => { projectile.destroy(); resolve(); } }));
     }
     const width = mapWidth(this.battle.map), height = mapHeight(this.battle.map);
-    const tiles: [number, number][] = asset.style === 'weather'
+    const tiles: [number, number][] = asset?.style === 'weather'
       ? [[0.2, 0.2], [0.45, 0.3], [0.7, 0.55], [0.8, 0.8]].map(([x, y]) => [Math.min(width - 1, Math.floor(x * width)), Math.min(height - 1, Math.floor(y * height))])
       : event.tiles.length ? event.tiles : [event.to];
     const unique = [...new Map(tiles.map(tile => [tile.join(','), tile])).values()];
     for (const tile of unique) {
       const [x, y] = this.tileCenter(tile);
-      const effect = this.add.sprite(x, y, `attack-${event.moveId}`).setScale(asset.style === 'area' ? 1.8 : 1.55).setDepth(11);
-      effect.play(`attack-${event.moveId}`);
+      const key = asset ? `attack-${event.moveId}` : 'effect-attack-impact';
+      const effect = this.add.sprite(x, y, key).setScale(asset?.style === 'area' ? 1.8 : 1.55).setDepth(11);
+      effect.play(key);
       effect.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => effect.destroy());
     }
     for (const id of event.targetIds) {
       const target = this.battle.units.find(unit => unit.id === id), sprite = this.sprites.get(id);
       if (!target || !sprite) continue;
-      const texture = Object.hasOwn(manifest.units, target.species) ? target.species : manifest.fallbackUnit;
-      sprite.play(`${texture}-${target.facing}-${target.hp <= 0 ? 'faint' : 'hurt'}`, true);
+      const hpAtImpact = event.hpAfter?.[id] ?? target.hp;
+      this.displayedHp.set(id, hpAtImpact);
+      this.drawHpBar(target);
+      const hurtKey = unitAnimationKey(target.species, target.facing, 'hurt');
+      sprite.play(hurtKey, true);
+      sprite.setTintFill(0xfff2d4);
+      this.time.delayedCall(fast ? 55 : 90, () => { if (sprite.active) sprite.clearTint(); });
+      if (hpAtImpact <= 0) this.tweens.add({ targets: sprite, alpha: 0, duration: 180, delay: fast ? 0 : 110 });
+      else sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (animation: Phaser.Animations.Animation) => {
+        if (sprite.active && animation.key === hurtKey) sprite.play(unitAnimationKey(target.species, target.facing, restingClip(target, this.battle.time)), true);
+      });
     }
     if (event.targetIds.length) gameAudio.playCue('pokemonHit');
-    await this.wait(fast ? 160 : Math.round(1000 * manifest.attackFrameCount / manifest.attackFps));
+    await this.wait(fast ? 160 : Math.round(1000 * (asset ? manifest.attackFrameCount / manifest.attackFps : manifest.effectFrameCount / manifest.effectFps)));
     if (attacker && attackerSprite?.active && attacker.hp > 0) {
-      const texture = Object.hasOwn(manifest.units, attacker.species) ? attacker.species : manifest.fallbackUnit;
-      attackerSprite.play(`${texture}-${attacker.facing}-idle`, true);
+      attackerSprite.play(unitAnimationKey(attacker.species, attacker.facing, restingClip(attacker, this.battle.time)), true);
     }
   }
   renderBattle() {
@@ -371,6 +388,7 @@ class BattleScene extends Phaser.Scene {
       sprite.destroy(); this.sprites.delete(id);
       const markers = this.markers.get(id); markers?.shadow.destroy(); markers?.ripple.destroy(); this.markers.delete(id);
       this.hp.get(id)?.destroy(); this.hp.delete(id);
+      this.displayedHp.delete(id);
     }
     for (const [key, image] of this.cover) if (!activeCover.has(key)) { image.destroy(); this.cover.delete(key); }
     this.renderTarget();
@@ -410,27 +428,32 @@ class BattleScene extends Phaser.Scene {
     this.targetOverlay.lineStyle(4, 0xffd576);
     this.strokeDiamond(this.targetOverlay, center.x, center.y);
   }
-  private animateRoute(sprite: Phaser.GameObjects.Sprite, markers: { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }, path: [number, number][], unit: Unit, texture: string, facing: number) {
+  private animateRoute(sprite: Phaser.GameObjects.Sprite, markers: { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }, start: [number, number], path: [number, number][], unit: Unit) {
     this.tweens.killTweensOf(sprite);
     this.tweens.killTweensOf(markers.shadow);
     this.tweens.killTweensOf(markers.ripple);
-    sprite.play(`${texture}-${facing}-move`, true);
+    const [startX, startY] = this.unitCenter(unit, start), [markerX, markerY] = this.markerCenter(start);
+    sprite.setPosition(startX, startY);
+    markers.shadow.setPosition(markerX, markerY); markers.ripple.setPosition(markerX, markerY);
+    this.showMarkers(unit, markers, start);
     this.movingUnits.add(unit.id); this.updateAnimationState();
-    const step = (index: number) => {
+    const step = (index: number, previous: [number, number]) => {
       if (!sprite.active) { this.movingUnits.delete(unit.id); this.updateAnimationState(); return; }
-      if (index >= path.length) { sprite.play(`${texture}-${facing}-idle`, true); this.movingUnits.delete(unit.id); this.updateAnimationState(); return; }
+      if (index >= path.length) { sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)), true); this.movingUnits.delete(unit.id); this.updateAnimationState(); return; }
       const point = path[index];
+      sprite.play(unitAnimationKey(unit.species, facingBetween(previous, point, unit.facing), 'walk'), true);
       this.showMarkers(unit, markers, point);
       const [x, y] = this.unitCenter(unit, point), [markerX, markerY] = this.markerCenter(point);
-      this.tweens.add({ targets: [markers.shadow, markers.ripple], x: markerX, y: markerY, duration: 150, ease: 'Sine.easeInOut' });
-      this.tweens.add({ targets: sprite, x, y, duration: 150, ease: 'Sine.easeInOut', onComplete: () => step(index + 1) });
+      this.tweens.add({ targets: [markers.shadow, markers.ripple], x: markerX, y: markerY, duration: MOVE_STEP_MS, ease: 'Linear' });
+      this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Linear', onComplete: () => step(index + 1, point) });
     };
-    step(0);
+    step(0, start);
   }
   drawUnit(unit: Unit) {
     if (unit.hp <= 0) return;
-    const texture = Object.hasOwn(manifest.units, unit.species) ? unit.species : manifest.fallbackUnit;
+    const setId = unitSetId(unit.species);
     let sprite = this.sprites.get(unit.id);
+    const wasVisible = !!sprite;
     const [x, y] = this.unitCenter(unit, [unit.x, unit.y]);
     const [markerX, markerY] = this.markerCenter([unit.x, unit.y]);
     let markers = this.markers.get(unit.id);
@@ -440,29 +463,47 @@ class BattleScene extends Phaser.Scene {
       markers = { shadow, ripple }; this.markers.set(unit.id, markers);
     }
     const newVisual = this.seen.get(unit.id) !== unit.visualNonce;
-    if (!sprite) { sprite = this.add.sprite(x, y, texture).setScale(1.65).setDepth(5); this.sprites.set(unit.id, sprite); sprite.play(`${texture}-${unit.facing}-idle`); }
-    else if (sprite.texture.key !== texture) sprite.setTexture(texture);
-    else if (newVisual && unit.visual === 'move' && unit.visualPath?.length) this.animateRoute(sprite, markers, unit.visualPath, unit, texture, unit.facing);
-    else if ((sprite.x !== x || sprite.y !== y) && !this.tweens.isTweening(sprite)) this.tweens.add({ targets: sprite, x, y, duration: 230, ease: 'Sine.easeInOut' });
-    if (!(unit.visual === 'move' && (newVisual || this.tweens.isTweening(sprite)))) {
+    if (!sprite) {
+      sprite = this.add.sprite(x, y, unitTextureKey(setId, 'idle')).setScale(1.65).setDepth(5);
+      sprite.setData('unitSet', setId);
+      this.sprites.set(unit.id, sprite);
+      sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)));
+    } else if (sprite.getData('unitSet') !== setId) {
+      sprite.setData('unitSet', setId);
+      sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)), true);
+    }
+    if (wasVisible && newVisual && unit.visual === 'move' && unit.visualFrom && unit.visualPath?.length) this.animateRoute(sprite, markers, unit.visualFrom, unit.visualPath, unit);
+    else if ((sprite.x !== x || sprite.y !== y) && !this.tweens.isTweening(sprite)) this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Sine.easeInOut' });
+    if (!this.movingUnits.has(unit.id)) {
       this.showMarkers(unit, markers, [unit.x, unit.y]);
       if (!this.tweens.isTweening(markers.shadow)) markers.shadow.setPosition(markerX, markerY);
       if (!this.tweens.isTweening(markers.ripple)) markers.ripple.setPosition(markerX, markerY);
     }
     if (newVisual) {
       this.seen.set(unit.id, unit.visualNonce ?? 0);
-      const clip = unit.visual && clips[unit.visual] ? unit.visual : 'idle';
-      if (clip !== 'move' || !unit.visualPath?.length) sprite.play(`${texture}-${unit.facing}-${clip}`, true);
-      if (clip !== 'idle' && clip !== 'move') sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sprite?.play(`${texture}-${unit.facing}-idle`, true));
-      if (clip === 'hurt' || clip === 'buff' || clip === 'special') {
-        const effect = clip === 'hurt' ? 'status' : clip === 'special' ? 'mega' : 'buff';
+      const clip = visualClip(unit.visual);
+      const deferHurt = unit.visual === 'hurt' && this.awaitingImpact(unit.id);
+      if (clip && clip !== 'walk' && !deferHurt) {
+        const animationKey = unitAnimationKey(unit.species, unit.facing, clip);
+        sprite.play(animationKey, true);
+        sprite.once(Phaser.Animations.Events.ANIMATION_COMPLETE, (animation: Phaser.Animations.Animation) => {
+          if (sprite.active && animation.key === animationKey) sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)), true);
+        });
+      }
+      if (!deferHurt && (unit.visual === 'hurt' || unit.visual === 'buff' || unit.visual === 'special')) {
+        const effect = unit.visual === 'hurt' ? 'status' : unit.visual === 'special' ? 'mega' : 'buff';
         const burst = this.add.sprite(x, y, `effect-${effect}`).setScale(1.5).setDepth(8);
         burst.play(`effect-${effect}`); burst.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => burst.destroy());
       }
+    } else if (!this.movingUnits.has(unit.id)) {
+      const idleKey = unitAnimationKey(unit.species, unit.facing, 'idle');
+      const sleepKey = unitAnimationKey(unit.species, unit.facing, 'sleep');
+      const currentKey = sprite.anims.currentAnim?.key;
+      const restKey = unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time));
+      if ((currentKey === idleKey || currentKey === sleepKey) && currentKey !== restKey) sprite.play(restKey, true);
     }
-    let bar = this.hp.get(unit.id); if (!bar) { bar = this.add.graphics().setDepth(7); this.hp.set(unit.id, bar); }
-    bar.clear(); bar.fillStyle(0x10242b); bar.fillRect(x - 24, y - 38, 48, 7);
-    bar.fillStyle(unit.side === 'player' ? 0x9ee3b5 : 0xf69b8c); bar.fillRect(x - 23, y - 37, 46 * unit.hp / unit.maxHp, 5);
+    if (!this.displayedHp.has(unit.id) || !this.awaitingImpact(unit.id)) this.displayedHp.set(unit.id, unit.hp);
+    this.drawHpBar(unit);
     if (unit.id === this.battle.current) { const center = isoTileCenter(this.battle.map, unit.x, unit.y); this.ground.lineStyle(3, unit.side === 'player' ? 0xffe08c : 0xff8d70); this.strokeDiamond(this.ground, center.x, center.y); }
   }
 }

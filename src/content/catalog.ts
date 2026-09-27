@@ -15,6 +15,7 @@ export function validateCatalog(): string[] {
     if (!TYPES.includes(move.type)) errors.push(`Move ${id}: unknown type ${move.type}`);
     if (!Number.isInteger(move.range) || move.range < 0 || !Number.isInteger(move.power) || move.power < 0 || !Number.isInteger(move.apCost) || move.apCost < 1) errors.push(`Move ${id}: range and power must be nonnegative integers, and AP cost must be a positive integer`);
     if (move.category === 'Status' ? move.power !== 0 : move.power <= 0) errors.push(`Move ${id}: Status moves need zero power and damaging moves need positive power`);
+    if (move.category === 'Status' ? move.delivery !== undefined : move.delivery !== 'melee' && move.delivery !== 'ranged') errors.push(`Move ${id}: damaging moves need melee or ranged delivery; Status moves have no attack delivery`);
     if (move.area && (!Number.isInteger(move.area.width) || !Number.isInteger(move.area.height) || move.area.width < 1 || move.area.height < 1)) errors.push(`Move ${id}: area must have positive integer dimensions`);
     for (const effect of move.effects ?? []) {
       if ('chance' in effect && (!Number.isFinite(effect.chance) || effect.chance < 0 || effect.chance > 1)) errors.push(`Move ${id}: effect chance must be between 0 and 1`);

@@ -174,6 +174,7 @@ export function moveUnit(battle: Battle, x: number, y: number): string | undefin
   travelPath(battle, unit, route.points);
 }
 function travelPath(battle: Battle, unit: Unit, points: GridPoint[]) {
+  unit.visualFrom = [unit.x, unit.y];
   const travelled: GridPoint[] = [];
   let spent = 0;
   for (const [nextX, nextY] of points) {
@@ -324,6 +325,7 @@ export function useMove(battle: Battle, moveId: string, x: number, y: number): s
     }
   }
   if (move.power) for (const target of battle.units.filter(other => alive(other) && other.side !== unit.side && tiles.some(([tileX, tileY]) => other.x === tileX && other.y === tileY))) applyDamage(battle, unit, target, moveId, visual);
+  if (visual.targetIds.length) visual.hpAfter = Object.fromEntries(visual.targetIds.map(id => [id, battle.units.find(target => target.id === id)!.hp]));
   checkResult(battle);
 }
 export function useSpecial(battle: Battle): string | undefined {

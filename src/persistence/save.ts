@@ -12,7 +12,7 @@ const STORE = 'snapshots';
 
 type SaveEnvelope = { schemaVersion: number; savedAt: string; run: Run };
 type MapSnapshot = { id: string; signature: string; changes: TileChange[] };
-type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualPath'>;
+type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
 type SaveV12 = { schemaVersion: 12; savedAt: string; run: RunSnapshot };
@@ -147,7 +147,7 @@ function migrateRun(run: Run, version: number): Run {
       battle.visualEvents = [];
       for (const unit of battle.units) {
         syncMobility(unit, battle.map.tiles[unit.y][unit.x]);
-        delete unit.visual; delete unit.visualNonce; delete unit.visualPath;
+        delete unit.visual; delete unit.visualNonce; delete unit.visualFrom; delete unit.visualPath;
       }
     }
   }
@@ -206,7 +206,7 @@ export function snapshotRun(run: Run): SaveV12 {
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
-    units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualPath: _visualPath, ...unit }) => unit),
+    units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
   return { schemaVersion: 12, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }

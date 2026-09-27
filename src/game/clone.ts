@@ -15,6 +15,7 @@ export function cloneBattleForCommand(battle: Battle): Battle {
       mobility: { ...unit.mobility },
       status: { ...unit.status },
       stages: { ...unit.stages },
+      visualFrom: unit.visualFrom ? [...unit.visualFrom] : undefined,
       visualPath: unit.visualPath?.map(([x, y]): GridPoint => [x, y]),
     })),
     turnOrder: [...battle.turnOrder],
@@ -23,6 +24,7 @@ export function cloneBattleForCommand(battle: Battle): Battle {
       ...event, from: [...event.from], to: [...event.to],
       tiles: event.tiles.map(([x, y]): GridPoint => [x, y]),
       targetIds: [...event.targetIds],
+      hpAfter: event.hpAfter ? { ...event.hpAfter } : undefined,
     })),
     feedbackEvents: battle.feedbackEvents?.map(event => ({ ...event })),
   };

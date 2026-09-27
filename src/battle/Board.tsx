@@ -7,7 +7,7 @@ import { abilityAbsorption, effectiveness, mapHeight, mapWidth, megaFormFor, MOV
 import { TERRAIN_OBJECTS } from '../content/terrainObjects';
 import type { AttackVisualEvent, Battle, FeedbackEvent, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange, unitAt } from '../game/engine';
-import type { MovementPath } from '../game/grid';
+import { hasLineOfSight, type MovementPath } from '../game/grid';
 import { mobilityState } from '../game/mobility';
 import { enqueueAttackCues } from './visualQueue';
 import { gameAudio } from '../audio/audio';
@@ -425,14 +425,19 @@ class BattleScene extends Phaser.Scene {
       return;
     }
     if (this.mode === 'attack' && this.chosenMove && MOVES[this.chosenMove]) {
-      for (const [tx, ty] of affectedTiles(this.battle.map, this.chosenMove, x, y)) {
-        const affected = isoTileCenter(this.battle.map, tx, ty);
-        this.targetOverlay.fillStyle(0xffd576, 0.3);
-        this.fillDiamond(this.targetOverlay, affected.x, affected.y);
+      const actor = active(this.battle), move = MOVES[this.chosenMove];
+      if (inMoveRange(this.battle, actor, this.chosenMove, x, y)) {
+        for (const [tx, ty] of affectedTiles(this.battle.map, this.chosenMove, x, y)) {
+          if (move.power && move.target === 'tile' && !hasLineOfSight(this.battle, [actor.x, actor.y], [tx, ty])) continue;
+          const affected = isoTileCenter(this.battle.map, tx, ty);
+          this.targetOverlay.fillStyle(0xffd576, 0.3);
+          this.fillDiamond(this.targetOverlay, affected.x, affected.y);
+        }
       }
     }
     const center = isoTileCenter(this.battle.map, x, y);
-    this.targetOverlay.lineStyle(4, 0xffd576);
+    const valid = this.mode === 'attack' && this.chosenMove && inMoveRange(this.battle, active(this.battle), this.chosenMove, x, y);
+    this.targetOverlay.lineStyle(4, valid ? 0xffd576 : 0xff806d);
     this.strokeDiamond(this.targetOverlay, center.x, center.y);
   }
   private animateRoute(sprite: Phaser.GameObjects.Sprite, markers: { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse }, start: [number, number], path: [number, number][], unit: Unit) {

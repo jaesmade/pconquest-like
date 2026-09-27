@@ -1,5 +1,5 @@
 import { abilityAbsorption, abilityHitChance, effectiveness, MOVES } from '../content/data';
-import { affectedTiles, canHitWithMove, damagePreview } from '../game/engine';
+import { canHitAtTarget, canHitWithMove, damagePreview, inMoveRange } from '../game/engine';
 import type { Battle, Unit } from '../game/types';
 
 type Props = { battle: Battle; attacker: Unit; moveId: string; target?: [number, number] };
@@ -19,15 +19,15 @@ export default function MovePreview({ battle, attacker, moveId, target }: Props)
   const move = MOVES[moveId];
   if (!move) return null;
   const inRange = battle.units.filter(unit => canHitWithMove(battle, attacker, moveId, unit));
-  const selectedTiles = target ? affectedTiles(battle.map, moveId, target[0], target[1]) : [];
-  const selectedTargets = battle.units.filter(unit => unit.hp > 0 && unit.side !== attacker.side && selectedTiles.some(([x, y]) => unit.x === x && unit.y === y));
+  const selectedValid = target && inMoveRange(battle, attacker, moveId, target[0], target[1]);
+  const selectedTargets = target && selectedValid ? battle.units.filter(unit => canHitAtTarget(battle, attacker, moveId, target[0], target[1], unit)) : [];
   const range = move.target === 'self' ? 'Self' : `${move.range} tiles${move.range > 0 ? ' (+1 from high ground)' : ''}`;
   return <div className="move-preview">
     <div className="move-preview-title"><b>{move.name} · {move.apCost} AP · range: {range}</b><small>{move.delivery ? `${move.delivery === 'melee' ? 'Melee' : 'Ranged'} · ` : ''}{move.area ? `${move.area.width}×${move.area.height} area` : move.target === 'self' ? 'Self' : 'One enemy'}</small></div>
     {move.power ? <>
       <span className="eyebrow">TYPE EFFECTIVENESS IN REACH</span>
       {inRange.length ? inRange.map(unit => <div className="matchup" key={unit.id}><strong>{unit.name}</strong><span>{matchup(battle, attacker, unit, moveId)}</span></div>) : <p className="hint">No enemy in range yet.</p>}
-      {target && <div className="selected-preview"><b>Selected area</b>{selectedTargets.length ? selectedTargets.map(unit => <span key={unit.id}>{unit.name}: {matchup(battle, attacker, unit, moveId)} · Hit {Math.round(abilityHitChance(unit.ability, battle.weather) * 100)}%</span>) : <span>No enemy in the selected area.</span>}<small>Critical chance: 1 in 24 per hit.</small></div>}
+      {target && <div className="selected-preview"><b>Selected area</b>{!selectedValid ? <span>Target tile is blocked or out of range.</span> : selectedTargets.length ? selectedTargets.map(unit => <span key={unit.id}>{unit.name}: {matchup(battle, attacker, unit, moveId)} · Hit {Math.round(abilityHitChance(unit.ability, battle.weather) * 100)}%</span>) : <span>No visible enemy in the selected area.</span>}<small>Critical chance: 1 in 24 per hit.</small></div>}
     </> : <p className="hint">Support move: no type damage. The highlighted cells show its target or affected area.</p>}
   </div>;
 }

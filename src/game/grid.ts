@@ -152,6 +152,8 @@ export class AttackPositionSearch {
 export function hasLineOfSight(battle: Battle, from: GridPoint, to: GridPoint): boolean {
   const source = battle.map.tiles[from[1]]?.[from[0]], target = battle.map.tiles[to[1]]?.[to[0]];
   if (!source || !target) return false;
+  // A wall or solid object cannot be used as an area move's aim point.
+  if (target.kind === 'wall' || objectBlocksSight(target)) return false;
   const ceiling = Math.max(source.height, target.height);
   const blocks = (x: number, y: number) => {
     const tile = battle.map.tiles[y]?.[x];

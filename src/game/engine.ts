@@ -6,6 +6,8 @@ import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
 import { calculateDamage, damageRange } from './damage';
 import { setTileEffects } from './clone';
+import { expireHazardZones, placeHazardZone } from './hazards';
+import { changeStage, emptyStageExpiry, expireStages } from './stages';
 import { hasMoveTag } from '../content/moves';
 import { canDeploy, chooseEnemyDeployment, resolvePlayerDeployment } from './deployment';
 import { createMap } from '../content/maps';
@@ -43,7 +45,7 @@ export function newRun(starter: string, unlocks = 0): Run {
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, item: mon.item, itemAttackMultiplier: 1 };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
@@ -56,7 +58,7 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   if (selected.some(mon => !deployment[mon.id])) throw new Error(`Map ${map.id}: no legal ally deployment for the selected team.`);
   next.deployment = deployment;
   const players = selected.map(mon => { const [x, y] = deployment[mon.id]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
-  const battle: Battle = { map, tileChanges: {}, objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], captureHeld: false, encounterId: definition.id };
+  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], captureHeld: false, encounterId: definition.id };
   const occupied = new Set(players.map(unit => `${unit.x},${unit.y}`));
   if (enemyDeployment && enemyDeployment.length !== definition.enemies.length) throw new Error(`Map ${map.id}: enemy deployment count does not match the team.`);
   for (const [index, id] of definition.enemies.entries()) {
@@ -78,6 +80,8 @@ function beginRound(battle: Battle, initial = false) {
   if (!initial) {
     battle.round++;
     battle.time += 100;
+    expireHazardZones(battle);
+    for (const unit of battle.units) expireStages(unit, battle.time);
     for (const unit of battle.units.filter(alive)) {
       if (battle.weather === 'sandstorm' && !unit.types.some(type => ['Rock', 'Steel', 'Ground'].includes(type))) hit(battle, unit, max(unit.maxHp / 16), 'sandstorm');
       if (alive(unit) && unit.status.burned >= battle.time) hit(battle, unit, max(unit.maxHp / 16), 'Burn');
@@ -110,7 +114,7 @@ export function createLabBattle(config: LabConfig): Battle {
   // The lab exposes every level-eligible move, including moves normally left out of two campaign slots.
   ally.moves = learnedAtLevel(config.allySpecies, config.allyLevel);
   enemy.moves = learnedAtLevel(config.enemySpecies, config.enemyLevel);
-  const battle: Battle = { map, tileChanges: {}, objective: 'defeat', units: [ally, enemy], weather: config.weather,
+  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: 'defeat', units: [ally, enemy], weather: config.weather,
     weatherUntil: config.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0,
     current: '', rngState: config.seed >>> 0 || 1, log: [`Battle Lab · seed ${config.seed >>> 0 || 1}. Control both Pokémon.`],
     visualEvents: [], feedbackEvents: [], captureHeld: false, encounterId: 'battle-lab' };
@@ -226,15 +230,23 @@ export function affectedTiles(map: BattleMap, moveId: string, x: number, y: numb
   }
   return positions;
 }
+export function canHitAtTarget(battle: Battle, unit: Unit, moveId: string, x: number, y: number, target: Unit) {
+  const move = MOVES[moveId];
+  if (!move?.power || target.side === unit.side || !alive(target) || !inMoveRange(battle, unit, moveId, x, y)) return false;
+  if (move.target === 'unit') return target.x === x && target.y === y;
+  return move.target === 'tile'
+    && affectedTiles(battle.map, moveId, x, y).some(([tx, ty]) => tx === target.x && ty === target.y)
+    && hasLineOfSight(battle, [unit.x, unit.y], [target.x, target.y]);
+}
 export function canHitWithMove(battle: Battle, unit: Unit, moveId: string, target: Unit) {
   const move = MOVES[moveId];
   if (!move || !move.power || target.side === unit.side || !alive(target)) return false;
-  if (move.target === 'unit') return inMoveRange(battle, unit, moveId, target.x, target.y);
+  if (move.target === 'unit') return canHitAtTarget(battle, unit, moveId, target.x, target.y, target);
   if (move.target !== 'tile') return false;
   const radiusX = move.area?.width ?? 1, radiusY = move.area?.height ?? 1;
   for (let y = Math.max(0, target.y - radiusY); y <= Math.min(mapHeight(battle.map) - 1, target.y + radiusY); y++)
     for (let x = Math.max(0, target.x - radiusX); x <= Math.min(mapWidth(battle.map) - 1, target.x + radiusX); x++) {
-    if (inMoveRange(battle, unit, moveId, x, y) && affectedTiles(battle.map, moveId, x, y).some(([tx, ty]) => tx === target.x && ty === target.y)) return true;
+    if (canHitAtTarget(battle, unit, moveId, x, y, target)) return true;
   }
   return false;
 }
@@ -250,7 +262,7 @@ export function canUseMove(battle: Battle, unit: Unit, moveId: string, x = unit.
   if (itemBlocksMove(unit, move)) return false;
   return validTarget(battle, unit, moveId, x, y);
 }
-function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string, visual: AttackVisualEvent) {
+function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string, visual: AttackVisualEvent, secondary?: { damageFraction: number }) {
   const move = MOVES[moveId];
   const hitChance = abilityHitChance(target.ability, battle.weather);
   const miss = hitChance < 1 && random(battle) >= hitChance;
@@ -262,13 +274,17 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   if (!preview.type) { log(battle, `${target.name} is immune to ${move.type}.`); return; }
   const critical = random(battle) < 1 / 24;
   const randomPercent = 85 + Math.floor(random(battle) * 16);
-  const damage = calculateDamage(battle, source, target, move, { critical, randomPercent });
+  const baseDamage = calculateDamage(battle, source, target, move, { critical, randomPercent });
+  const damage = secondary ? max(baseDamage * secondary.damageFraction) : baseDamage;
   if (!visual.abilityTriggered && abilityDamageMultiplier(source, move) > 1) {
     feedback(battle, 'ability', source.ability, source);
     visual.abilityTriggered = true;
   }
   visual.targetIds.push(target.id);
-  hit(battle, target, damage, `${move.name}${critical ? ' (critical)' : ''} · ${preview.type}×`);
+  hit(battle, target, damage, `${move.name}${secondary ? ' chain' : ''}${critical ? ' (critical)' : ''} · ${preview.type}×`);
+  // A chain is a separate damage-only hit: it rolls against this defender, but cannot
+  // repeat the primary hit's contact reactions, status effects, or further chains.
+  if (secondary) return;
   if (!alive(target)) return;
   const reaction = hasMoveTag(move, 'contact') && abilityContactReaction(target.ability);
   if (reaction && random(battle) < reaction.chance) { feedback(battle, 'ability', target.ability, target); source.status[reaction.status] = battle.time + reaction.duration; log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
@@ -292,10 +308,11 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
         if (!alive(target) || battle.result) break;
       }
       log(battle, `${target.name} was ${effect.direction === 'push' ? 'pushed' : 'pulled'}.`);
-    } else if (effect.kind === 'tile') setTileEffects(battle, [[target.x, target.y]], effect.field, battle.time + effect.duration);
+    } else if (effect.kind === 'tile' && effect.field === 'hazardUntil') placeHazardZone(battle, source.id, moveId, [[target.x, target.y]], battle.time + effect.duration);
+    else if (effect.kind === 'tile') setTileEffects(battle, [[target.x, target.y]], effect.field, battle.time + effect.duration);
     else if (effect.kind === 'chain' && random(battle) < effect.chance) {
       const chained = battle.units.find(unit => unit.side === target.side && unit.id !== target.id && alive(unit) && distance(unit, target) <= effect.radius);
-      if (chained) { visual.tiles.push([chained.x, chained.y]); visual.targetIds.push(chained.id); hit(battle, chained, max(damage * effect.damageFraction), `${move.name} chain`); }
+      if (chained) { visual.tiles.push([chained.x, chained.y]); applyDamage(battle, source, chained, moveId, visual, { damageFraction: effect.damageFraction }); }
     }
   }
 }
@@ -308,7 +325,9 @@ export function useMove(battle: Battle, moveId: string, x: number, y: number): s
   unit.attackedThisTurn = true;
   unit.visual = move.category === 'Status' ? 'buff' : 'attack'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;
   const tiles = affectedTiles(battle.map, moveId, x, y);
-  const visual: AttackVisualEvent = { id: crypto.randomUUID(), moveId, sourceId: unit.id, from: [unit.x, unit.y], to: [x, y], tiles: [...tiles], targetIds: [] };
+  const visualTiles = move.power && move.target === 'tile'
+    ? tiles.filter(([tx, ty]) => hasLineOfSight(battle, [unit.x, unit.y], [tx, ty])) : tiles;
+  const visual: AttackVisualEvent = { id: crypto.randomUUID(), moveId, sourceId: unit.id, from: [unit.x, unit.y], to: [x, y], tiles: [...visualTiles], targetIds: [] };
   battle.visualEvents.push(visual);
   // Recent presentation cues are disposable; battle rules, RNG, and log live elsewhere.
   battle.visualEvents = battle.visualEvents.slice(-24);
@@ -316,15 +335,16 @@ export function useMove(battle: Battle, moveId: string, x: number, y: number): s
   for (const effect of move.effects ?? []) {
     if (effect.on !== 'cast') continue;
     if (effect.kind === 'weather') { battle.weather = effect.weather; battle.weatherUntil = battle.time + effect.duration; }
+    else if (effect.kind === 'tile' && effect.field === 'hazardUntil') placeHazardZone(battle, unit.id, moveId, tiles, battle.time + effect.duration);
     else if (effect.kind === 'tile') setTileEffects(battle, tiles, effect.field, battle.time + effect.duration);
     else if (effect.kind === 'stage') for (const other of battle.units.filter(alive)) {
       if (!tiles.some(([tileX, tileY]) => other.x === tileX && other.y === tileY)) continue;
       if (effect.recipients === 'self' && other.id !== unit.id) continue;
       if (effect.recipients === 'allies' && other.side !== unit.side) continue;
-      other.stages[effect.stat] = Math.max(-6, Math.min(6, other.stages[effect.stat] + effect.delta));
+      changeStage(other, effect.stat, effect.delta, battle.time + effect.duration);
     }
   }
-  if (move.power) for (const target of battle.units.filter(other => alive(other) && other.side !== unit.side && tiles.some(([tileX, tileY]) => other.x === tileX && other.y === tileY))) applyDamage(battle, unit, target, moveId, visual);
+  if (move.power) for (const target of battle.units.filter(other => canHitAtTarget(battle, unit, moveId, x, y, other))) applyDamage(battle, unit, target, moveId, visual);
   if (visual.targetIds.length) visual.hpAfter = Object.fromEntries(visual.targetIds.map(id => [id, battle.units.find(target => target.id === id)!.hp]));
   checkResult(battle);
 }

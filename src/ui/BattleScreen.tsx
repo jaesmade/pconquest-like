@@ -7,7 +7,7 @@ import { objectBlocksMovement } from '../content/terrainObjects';
 import { active, apGain, canUseMove, upcoming, unitAt } from '../game/engine';
 import { reachable } from '../game/grid';
 import { damageRange } from '../game/damage';
-import type { Battle, Run, Unit } from '../game/types';
+import type { Battle, Run, StatStages, Unit } from '../game/types';
 import MovePreview from './MovePreview';
 import Sprite from './Sprite';
 
@@ -24,8 +24,8 @@ const statLabels: Record<string, string> = { attack: 'Attack', defense: 'Defense
 function StatusIcons({ unit, time }: { unit: Unit; time: number }) {
   const statuses = Object.entries(unit.status).filter(([key, until]) => key === 'flashFire' ? !!until : until >= time)
     .map(([key]) => ({ key, label: key, icon: key === 'burned' ? 'status-burned' : key === 'paralyzed' ? 'status-paralyzed' : 'status-charged' }));
-  const stages = Object.entries(unit.stages).filter(([, value]) => value !== 0)
-    .map(([key, value]) => ({ key, label: `${statLabels[key]} ${value > 0 ? '+' : ''}${value}`, icon: value > 0 ? 'stage-buff' : 'stage-debuff' }));
+  const stages = Object.entries(unit.stages).filter(([key, value]) => value !== 0 && unit.stageUntil[key as keyof StatStages] > time)
+    .map(([key, value]) => ({ key, label: `${statLabels[key]} ${value > 0 ? '+' : ''}${value} · ${Math.ceil((unit.stageUntil[key as keyof StatStages] - time) / 100)} rounds left`, icon: value > 0 ? 'stage-buff' : 'stage-debuff' }));
   return statuses.length || stages.length ? <div className="status-icons" aria-label="Status and stat changes">
     {[...statuses, ...stages].map(effect => <span className="status-icon" key={effect.key} title={effect.label} aria-label={effect.label}>
       <img src={`/assets/ui/icons/${effect.icon}.svg`} alt="" /><small>{effect.label}</small>

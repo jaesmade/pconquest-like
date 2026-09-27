@@ -4,7 +4,9 @@ import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
 import { resolvePlayerDeployment } from '../game/deployment';
 import { objectBlocksMovement } from '../content/terrainObjects';
-import type { Battle, BattleMap, Run, TileChange, Unit } from '../game/types';
+import { rebuildHazardTiles } from '../game/hazards';
+import { emptyStageExpiry, MAX_STAGE, STAGE_DURATION, STAGE_STATS } from '../game/stages';
+import type { Battle, BattleMap, HazardZone, Run, TileChange, Unit } from '../game/types';
 
 const OLD_KEYS = [['pokemon-tactics-save-v6', 6], ['pokemon-tactics-save-v5', 5], ['pokemon-tactics-save-v4', 4], ['pokemon-tactics-save-v3', 3], ['pokemon-tactics-save-v2', 2]] as const;
 const LEGACY_KEY = 'pokemon-tactics-prototype-v1';
@@ -16,8 +18,8 @@ type MapSnapshot = { id: string; signature: string; objectSignature?: string; ch
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV12 = { schemaVersion: 12; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV12 | { schemaVersion: 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
+type SaveV14 = { schemaVersion: 14; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV14 | { schemaVersion: 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
 // Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
 const LEGACY_HP_BASE: Record<string, number> = {
   bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
@@ -97,12 +99,31 @@ function migrateRun(run: Run, version: number): Run {
         unit.stages = { attack: unit.stages?.attack ?? 0, defense: unit.stages?.defense ?? 0, specialAttack: 0, specialDefense: 0 };
       }
     }
+    if (version < 14 && Array.isArray(battle.units)) for (const unit of battle.units) {
+      if (!unit) continue;
+      unit.stages ??= { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 };
+      unit.stageUntil = emptyStageExpiry();
+      for (const stat of STAGE_STATS) {
+        unit.stages[stat] = Math.max(-MAX_STAGE, Math.min(MAX_STAGE, unit.stages[stat] ?? 0));
+        if (unit.stages[stat]) unit.stageUntil[stat] = battle.time + STAGE_DURATION;
+      }
+    }
     const capturePending = battle.objective === 'defeat-and-capture' && !!battle.map?.capture
       && !battle.units?.some(unit => unit.hp > 0 && unit.side === 'player'
         && unit.x === battle.map.capture![0] && unit.y === battle.map.capture![1]);
     const validMap = authored && Array.isArray(battle.map.tiles) && battle.map.tiles.length === authored.tiles.length
       && battle.map.tiles.every((row, y) => Array.isArray(row) && row.length === authored.tiles[y].length
         && row.every(tile => !!tile && ['plain', 'water', 'lava', 'wall'].includes(tile.kind) && Number.isInteger(tile.height)));
+    if (version < 13 && validMap) {
+      const legacyZones: HazardZone[] = [];
+      for (let y = 0; y < battle.map.tiles.length; y++) for (let x = 0; x < battle.map.tiles[y].length; x++) {
+        const until = battle.map.tiles[y][x].hazardUntil;
+        if (until && until > battle.time) legacyZones.push({
+          id: `legacy:${x},${y}`, sourceId: `legacy:${x},${y}`, moveId: 'stealthRock', tiles: [[x, y]], until,
+        });
+      }
+      battle.hazardZones = legacyZones;
+    }
     const validUnits = validMap && Array.isArray(battle.units) && battle.units.every(unit => unit && SPECIES[unit.species]
       && (unit.side === 'player' || unit.side === 'enemy')
       && (unit.side !== 'player' || next.party.some(mon => mon.id === unit.partyId))
@@ -116,13 +137,22 @@ function migrateRun(run: Run, version: number): Run {
       && Number.isSafeInteger(unit.ap) && unit.ap >= 0 && Number.isSafeInteger(unit.maxAp) && unit.maxAp >= 0
       && Number.isFinite(unit.maxHp) && unit.maxHp > 0 && unit.hp >= 0 && unit.hp <= unit.maxHp
       && Number.isInteger(unit.level) && unit.level >= 1 && unit.level <= 100
-      && ['attack', 'defense', 'specialAttack', 'specialDefense'].every(stat => Number.isInteger(unit.stages?.[stat as keyof typeof unit.stages]) && Math.abs(unit.stages[stat as keyof typeof unit.stages]) <= 6)
+      && STAGE_STATS.every(stat => Number.isInteger(unit.stages?.[stat]) && Math.abs(unit.stages[stat]) <= MAX_STAGE
+        && Number.isSafeInteger(unit.stageUntil?.[stat]) && unit.stageUntil[stat] >= 0
+        && (unit.stages[stat] === 0 ? unit.stageUntil[stat] === 0 : unit.stageUntil[stat] > battle.time))
       && typeof unit.attackedThisTurn === 'boolean' && typeof unit.mobility?.canFly === 'boolean'
       && typeof unit.mobility?.canSwim === 'boolean'
       && battle.map.tiles[unit.y]?.[unit.x] && Array.isArray(unit.moves) && unit.moves.every(id => !!MOVES[id]));
     const unitIds = validUnits ? battle.units.map(unit => unit.id) : [];
     const livePositions = validUnits ? battle.units.filter(unit => unit.hp > 0).map(unit => `${unit.x},${unit.y}`) : [];
+    const validZones = !!validMap && Array.isArray(battle.hazardZones) && battle.hazardZones.every(zone => zone
+      && typeof zone.id === 'string' && zone.id.length > 0 && typeof zone.sourceId === 'string' && zone.sourceId.length > 0
+      && typeof zone.moveId === 'string' && !!MOVES[zone.moveId]
+      && Number.isFinite(zone.until) && zone.until >= 0 && Array.isArray(zone.tiles)
+      && zone.tiles.length > 0 && zone.tiles.every(point => Array.isArray(point) && point.length === 2
+        && Number.isInteger(point[0]) && Number.isInteger(point[1]) && !!battle.map.tiles[point[1]]?.[point[0]]));
     const validQueue = validUnits && new Set(unitIds).size === unitIds.length && new Set(livePositions).size === livePositions.length
+      && validZones && new Set(battle.hazardZones.map(zone => zone.id)).size === battle.hazardZones.length
       && ['clear', 'sun', 'rain', 'snow', 'sandstorm'].includes(battle.weather)
       && (battle.result === undefined || battle.result === 'win' || battle.result === 'loss')
       && Number.isInteger(battle.round) && battle.round >= 1 && Number.isInteger(battle.time) && battle.time >= 0
@@ -144,6 +174,7 @@ function migrateRun(run: Run, version: number): Run {
       if (!Number.isInteger(battle.rngState)) battle.rngState = next.rngState;
       if (!Number.isFinite(battle.weatherUntil)) battle.weatherUntil = 0;
       if (!battle.tileChanges) battle.tileChanges = deriveChanges(battle.map, authored!);
+      rebuildHazardTiles(battle);
       battle.map.zones = structuredClone(authored!.zones);
       for (let y = 0; y < battle.map.tiles.length; y++) for (let x = 0; x < battle.map.tiles[y].length; x++) {
         battle.map.tiles[y][x].object = authored!.tiles[y][x].object;
@@ -209,26 +240,26 @@ function snapshotMap(battle: Battle): MapSnapshot {
     const copy: TileChange = { x: change.x, y: change.y };
     if (change.kind !== undefined) copy.kind = change.kind;
     if (change.height !== undefined) copy.height = change.height;
-    for (const field of ['hazardUntil', 'coverUntil', 'mudUntil'] as const) if ((change[field] ?? 0) > time) copy[field] = change[field];
+    for (const field of ['coverUntil', 'mudUntil'] as const) if ((change[field] ?? 0) > time) copy[field] = change[field];
     return copy;
   }).filter(change => Object.keys(change).length > 2);
   return { id: map.id, signature: mapSignature(authored, true), objectSignature: objectSignature(authored), changes };
 }
 
-export function snapshotRun(run: Run): SaveV12 {
+export function snapshotRun(run: Run): SaveV14 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 12, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 14, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;

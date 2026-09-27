@@ -21,7 +21,7 @@ Unused AP now banks in full within each battle, for either side. A unit adds its
 
 ## Save behavior
 
-Schema v12 keeps the v11 HP rescaling for older saves. A v11 battle resumes with each unit's Movement restored from its species record; battles saved before v11 return to preparation because their other stats used the older formula. Versions before v9 also retain their earlier level and XP migration. Current and recovery copies remain in IndexedDB.
+Schema v14 preserves the v11 HP rescaling for older saves and migrates pre-v13 active Stealth Rock tiles to temporary legacy zones with their original expiry. Pre-v14 active stat stages are capped at ±3 and receive a fresh 200 battle-time timer. A v11 battle resumes with each unit's Movement restored from its species record; battles saved before v11 return to preparation because their other stats used the older formula. Versions before v9 also retain their earlier level and XP migration. Current and recovery copies remain in IndexedDB.
 
 ## Next tuning evidence
 

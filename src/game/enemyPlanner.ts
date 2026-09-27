@@ -1,6 +1,7 @@
 import { itemBlocksMove, mapHeight, mapWidth, MOVES } from '../content/data';
-import { active, affectedTiles, canHitWithMove, canUseMove, damagePreview, inMoveRange, type EnemyAction } from './engine';
+import { active, affectedTiles, canHitAtTarget, canHitWithMove, canUseMove, damagePreview, inMoveRange, type EnemyAction } from './engine';
 import { AttackPositionSearch, stepCost } from './grid';
+import { MAX_STAGE } from './stages';
 import type { Battle, GridPoint, Unit } from './types';
 
 type Pursuit = { target: Unit; moveIds: string[] };
@@ -30,7 +31,7 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
     for (let y = Math.max(0, target.y - radiusY); y <= Math.min(mapHeight(battle.map) - 1, target.y + radiusY); y++)
       for (let x = Math.max(0, target.x - radiusX); x <= Math.min(mapWidth(battle.map) - 1, target.x + radiusX); x++) {
         const valid = canUseMove(battle, enemy, moveId, x, y)
-          && affectedTiles(battle.map, moveId, x, y).some(([px, py]) => px === target.x && py === target.y);
+          && canHitAtTarget(battle, enemy, moveId, x, y, target);
         yield;
         if (valid) return { action: { kind: 'move-use', moveId, x, y } };
       }
@@ -47,7 +48,8 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
       for (const effect of stages) for (const unit of battle.units) {
         const applicable = unit.hp > 0 && area.some(([tx, ty]) => unit.x === tx && unit.y === ty)
           && (effect.recipients === 'self' ? unit.id === enemy.id : effect.recipients === 'allies' ? unit.side === enemy.side : unit.side !== enemy.side)
-          && (effect.delta > 0 ? unit.stages[effect.stat] < 6 : unit.stages[effect.stat] > -6);
+          && ((effect.delta > 0 ? unit.stages[effect.stat] < MAX_STAGE : unit.stages[effect.stat] > -MAX_STAGE)
+            || unit.stageUntil[effect.stat] <= battle.time + 100);
         yield;
         if (applicable) useful = true;
       }

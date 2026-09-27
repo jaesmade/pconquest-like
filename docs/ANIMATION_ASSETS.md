@@ -14,7 +14,7 @@ The earlier top-down asset pass imported named 16×16 terrain tiles from [Kenney
 | Ally, enemy, target portrait frames | `public/assets/ui/hud/hud-portrait-<role>-32px.png`                | CSS background behind the placeholder unit-sheet portrait |
 | Action panel frame                  | `public/assets/ui/hud/hud-panel-border-32px.png`                   | CSS border image; text and buttons remain HTML            |
 
-Zone tints, move range, target effectiveness, shadows, and swim ripples remain overlays above terrain. Terrain is stamped once into a Phaser render texture so camera movement does not rebuild 1,024 tile objects. A map up to 32×32 can pan/zoom, and the minimap shows the projected visible window. Click mapping goes through `camera.getWorldPoint` and the isometric diamond lookup.
+Zone tints, move range, target effectiveness, shadows, and swim ripples remain overlays above terrain. Tiles, slopes, and small details are stamped once into a Phaser render texture. Trees, rocks, and bushes are separate depth-sorted scenery so moving units can pass behind them. A map up to 32×32 can pan/zoom, and the minimap shows the projected visible window. Click mapping goes through `camera.getWorldPoint` and the isometric diamond lookup.
 
 To reimport the Kenney archives, download `kenney_roguelike-rpg-pack.zip` as `roguelike.zip` and `kenney_ui-pack-pixel-adventure.zip` as `ui.zip` into a folder, install Pillow, then run `python scripts/import_battle_assets.py <folder>`. The script preserves existing PNGs unless `--force` is supplied. The imported HUD frames remain 32×32. To replace current terrain, follow the isometric guide and preserve the diamond bounds.
 

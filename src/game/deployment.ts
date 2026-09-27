@@ -1,4 +1,5 @@
 import { SPECIES } from '../content/species';
+import { objectBlocksMovement } from '../content/terrainObjects';
 import { mobilityFor } from './mobility';
 import { random } from './rng';
 import type { BattleMap, DeploymentZone, GridPoint, PartyMon, Run } from './types';
@@ -8,7 +9,7 @@ const key = ([x, y]: GridPoint) => `${x},${y}`;
 export function canDeploy(map: BattleMap, speciesId: string, point: GridPoint, zone: DeploymentZone): boolean {
   if (!Array.isArray(point) || point.length !== 2 || !Number.isInteger(point[0]) || !Number.isInteger(point[1])) return false;
   const [x, y] = point, tile = map.tiles[y]?.[x], species = SPECIES[speciesId];
-  if (!species || !tile || map.zones[y]?.[x] !== zone || tile.kind === 'wall' || tile.kind === 'lava') return false;
+  if (!species || !tile || map.zones[y]?.[x] !== zone || tile.kind === 'wall' || tile.kind === 'lava' || objectBlocksMovement(tile)) return false;
   const mobility = mobilityFor(species, tile);
   return tile.kind !== 'water' || mobility.canFly || mobility.canSwim;
 }

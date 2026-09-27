@@ -1,4 +1,6 @@
 import type { Battle, GridPoint, Unit } from './types';
+import { canCrossElevation } from './elevation';
+import { objectBlocksMovement, objectBlocksSight } from '../content/terrainObjects';
 
 export type MovementPath = { cost: number; points: GridPoint[] };
 type Node = { x: number; y: number; steps: number; cost: number; key: string };
@@ -51,9 +53,9 @@ const pathFrom = (key: string, start: string, previous: Map<string, string>): Gr
 
 export function canEnter(battle: Battle, unit: Unit, x: number, y: number, fromX = unit.x, fromY = unit.y, occupied = occupiedTiles(battle)): boolean {
   const tile = battle.map.tiles[y]?.[x], previous = battle.map.tiles[fromY]?.[fromX];
-  if (!tile || !previous || tile.kind === 'wall' || occupied.has(`${x},${y}`)) return false;
+  if (!tile || !previous || tile.kind === 'wall' || objectBlocksMovement(tile) || occupied.has(`${x},${y}`)) return false;
   if (tile.kind === 'water' && !unit.mobility.canSwim && !unit.mobility.canFly) return false;
-  if (!unit.mobility.canFly && Math.abs(tile.height - previous.height) > 1) return false;
+  if (!canCrossElevation(previous, tile, x - fromX, y - fromY, unit.mobility.canFly)) return false;
   return true;
 }
 
@@ -153,7 +155,7 @@ export function hasLineOfSight(battle: Battle, from: GridPoint, to: GridPoint): 
   const ceiling = Math.max(source.height, target.height);
   const blocks = (x: number, y: number) => {
     const tile = battle.map.tiles[y]?.[x];
-    return !tile || tile.kind === 'wall' || tile.height > ceiling || !!(tile.coverUntil && tile.coverUntil > battle.time);
+    return !tile || tile.kind === 'wall' || objectBlocksSight(tile) || tile.height > ceiling || !!(tile.coverUntil && tile.coverUntil > battle.time);
   };
   const dx = to[0] - from[0], dy = to[1] - from[1];
   const nx = Math.abs(dx), ny = Math.abs(dy), sx = Math.sign(dx), sy = Math.sign(dy);

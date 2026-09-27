@@ -50,8 +50,8 @@ export default function PrepareScreen({ run, onToggle, onEquipMove, onEquipItem,
           const zone = map.zones[y][x];
           const occupantIndex = selected.findIndex(mon => placements[mon.id]?.[0] === x && placements[mon.id]?.[1] === y);
           const legal = !!focusedMon && canDeploy(map, focusedMon.species, [x, y], 'ally');
-          const marker = occupantIndex >= 0 ? String(occupantIndex + 1) : tile.kind === 'wall' ? '■' : tile.kind === 'water' ? '≈' : tile.kind === 'lava' ? '◆' : '';
-          return <button key={`${x},${y}`} type="button" className={`deployment-tile zone-${zone} terrain-${tile.kind}${occupantIndex >= 0 ? ' occupied' : ''}${focusedMon && placements[focusedMon.id]?.[0] === x && placements[focusedMon.id]?.[1] === y ? ' focused' : ''}`} disabled={!legal} onClick={() => place([x, y])} aria-label={`Column ${x + 1}, row ${y + 1}: ${zone} zone, ${tile.kind}${occupantIndex >= 0 ? `, ${SPECIES[selected[occupantIndex]!.species].name}` : ''}`}>{marker}</button>;
+          const marker = occupantIndex >= 0 ? String(occupantIndex + 1) : tile.object === 'tree' ? 'T' : tile.object === 'rock' ? 'R' : tile.kind === 'wall' ? '■' : tile.kind === 'water' ? '≈' : tile.kind === 'lava' ? '◆' : '';
+          return <button key={`${x},${y}`} type="button" className={`deployment-tile zone-${zone} terrain-${tile.kind}${occupantIndex >= 0 ? ' occupied' : ''}${focusedMon && placements[focusedMon.id]?.[0] === x && placements[focusedMon.id]?.[1] === y ? ' focused' : ''}`} disabled={!legal} onClick={() => place([x, y])} aria-label={`Column ${x + 1}, row ${y + 1}: ${zone} zone, ${tile.object ?? tile.kind}${occupantIndex >= 0 ? `, ${SPECIES[selected[occupantIndex]!.species].name}` : ''}`}>{marker}</button>;
         }))}
       </div></div>
       {placementNotice && <p className="notice" role="status">{placementNotice}</p>}

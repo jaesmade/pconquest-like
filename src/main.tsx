@@ -116,7 +116,7 @@ function App({ initialRun }: { initialRun: Run }) {
     if (!battle || battle.result || animating || paused || (current?.side !== 'player' && screen !== 'lab')) return;
     if (mode === 'move') setTarget([x, y]);
     else if (mode === 'attack') { if (chosenMove) setTarget([x, y]); else setNotice('Choose a move first.'); }
-    else { const unit = unitAt(battle, x, y); if (unit) setNotice(`${unit.name} · ${unit.types.join('/')} · ${unit.hp}/${unit.maxHp} HP · ${unit.ability}`); else setNotice(`${battle.map.tiles[y][x].kind} · elevation ${battle.map.tiles[y][x].height}`); }
+    else { const unit = unitAt(battle, x, y); if (unit) setNotice(`${unit.name} · ${unit.types.join('/')} · ${unit.hp}/${unit.maxHp} HP · ${unit.ability}`); else { const tile = battle.map.tiles[y][x]; setNotice(`${tile.object ?? tile.kind} · elevation ${tile.height}${tile.slope ? ` · ${tile.slope} slope` : ''}`); } }
   };
   const confirmMove = () => {
     if (animating || !target) return;

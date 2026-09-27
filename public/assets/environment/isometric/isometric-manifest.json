@@ -18,5 +18,11 @@
     "bush": "/assets/environment/isometric/iso-bush-48px.svg",
     "grass-tuft": "/assets/environment/isometric/iso-grass-tuft-24px.svg"
   },
+  "slopes": {
+    "north": "/assets/environment/isometric/iso-slope-north-96px.svg",
+    "south": "/assets/environment/isometric/iso-slope-south-96px.svg",
+    "east": "/assets/environment/isometric/iso-slope-east-96px.svg",
+    "west": "/assets/environment/isometric/iso-slope-west-96px.svg"
+  },
   "backdrop": "/assets/backgrounds/title-island-reference-inspired.png"
 }

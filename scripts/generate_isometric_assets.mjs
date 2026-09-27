@@ -53,3 +53,16 @@ const bush = `<ellipse cx="24" cy="37" rx="19" ry="4" fill="#102c34" opacity=".3
 save('iso-bush-48px.svg', svg(48, 42, bush));
 const tuft = `<path d="M1 22l2-10 4 7 2-15 4 13 3-10 2 13 4-7 1 9z" fill="#327c36"/><path d="M4 19l2-8 3 9 2-12 3 10 3-5 2 7z" fill="#7bbd3f"/><path d="M8 17l2-10 3 9z M16 18l2-8 2 9z" fill="#a7d948"/>`;
 save('iso-grass-tuft-24px.svg', svg(24, 24, tuft));
+
+// A slope is a readable top-surface ramp on the higher tile. Its open edge faces
+// a neighboring tile exactly one elevation level lower.
+const ramp = `<polygon points="9,20 40,4 65,17 37,31" fill="#6f4a2e" stroke="#4f3829" stroke-width="2"/>`
+  + `<polygon points="13,19 40,6 61,17 37,28" fill="#ae8650"/>`
+  + `<path d="M13 19L40 6 M21 21L47 9 M29 24L54 13 M37 27L61 17" fill="none" stroke="#d5ad67" stroke-width="3"/>`
+  + `<path d="M9 20L40 4 M37 31L65 17" fill="none" stroke="#a8d14e" stroke-width="3"/>`;
+for (const [direction, transform] of Object.entries({
+  west: '', north: 'translate(96 0) scale(-1 1)',
+  east: 'translate(96 48) scale(-1 -1)', south: 'translate(0 48) scale(1 -1)',
+})) {
+  save(`iso-slope-${direction}-96px.svg`, svg(96, 48, `<g${transform ? ` transform="${transform}"` : ''}>${ramp}</g>`));
+}

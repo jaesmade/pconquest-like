@@ -4,6 +4,7 @@ import manifest from '../../public/assets/animations/animation-manifest.json';
 import battleAssets from '../../public/assets/battle-asset-manifest.json';
 import isoAssets from '../../public/assets/environment/isometric/isometric-manifest.json';
 import { abilityAbsorption, effectiveness, mapHeight, mapWidth, megaFormFor, MOVES } from '../content/data';
+import { TERRAIN_OBJECTS } from '../content/terrainObjects';
 import type { AttackVisualEvent, Battle, FeedbackEvent, Unit } from '../game/types';
 import { active, affectedTiles, canHitWithMove, inMoveRange, unitAt } from '../game/engine';
 import type { MovementPath } from '../game/grid';
@@ -31,6 +32,7 @@ class BattleScene extends Phaser.Scene {
   cameraActionId = -1;
   press?: { pointerId: number; startX: number; startY: number; lastX: number; lastY: number; panOnly: boolean; dragging: boolean };
   terrainTexture?: Phaser.GameObjects.RenderTexture;
+  scenery: Phaser.GameObjects.Image[] = [];
   terrain!: Phaser.GameObjects.Graphics;
   ground!: Phaser.GameObjects.Graphics;
   targetOverlay!: Phaser.GameObjects.Graphics;
@@ -54,6 +56,7 @@ class BattleScene extends Phaser.Scene {
     for (const asset of battleAssets.assets) this.load.image(asset.id, asset.url);
     for (const [kind, urls] of Object.entries(isoAssets.tiles)) urls.forEach((url, level) => this.load.svg(`iso-${kind}-h${level}-96px`, url));
     for (const [id, url] of Object.entries(isoAssets.decorations)) this.load.svg(`iso-${id}`, url);
+    for (const [id, url] of Object.entries(isoAssets.slopes)) this.load.svg(`iso-slope-${id}`, url);
     const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
     const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
     for (const id of unitIds) for (const [clip, spec] of Object.entries(unitSet(id).clips)) {
@@ -121,6 +124,8 @@ class BattleScene extends Phaser.Scene {
   }
   drawTerrain() {
     if (!this.terrainTexture) return;
+    for (const image of this.scenery) image.destroy();
+    this.scenery = [];
     const stamp = new Phaser.GameObjects.Image(this, 0, 0, 'iso-plain-h0-96px').setOrigin(0);
     const decor = new Phaser.GameObjects.Image(this, 0, 0, 'iso-flower').setOrigin(0);
     const width = mapWidth(this.battle.map), height = mapHeight(this.battle.map);
@@ -128,15 +133,17 @@ class BattleScene extends Phaser.Scene {
       const x = diagonal - y, tile = this.battle.map.tiles[y][x], center = isoTileCenter(this.battle.map, x, y);
       stamp.setTexture(`iso-${tile.kind}-h${tile.height}-96px`);
       this.terrainTexture.draw(stamp, center.x - ISO_HALF_WIDTH, center.y - ISO_HALF_HEIGHT);
-      const occupied = [...this.battle.map.playerSpawns, ...this.battle.map.enemySpawns].some(([sx, sy]) => sx === x && sy === y)
-        || (this.battle.map.capture?.[0] === x && this.battle.map.capture[1] === y);
-      if (tile.kind === 'plain' && !occupied) {
-        const detail = (x * 13 + y * 29) % 17;
-        if (detail === 0) { decor.setTexture('iso-tree'); this.terrainTexture.draw(decor, center.x - 48, center.y - 99); }
-        else if (detail === 4 || detail === 11) { decor.setTexture('iso-rock'); this.terrainTexture.draw(decor, center.x - 24, center.y - 35); }
-        else if (detail === 7 || detail === 15) { decor.setTexture('iso-flower'); this.terrainTexture.draw(decor, center.x - 16, center.y - 22); }
-        else if (detail === 9) { decor.setTexture('iso-bush'); this.terrainTexture.draw(decor, center.x - 24, center.y - 36); }
-        else if (detail === 12 || detail === 2) { decor.setTexture('iso-grass-tuft'); this.terrainTexture.draw(decor, center.x - 12, center.y - 21); }
+      if (tile.slope) {
+        stamp.setTexture(`iso-slope-${tile.slope}`);
+        this.terrainTexture.draw(stamp, center.x - ISO_HALF_WIDTH, center.y - ISO_HALF_HEIGHT);
+      }
+      if (tile.object) {
+        const object = TERRAIN_OBJECTS[tile.object];
+        if (object.tall) this.scenery.push(this.add.image(center.x, center.y + 5, `iso-${object.asset}`).setOrigin(0.5, 1).setDepth(100 + center.y + 5));
+        else {
+          decor.setTexture(`iso-${object.asset}`);
+          this.terrainTexture.draw(decor, center.x - object.width / 2, center.y + 5 - object.height);
+        }
       }
       const zone = this.battle.map.zones[y][x];
       if (zone !== 'neutral') { this.terrain.fillStyle(zone === 'ally' ? 0x96edb0 : 0xf8a184, 0.08); this.fillDiamond(this.terrain, center.x, center.y); }
@@ -243,7 +250,7 @@ class BattleScene extends Phaser.Scene {
       const label = this.add.text(center.x, center.y - 45, event.key, {
         fontFamily: 'monospace', fontSize: '13px', color: event.kind === 'ability' ? '#fff0a7' : '#b4f5d0',
         backgroundColor: '#10262ddd', padding: { x: 5, y: 3 },
-      }).setOrigin(0.5, 1).setDepth(20);
+      }).setOrigin(0.5, 1).setDepth(5000);
       this.tweens.add({ targets: label, y: label.y - 17, alpha: 0, duration: 850, onComplete: () => label.destroy() });
     }
   }
@@ -260,7 +267,7 @@ class BattleScene extends Phaser.Scene {
   private drawHpBar(unit: Unit) {
     const [x, y] = this.unitCenter(unit, [unit.x, unit.y]);
     let bar = this.hp.get(unit.id);
-    if (!bar) { bar = this.add.graphics().setDepth(7); this.hp.set(unit.id, bar); }
+    if (!bar) { bar = this.add.graphics().setDepth(5000); this.hp.set(unit.id, bar); }
     bar.clear(); bar.fillStyle(0x10242b); bar.fillRect(x - 24, y - 38, 48, 7);
     bar.fillStyle(unit.side === 'player' ? 0x9ee3b5 : 0xf69b8c);
     bar.fillRect(x - 23, y - 37, 46 * (this.displayedHp.get(unit.id) ?? unit.hp) / unit.maxHp, 5);
@@ -302,14 +309,14 @@ class BattleScene extends Phaser.Scene {
         this.showMarkers(attacker, markers, event.from);
       }
       this.tweens.killTweensOf(attackerSprite);
-      attackerSprite.setPosition(sourceX, sourceY);
+      attackerSprite.setPosition(sourceX, sourceY).setDepth(100 + sourceY + 33);
       const facing = facingBetween(event.from, event.to, attacker.facing);
       attackerSprite.play(unitAnimationKey(attacker.species, facing, clip), true);
     }
     await this.wait(impactDelay(attacker?.species ?? manifest.fallbackUnit, clip, fast));
     if (asset?.style === 'projectile') {
       const [sx, sy] = attacker ? this.unitCenter(attacker, event.from) : this.tileCenter(event.from), [tx, ty] = this.tileCenter(event.to);
-      const projectile = this.add.sprite(sx, sy, `attack-${event.moveId}`).setScale(1.5).setDepth(10);
+      const projectile = this.add.sprite(sx, sy, `attack-${event.moveId}`).setScale(1.5).setDepth(3000);
       projectile.play(`attack-${event.moveId}-travel`);
       const distance = Math.abs(tx - sx) + Math.abs(ty - sy);
       const duration = fast ? Math.min(160, Math.max(75, distance * 0.4)) : Math.max(150, distance) * 1.1;
@@ -323,7 +330,7 @@ class BattleScene extends Phaser.Scene {
     for (const tile of unique) {
       const [x, y] = this.tileCenter(tile);
       const key = asset ? `attack-${event.moveId}` : 'effect-attack-impact';
-      const effect = this.add.sprite(x, y, key).setScale(asset?.style === 'area' ? 1.8 : 1.55).setDepth(11);
+      const effect = this.add.sprite(x, y, key).setScale(asset?.style === 'area' ? 1.8 : 1.55).setDepth(3001);
       effect.play(key);
       effect.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => effect.destroy());
     }
@@ -374,7 +381,7 @@ class BattleScene extends Phaser.Scene {
         const multiplier = absorbed ? 0 : effectiveness(attackMove.type, defender.types);
         const color = multiplier === 0 ? 0xa7aeb3 : multiplier < 1 ? 0xeea47d : multiplier > 1 ? 0x7be3a6 : 0xf0d985;
         this.ground.lineStyle(3, color); this.strokeDiamond(this.ground, center.x, center.y);
-        this.labels.push(this.add.text(center.x, center.y - 31, absorbed ? 'ABS' : `${multiplier}×`, { fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', backgroundColor: '#183033' }).setOrigin(0.5).setDepth(8));
+        this.labels.push(this.add.text(center.x, center.y - 31, absorbed ? 'ABS' : `${multiplier}×`, { fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', backgroundColor: '#183033' }).setOrigin(0.5).setDepth(5000));
       }
       if (this.battle.map.capture?.[0] === x && this.battle.map.capture[1] === y) {
         this.ground.lineStyle(3, this.battle.captureHeld ? 0x7be0a3 : 0xe7d477); this.strokeDiamond(this.ground, center.x, center.y);
@@ -433,7 +440,7 @@ class BattleScene extends Phaser.Scene {
     this.tweens.killTweensOf(markers.shadow);
     this.tweens.killTweensOf(markers.ripple);
     const [startX, startY] = this.unitCenter(unit, start), [markerX, markerY] = this.markerCenter(start);
-    sprite.setPosition(startX, startY);
+    sprite.setPosition(startX, startY).setDepth(100 + startY + 33);
     markers.shadow.setPosition(markerX, markerY); markers.ripple.setPosition(markerX, markerY);
     this.showMarkers(unit, markers, start);
     this.movingUnits.add(unit.id); this.updateAnimationState();
@@ -445,7 +452,7 @@ class BattleScene extends Phaser.Scene {
       this.showMarkers(unit, markers, point);
       const [x, y] = this.unitCenter(unit, point), [markerX, markerY] = this.markerCenter(point);
       this.tweens.add({ targets: [markers.shadow, markers.ripple], x: markerX, y: markerY, duration: MOVE_STEP_MS, ease: 'Linear' });
-      this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Linear', onComplete: () => step(index + 1, point) });
+      this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Linear', onUpdate: () => sprite.setDepth(100 + sprite.y + 33), onComplete: () => step(index + 1, point) });
     };
     step(0, start);
   }
@@ -464,7 +471,7 @@ class BattleScene extends Phaser.Scene {
     }
     const newVisual = this.seen.get(unit.id) !== unit.visualNonce;
     if (!sprite) {
-      sprite = this.add.sprite(x, y, unitTextureKey(setId, 'idle')).setScale(1.65).setDepth(5);
+      sprite = this.add.sprite(x, y, unitTextureKey(setId, 'idle')).setScale(1.65).setDepth(100 + y + 33);
       sprite.setData('unitSet', setId);
       this.sprites.set(unit.id, sprite);
       sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)));
@@ -473,7 +480,8 @@ class BattleScene extends Phaser.Scene {
       sprite.play(unitAnimationKey(unit.species, unit.facing, restingClip(unit, this.battle.time)), true);
     }
     if (wasVisible && newVisual && unit.visual === 'move' && unit.visualFrom && unit.visualPath?.length) this.animateRoute(sprite, markers, unit.visualFrom, unit.visualPath, unit);
-    else if ((sprite.x !== x || sprite.y !== y) && !this.tweens.isTweening(sprite)) this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Sine.easeInOut' });
+    else if ((sprite.x !== x || sprite.y !== y) && !this.tweens.isTweening(sprite)) this.tweens.add({ targets: sprite, x, y, duration: MOVE_STEP_MS, ease: 'Sine.easeInOut', onUpdate: () => sprite.setDepth(100 + sprite.y + 33) });
+    sprite.setDepth(100 + sprite.y + 33);
     if (!this.movingUnits.has(unit.id)) {
       this.showMarkers(unit, markers, [unit.x, unit.y]);
       if (!this.tweens.isTweening(markers.shadow)) markers.shadow.setPosition(markerX, markerY);
@@ -492,7 +500,7 @@ class BattleScene extends Phaser.Scene {
       }
       if (!deferHurt && (unit.visual === 'hurt' || unit.visual === 'buff' || unit.visual === 'special')) {
         const effect = unit.visual === 'hurt' ? 'status' : unit.visual === 'special' ? 'mega' : 'buff';
-        const burst = this.add.sprite(x, y, `effect-${effect}`).setScale(1.5).setDepth(8);
+        const burst = this.add.sprite(x, y, `effect-${effect}`).setScale(1.5).setDepth(3001);
         burst.play(`effect-${effect}`); burst.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => burst.destroy());
       }
     } else if (!this.movingUnits.has(unit.id)) {

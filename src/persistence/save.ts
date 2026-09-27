@@ -3,6 +3,7 @@ import { MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/en
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
 import { resolvePlayerDeployment } from '../game/deployment';
+import { objectBlocksMovement } from '../content/terrainObjects';
 import type { Battle, BattleMap, Run, TileChange, Unit } from '../game/types';
 
 const OLD_KEYS = [['pokemon-tactics-save-v6', 6], ['pokemon-tactics-save-v5', 5], ['pokemon-tactics-save-v4', 4], ['pokemon-tactics-save-v3', 3], ['pokemon-tactics-save-v2', 2]] as const;
@@ -11,7 +12,7 @@ const DATABASE = 'pokemon-tactics-saves';
 const STORE = 'snapshots';
 
 type SaveEnvelope = { schemaVersion: number; savedAt: string; run: Run };
-type MapSnapshot = { id: string; signature: string; changes: TileChange[] };
+type MapSnapshot = { id: string; signature: string; objectSignature?: string; changes: TileChange[] };
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
@@ -133,15 +134,21 @@ function migrateRun(run: Run, version: number): Run {
         && battle.units.some(unit => unit.id === battle.current && unit.hp > 0)
         && (battle.units.some(unit => unit.side === 'enemy' && unit.hp > 0) || capturePending)));
     const changedAuthoredMap = !!validMap && version < 7 && mapSignature(battle.map, false) !== mapSignature(authored, false);
-    if (!validMap || !validUnits || !validQueue || changedAuthoredMap) {
+    const objectCollision = !!validUnits && battle.units.some(unit => unit.hp > 0 && objectBlocksMovement(authored!.tiles[unit.y][unit.x]));
+    if (!validMap || !validUnits || !validQueue || changedAuthoredMap || objectCollision) {
       next.phase = 'prepare';
       next.battle = undefined;
       if (changedAuthoredMap) next.report = ['The map changed since this battle was saved. Prepare your team to restart it.'];
+      if (objectCollision) next.report = ['A solid terrain object now occupies a saved Pokémon position. Prepare your team to restart the battle.'];
     } else {
       if (!Number.isInteger(battle.rngState)) battle.rngState = next.rngState;
       if (!Number.isFinite(battle.weatherUntil)) battle.weatherUntil = 0;
       if (!battle.tileChanges) battle.tileChanges = deriveChanges(battle.map, authored!);
       battle.map.zones = structuredClone(authored!.zones);
+      for (let y = 0; y < battle.map.tiles.length; y++) for (let x = 0; x < battle.map.tiles[y].length; x++) {
+        battle.map.tiles[y][x].object = authored!.tiles[y][x].object;
+        battle.map.tiles[y][x].slope = authored!.tiles[y][x].slope;
+      }
       battle.captureHeld = !!battle.map.capture && battle.units.some(unit => unit.hp > 0 && unit.side === 'player'
         && unit.x === battle.map.capture![0] && unit.y === battle.map.capture![1]);
       battle.visualEvents = [];
@@ -159,6 +166,11 @@ function migrateRun(run: Run, version: number): Run {
 }
 
 const signatureCache = new WeakMap<BattleMap, { old?: string; current?: string }>();
+function signatureFor(source: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < source.length; i++) hash = Math.imul(hash ^ source.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(16);
+}
 function mapSignature(map: BattleMap, includeZones: boolean): string {
   const slot = includeZones ? 'current' : 'old';
   const cached = signatureCache.get(map)?.[slot];
@@ -166,11 +178,13 @@ function mapSignature(map: BattleMap, includeZones: boolean): string {
   // Include only authored geometry and encounter markers. Temporary effects live in changes.
   const source = JSON.stringify([map.id, map.name, map.weather, map.playerSpawns, map.enemySpawns, map.capture,
     map.tiles.map(row => row.map(tile => [tile.kind, tile.height])), ...(includeZones ? [map.zones] : [])]);
-  let hash = 2166136261;
-  for (let i = 0; i < source.length; i++) hash = Math.imul(hash ^ source.charCodeAt(i), 16777619);
-  const signature = (hash >>> 0).toString(16);
+  const signature = signatureFor(source);
   signatureCache.set(map, { ...signatureCache.get(map), [slot]: signature });
   return signature;
+}
+
+function objectSignature(map: BattleMap): string {
+  return signatureFor(JSON.stringify(map.tiles.map(row => row.map(tile => [tile.object ?? '', tile.slope ?? '']))));
 }
 
 function deriveChanges(map: BattleMap, authored: BattleMap): Record<string, TileChange> {
@@ -198,7 +212,7 @@ function snapshotMap(battle: Battle): MapSnapshot {
     for (const field of ['hazardUntil', 'coverUntil', 'mudUntil'] as const) if ((change[field] ?? 0) > time) copy[field] = change[field];
     return copy;
   }).filter(change => Object.keys(change).length > 2);
-  return { id: map.id, signature: mapSignature(authored, true), changes };
+  return { id: map.id, signature: mapSignature(authored, true), objectSignature: objectSignature(authored), changes };
 }
 
 export function snapshotRun(run: Run): SaveV12 {
@@ -219,11 +233,16 @@ function restoreRun(value: unknown): Run | undefined {
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;
   const authored = MAPS[saved.map?.id];
-  if (!authored || saved.map.signature !== mapSignature(authored, envelope.schemaVersion >= 8) || !Array.isArray(saved.map.changes)) {
+  if (!authored || saved.map.signature !== mapSignature(authored, envelope.schemaVersion >= 8)
+    || (saved.map.objectSignature && saved.map.objectSignature !== objectSignature(authored)) || !Array.isArray(saved.map.changes)) {
     return migrateRun({ ...run, phase: 'prepare', battle: undefined,
       report: ['The map changed since this battle was saved. Prepare your team to restart it.'] } as Run, envelope.schemaVersion);
   }
   const map = structuredClone(authored);
+  if (Array.isArray(saved.units) && saved.units.some(unit => unit?.hp > 0 && objectBlocksMovement(map.tiles[unit.y]?.[unit.x]))) {
+    return migrateRun({ ...run, phase: 'prepare', battle: undefined,
+      report: ['A solid terrain object now occupies a saved Pokémon position. Prepare your team to restart the battle.'] } as Run, envelope.schemaVersion);
+  }
   for (const change of saved.map.changes) {
     if (!Number.isInteger(change.x) || !Number.isInteger(change.y) || !map.tiles[change.y]?.[change.x]
       || !['plain', 'water', 'lava', 'wall', undefined].includes(change.kind)

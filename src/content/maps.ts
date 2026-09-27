@@ -1,4 +1,5 @@
-import type { BattleMap, DeploymentZone, GridPoint, Tile, Weather } from '../game/types';
+import type { BattleMap, DeploymentZone, GridPoint, SlopeDirection, TerrainObjectId, Tile, Weather } from '../game/types';
+import { objectBlocksMovement } from './terrainObjects';
 
 type MapSource = {
   id: string;
@@ -6,6 +7,8 @@ type MapSource = {
   weather: Weather;
   terrain: string[];
   elevation: string[];
+  slopes?: string[];
+  objects?: string[];
   zones: string[];
   playerSpawns: GridPoint[];
   enemySpawns: GridPoint[];
@@ -13,6 +16,9 @@ type MapSource = {
 };
 
 const terrainKinds: Record<string, Tile['kind']> = { '.': 'plain', '~': 'water', '^': 'lava', '#': 'wall' };
+const slopeKinds: Record<string, SlopeDirection> = { '^': 'north', v: 'south', '>': 'east', '<': 'west' };
+const objectKinds: Record<string, TerrainObjectId> = { T: 'tree', R: 'rock', B: 'bush', F: 'flower', G: 'grass-tuft' };
+const slopeOffsets: Record<SlopeDirection, GridPoint> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
 const zoneKinds: Record<string, DeploymentZone> = { A: 'ally', N: 'neutral', E: 'enemy' };
 export const MAX_MAP_SIZE = 32;
 const standardZones = ['EEEEEEEE', 'EEEEEEEE', ...Array<string>(4).fill('NNNNNNNN'), 'AAAAAAAA', 'AAAAAAAA'];
@@ -24,7 +30,9 @@ export function createMap(source: MapSource): BattleMap {
   const width = source.terrain[0]?.length ?? 0;
   if (!height || !width || source.elevation.length !== height || source.zones.length !== height
     || source.terrain.some(row => row.length !== width) || source.elevation.some(row => row.length !== width)
-    || source.zones.some(row => row.length !== width)) {
+    || source.zones.some(row => row.length !== width)
+    || (source.slopes !== undefined && (source.slopes.length !== height || source.slopes.some(row => row.length !== width)))
+    || (source.objects !== undefined && (source.objects.length !== height || source.objects.some(row => row.length !== width)))) {
     throw new Error(`Map ${source.id}: terrain, elevation, and zones must be nonempty rectangles of equal size.`);
   }
   if (width > MAX_MAP_SIZE || height > MAX_MAP_SIZE) throw new Error(`Map ${source.id}: maximum size is ${MAX_MAP_SIZE}×${MAX_MAP_SIZE}.`);
@@ -32,8 +40,23 @@ export function createMap(source: MapSource): BattleMap {
     const kind = terrainKinds[symbol];
     const level = Number(source.elevation[y][x]);
     if (!kind || !Number.isInteger(level) || level < 0 || level > 2) throw new Error(`Map ${source.id}: invalid tile at ${x},${y}.`);
-    return { kind, height: level };
+    const marker = source.slopes?.[y][x] ?? '.';
+    const slope = slopeKinds[marker];
+    if (marker !== '.' && !slope) throw new Error(`Map ${source.id}: invalid slope at ${x},${y}.`);
+    const objectMarker = source.objects?.[y][x] ?? '.';
+    const object = objectKinds[objectMarker];
+    if (objectMarker !== '.' && !object) throw new Error(`Map ${source.id}: invalid object at ${x},${y}.`);
+    if (object && (kind !== 'plain' || slope)) throw new Error(`Map ${source.id}: object at ${x},${y} needs an ordinary plain tile.`);
+    return { kind, height: level, ...(slope ? { slope } : {}), ...(object ? { object } : {}) };
   }));
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const tile = tiles[y][x];
+    if (!tile.slope) continue;
+    const [dx, dy] = slopeOffsets[tile.slope];
+    const lower = tiles[y + dy]?.[x + dx];
+    if (tile.kind !== 'plain' || tile.height < 1 || !lower || !['plain', 'lava'].includes(lower.kind) || lower.height !== tile.height - 1)
+      throw new Error(`Map ${source.id}: slope at ${x},${y} must face a passable tile exactly one level lower.`);
+  }
   const zones = source.zones.map((row, y) => [...row].map((symbol, x): DeploymentZone => {
     const zone = zoneKinds[symbol];
     if (!zone) throw new Error(`Map ${source.id}: invalid zone at ${x},${y}. Use A, N, or E.`);
@@ -41,17 +64,17 @@ export function createMap(source: MapSource): BattleMap {
   }));
   for (const zone of ['ally', 'neutral', 'enemy'] as const) if (!zones.some(row => row.includes(zone))) throw new Error(`Map ${source.id}: missing ${zone} zone.`);
   for (const zone of ['ally', 'enemy'] as const) {
-    const safe = zones.flatMap((row, y) => row.filter((cell, x) => cell === zone && tiles[y][x].kind === 'plain')).length;
+    const safe = zones.flatMap((row, y) => row.filter((cell, x) => cell === zone && tiles[y][x].kind === 'plain' && !objectBlocksMovement(tiles[y][x]))).length;
     if (safe < 8) throw new Error(`Map ${source.id}: ${zone} zone needs at least eight safe deployment tiles.`);
   }
   const points = [...source.playerSpawns, ...source.enemySpawns, ...(source.capture ? [source.capture] : [])];
-  for (const [x, y] of points) if (!tiles[y]?.[x] || tiles[y][x].kind === 'wall') throw new Error(`Map ${source.id}: invalid spawn or capture tile at ${x},${y}.`);
+  for (const [x, y] of points) if (!tiles[y]?.[x] || tiles[y][x].kind === 'wall' || objectBlocksMovement(tiles[y][x])) throw new Error(`Map ${source.id}: invalid spawn or capture tile at ${x},${y}.`);
   const spawnKeys = [...source.playerSpawns, ...source.enemySpawns].map(([x, y]) => `${x},${y}`);
   if (!source.playerSpawns.length || !source.enemySpawns.length) throw new Error(`Map ${source.id}: both teams need spawn tiles.`);
   if (new Set(spawnKeys).size !== spawnKeys.length) throw new Error(`Map ${source.id}: spawn tiles must be unique.`);
   for (const [x, y] of source.playerSpawns) if (zones[y][x] !== 'ally') throw new Error(`Map ${source.id}: player spawn ${x},${y} must be in the ally zone.`);
   for (const [x, y] of source.enemySpawns) if (zones[y][x] !== 'enemy') throw new Error(`Map ${source.id}: enemy spawn ${x},${y} must be in the enemy zone.`);
-  // A Flying unit can cross water and elevation, so walls must not isolate the teams or objective.
+  // A Flying unit can cross water and elevation, but solid objects cannot isolate the teams or objective.
   const connected = new Set<string>();
   const frontier: GridPoint[] = [source.playerSpawns[0]];
   for (let index = 0; index < frontier.length; index++) {
@@ -60,7 +83,7 @@ export function createMap(source: MapSource): BattleMap {
     connected.add(key);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nextX = x + dx, nextY = y + dy;
-      if (tiles[nextY]?.[nextX] && tiles[nextY][nextX].kind !== 'wall' && !connected.has(`${nextX},${nextY}`)) frontier.push([nextX, nextY]);
+      if (tiles[nextY]?.[nextX] && tiles[nextY][nextX].kind !== 'wall' && !objectBlocksMovement(tiles[nextY][nextX]) && !connected.has(`${nextX},${nextY}`)) frontier.push([nextX, nextY]);
     }
   }
   for (const [x, y] of points) if (!connected.has(`${x},${y}`)) throw new Error(`Map ${source.id}: spawn or capture tile at ${x},${y} is isolated by walls.`);
@@ -68,10 +91,10 @@ export function createMap(source: MapSource): BattleMap {
 }
 
 export const MAPS: Record<string, BattleMap> = Object.fromEntries([
-  createMap({ id: 'verdant-crossing', name: 'Verdant Crossing', weather: 'snow', terrain: ['........', '........', '..~~....', '...~....', '....##..', '..^.....', '........', '........'], elevation: ['00000000','00110000','00000000','00000000','00000000','00000000','00011000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
-  createMap({ id: 'cinder-ford', name: 'Cinder Ford', weather: 'sun', terrain: ['........', '...^^...', '..#.....', '..~~....', '...~....', '......#.', '........', '........'], elevation: ['00000000','00000000','00100000','00000000','00000000','00000010','00000000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
-  createMap({ id: 'storm-ridge', name: 'Storm Ridge', weather: 'rain', terrain: ['........', '..~~....', '..~~....', '...#....', '....^...', '....^...', '........', '........'], elevation: ['00000000','00000000','00000000','00000000','00000000','00000000','01100000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
-  createMap({ id: 'crown-citadel', name: 'Crown Citadel', weather: 'sandstorm', terrain: ['........', '....#...', '..^^....', '........', '...##...', '........', '........', '........'], elevation: ['00000000','00000000','00000000','00122100','00000000','00000000','00000000','00000000'], zones: standardZones, playerSpawns: bottom, enemySpawns: top, capture: [6, 4] }),
+  createMap({ id: 'verdant-crossing', name: 'Verdant Crossing', weather: 'snow', terrain: ['........', '........', '..~~....', '...~....', '....##..', '..^.....', '........', '........'], elevation: ['00000000','00110000','00000000','00000000','00000000','00000000','00011000','00000000'], slopes: ['........','..^^....','........','........','........','........','...vv...','........'], objects: ['........','........','T....F..','.R....B.','..G....T','....FR..','........','........'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
+  createMap({ id: 'cinder-ford', name: 'Cinder Ford', weather: 'sun', terrain: ['........', '...^^...', '..#.....', '..~~....', '...~....', '......#.', '........', '........'], elevation: ['00000000','00000000','00100000','00000000','00000000','00000010','00000000','00000000'], objects: ['........','........','T...F...','.R....B.','.G....T.','...R.F..','........','........'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
+  createMap({ id: 'storm-ridge', name: 'Storm Ridge', weather: 'rain', terrain: ['........', '..~~....', '..~~....', '...#....', '....^...', '....^...', '........', '........'], elevation: ['00000000','00000000','00000000','00000000','00000000','00000000','01100000','00000000'], slopes: ['........','........','........','........','........','........','.^v.....','........'], objects: ['........','........','T....F..','.R....B.','..G....T','..R...F.','........','........'], zones: standardZones, playerSpawns: bottom, enemySpawns: top }),
+  createMap({ id: 'crown-citadel', name: 'Crown Citadel', weather: 'sandstorm', terrain: ['........', '....#...', '..^^....', '........', '...##...', '........', '........', '........'], elevation: ['00000000','00000000','00000000','00122100','00000000','00000000','00000000','00000000'], slopes: ['........','........','........','..<<>>..','........','........','........','........'], objects: ['........','........','T.....F.','R......B','T....G..','..F...T.','........','........'], zones: standardZones, playerSpawns: bottom, enemySpawns: top, capture: [6, 4] }),
 ].map(map => [map.id, map]));
 
 export const mapWidth = (map: BattleMap) => map.tiles[0]?.length ?? 0;

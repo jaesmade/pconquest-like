@@ -3,6 +3,7 @@ import Board from '../battle/Board';
 import type { BoardView, CameraCommand } from '../battle/Board';
 import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoWorldSize } from '../battle/isometric';
 import { abilityAbsorption, itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES, SPECIES } from '../content/data';
+import { objectBlocksMovement } from '../content/terrainObjects';
 import { active, apGain, canUseMove, upcoming, unitAt } from '../game/engine';
 import { reachable } from '../game/grid';
 import { damageRange } from '../game/damage';
@@ -52,6 +53,7 @@ export default function BattleScreen(props: Props) {
   const labDamage = current && labTarget && move && move.category !== 'Status' ? damageRange(battle, current, labTarget, move) : undefined;
   const labAbsorption = labTarget && move ? abilityAbsorption(labTarget.ability, move.type) : undefined;
   const selectedRoute = target && mode === 'move' ? routes.get(`${target[0]},${target[1]}`) : undefined;
+  const selectedTile = target ? battle.map.tiles[target[1]]?.[target[0]] : undefined;
   const inspectedUnit = inspected ? unitAt(battle, inspected[0], inspected[1]) : undefined;
   const issueCamera = (command: CameraCommand, point?: [number, number]) => setCameraAction({ id: ++cameraSequence.current, command, point });
   const closePopup = () => {
@@ -116,6 +118,11 @@ export default function BattleScreen(props: Props) {
           context.beginPath(); context.moveTo(px, py - ISO_HALF_HEIGHT * scale);
           context.lineTo(px + ISO_HALF_WIDTH * scale, py); context.lineTo(px, py + ISO_HALF_HEIGHT * scale);
           context.lineTo(px - ISO_HALF_WIDTH * scale, py); context.closePath(); context.fill();
+          const object = battle.map.tiles[y][x].object;
+          if (object === 'tree' || object === 'rock') {
+            context.fillStyle = object === 'tree' ? '#204a32' : '#a8ada0';
+            context.fillRect(px - 2, py - 2, 4, 4);
+          }
         }
         for (const unit of battle.units.filter(unit => unit.hp > 0)) {
           const center = isoTileCenter(battle.map, unit.x, unit.y);
@@ -213,8 +220,8 @@ export default function BattleScreen(props: Props) {
           <div className="popup-confirm"><button className="primary full" disabled={visualBusy || !attackReady} onClick={props.onAttack}>Confirm {move?.name ?? 'attack'}</button><small>{!chosenMove ? 'Choose a move first' : !target ? 'Select a highlighted target tile' : !attackReady ? 'Target is blocked or out of range' : `Target: ${target[0] + 1}, ${target[1] + 1}`}</small></div>
         </>}
         {mode === 'move' && <>
-          <p className="hint">Select a highlighted tile. The route and AP cost appear before you move.</p>
-          {target && <div className="path-preview"><b>{selectedRoute ? `Tile ${target[0] + 1}, ${target[1] + 1} · ${selectedRoute.points.length} steps` : 'Tile out of reach'}</b><span>{selectedRoute ? `${selectedRoute.cost} AP · ${current.ap - selectedRoute.cost} AP after moving` : 'Choose a green highlighted tile.'}</span>{selectedRoute && <small>{battle.map.tiles[target[1]][target[0]].kind} · height {battle.map.tiles[target[1]][target[0]].height}</small>}</div>}
+          <p className="hint">Select a highlighted tile. Ground Pokémon change elevation through the marked slopes. The route and AP cost appear before you move.</p>
+          {target && <div className="path-preview"><b>{selectedRoute ? `Tile ${target[0] + 1}, ${target[1] + 1} · ${selectedRoute.points.length} steps` : objectBlocksMovement(selectedTile) ? `Blocked by ${selectedTile?.object}` : 'Tile out of reach'}</b><span>{selectedRoute ? `${selectedRoute.cost} AP · ${current.ap - selectedRoute.cost} AP after moving` : 'Choose a green highlighted tile.'}</span>{selectedRoute && selectedTile && <small>{selectedTile.object ?? selectedTile.kind} · height {selectedTile.height}{selectedTile.slope ? ` · ${selectedTile.slope} slope` : ''}</small>}</div>}
           <div className="popup-confirm"><button className="primary full" disabled={!selectedRoute || visualBusy} onClick={props.onMove}>Confirm move</button><small>Movement may be repeated while AP remains</small></div>
         </>}
       </>}

@@ -21,12 +21,16 @@ The [32×32 competitive 8v8 reassessment](SCALABILITY_TARGETS.md) sets the map c
 | Run order and rewards | `src/content/encounters.ts` | Add an encounter ID, `nextId`, map ID, enemy species IDs, enemy level, objective, and XP reward. |
 | Cross-reference checks | `src/content/catalog.ts` | Extend `validateCatalog` when a new content relationship is introduced. |
 | Battle state and rules | `src/game/types.ts`, `src/game/engine.ts` | Define a rule once and call it from player, enemy, and preview paths. |
-| Menus and battle display | `src/main.tsx`, `src/ui/`, `src/battle/Board.tsx` | Keep React controls separate from Phaser grid rendering. The battle screen loads on demand. |
+| App bootstrap and run flow | `src/main.tsx`, `src/app/App.tsx` | Keep catalog validation and save loading in the bootstrap. Run state, save scheduling, and battle commands belong in the app controller. |
+| Menus and battle display | `src/ui/`, `src/battle/Board.tsx` | Each route, title, preparation, stop, intermission, result, or battle screen owns its markup. Keep React controls separate from Phaser grid rendering. The battle screen loads on demand. |
+| Screen styling | `src/styles/` | `base.css` loads first, then battle, menus, route, and battle action rules. Keep that order when moving overrides. |
 | Run persistence | `src/persistence/save.ts` | Bump the schema version and migrate older saves when the saved state shape changes. |
 | Visual assets | `public/assets/animations/` | Follow [the animation asset guide](ANIMATION_ASSETS.md) and add manifest entries for new art. |
 | Audio assets | `public/assets/audio/`, `src/audio/audio.ts` | Follow [the audio asset guide](AUDIO_ASSETS.md); add named move, item, and music URLs to the manifest without changing battle rules. |
 
 `src/content/data.ts` is a barrel for existing imports. New content can live in its focused file; rule changes should remain in `src/game/engine.ts` or a future engine module.
+
+`src/main.tsx` is only the entry point: it imports styles, validates content, loads the save, and mounts `App`. `src/app/App.tsx` coordinates the run and passes callbacks to screens in `src/ui/`. Shop and special choices render through `RouteStopScreen`; XP and evolution through `IntermissionScreen`; completion through `ResultScreen`. These screens do not own or serialize battle state. The split CSS files preserve the previous stylesheet order; `battle-actions.css` intentionally follows the other battle rules so its contextual popup overrides win.
 
 ## Adding a Pokémon or move
 

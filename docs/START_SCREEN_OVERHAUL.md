@@ -12,7 +12,7 @@ Give the game a distinct first impression before its existing run, Lab, and opti
 - On the title menu, align the wordmark in the upper area and stack gray buttons with white outer edges and raspberry borders: **Continue** (only when a run is resumable), **New Run**, **Lab**, **Options**, and **Exit**.
 - Keep supporting screens over the same background. Put Lab setup, Options, and Exit text in a readable light panel instead of returning to the former dark title card.
 
-The background is built from CSS gradients and grid layers in `src/overhaul.css`; the title itself remains selectable HTML. The standalone island background documented in `ISOMETRIC_ASSETS.md` is not used in this screen design.
+The background is built from CSS gradients and grid layers in `src/styles/menus.css`; the title itself remains selectable HTML. The standalone island background documented in `ISOMETRIC_ASSETS.md` is not used in this screen design.
 
 ## Input and behavior
 
@@ -30,9 +30,11 @@ The splash prompt pulse is removed under `prefers-reduced-motion`. Buttons retai
 
 ## Files and replacement points
 
-- `src/main.tsx`: `splash` screen state, first-input transition, menu semantics, and existing action wiring.
-- `src/overhaul.css`: responsive layout, pixel palette, grid and color-wash layers, panels, and reduced-motion rules.
-- `src/style.css`: Press Start 2P font import for wordmark and menu labels.
+- `src/main.tsx`: validates the catalog, loads the saved run, and mounts the app.
+- `src/app/App.tsx`: `splash` screen state, first-input transition, and menu action wiring.
+- `src/ui/TitleScreen.tsx`: menu semantics, Lab setup, Options, and Exit markup.
+- `src/styles/menus.css`: responsive layout, pixel palette, grid and color-wash layers, panels, and reduced-motion rules.
+- `src/styles/base.css`: Press Start 2P font import for wordmark and menu labels.
 - `docs/UI_OVERHAUL_PLAN.md`: overall screen flow and implementation progress.
 
 To adjust the backdrop, edit the `.title-screen`, `::before`, and `::after` rules. To tune the two-line logo, edit `.title-brand h1`; menu geometry and selected/hover styling live in `.title-menu` and `.menu-button`. Keep menu controls as HTML buttons so keyboard, touch, focus, and accessible names continue to work.

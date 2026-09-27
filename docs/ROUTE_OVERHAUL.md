@@ -29,7 +29,7 @@ The six-point **starting draft** still usually yields three Pokémon because ord
 
 - `src/game/route.ts` defines node IDs, seeded generation, connection rules, and plan validation.
 - `src/game/engine.ts` validates node choices and resolves node rewards, battle strength, shop purchases, and progression. The saved run carries route nodes, visited node IDs, current node ID, and coins.
-- `src/ui/RouteScreen.tsx` draws the graph and node icons as scalable SVG with keyboard focus. `src/ui/DeploymentBoard.tsx` draws the isometric placement map from the authored tiles.
+- `src/ui/RouteScreen.tsx` draws the graph and node icons as scalable SVG with keyboard focus. `src/ui/RouteStopScreen.tsx` renders shop and special choices. `src/ui/DeploymentBoard.tsx` draws the isometric placement map from the authored tiles.
 - Save schema **v16** migrates v15 and earlier runs to a center-lane path for their completed columns, preserving current battle and party state. New route decisions follow the ten-column rules.
 - `public/assets/backgrounds/route-cavern-pixel.png` is generated placeholder art. Prompt: “Pixel art game background, 16:9: wide warm sandstone cavern floor with broad clear center for game map overlay, rocky brown cave walls at left and right edges, sparse moss and blue crystal flecks. Cohesive square pixel clusters. No text, no symbols, no UI, no characters.” It was made with the built-in image generation tool on 2026-09-28. Graph lines, icons, and labels are code-native and remain replaceable without changing route rules.
 

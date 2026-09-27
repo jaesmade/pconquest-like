@@ -28,6 +28,8 @@ The [Battle Lab](docs/BATTLE_LAB.md) is a small 1v1 arena where you control both
 
 The [extension guide](docs/SCALING.md) maps the content files, stable IDs, encounter and map contracts, save migration, and the remaining engine rules that need a new handler when expanded. The [balance baseline](docs/BALANCE.md) records the current run curve. Abilities and held items live in [abilities.ts](src/content/abilities.ts) and [items.ts](src/content/items.ts). The content catalog checks references at startup. Battle rendering loads when an encounter begins, keeping the initial menus separate from Phaser.
 
+Source layout: [main.tsx](src/main.tsx) loads and mounts the game; [App.tsx](src/app/App.tsx) coordinates run state and battle actions; `src/ui/` contains the individual screens; `src/styles/` groups their CSS in import order. Content definitions, game rules, persistence, audio, and Phaser rendering live in their respective `src/` folders. See the extension guide for where to make each kind of change.
+
 ## Placeholder assets
 
 The battlefield now uses a [replaceable isometric tile family](docs/ISOMETRIC_ASSETS.md) and a generated reference-inspired title backdrop. The route uses a separate [generated cavern backdrop](docs/ROUTE_OVERHAUL.md). Its square combat rules remain unchanged; the renderer projects cells, units, paths, and attack effects into the new view. Pokémon sheets remain named placeholders.

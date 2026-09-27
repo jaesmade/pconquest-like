@@ -59,6 +59,12 @@ export async function runBrowserBench() {
       for (let i = 0; i < 30; i++) { window.__profile.change(i); await nextFrame(); }
       await wait(400);
     },
+    attackBattleChanges: async () => {
+      window.__profile.target(13, 4);
+      await nextFrame();
+      for (let i = 0; i < 30; i++) { window.__profile.change(i); await nextFrame(); }
+      await wait(400);
+    },
     targeting: async () => {
       window.__profile.inspect();
       await nextFrame();
@@ -68,6 +74,10 @@ export async function runBrowserBench() {
     weather: async () => {
       for (let i = 0; i < 10; i++) { window.__profile.weather(); await nextFrame(); }
       await wait(1200);
+    },
+    cameraNavigation: async () => {
+      for (let i = 0; i < 30; i++) { window.__profile.pan(i); await nextFrame(); }
+      await wait(400);
     },
     animation: async () => { window.__profile.animate(); await wait(1600); },
   };

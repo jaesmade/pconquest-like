@@ -62,6 +62,10 @@ function Fixture() {
       ready: false, playing: false,
       inspect() { setMode('inspect'); setTarget(undefined); },
       target(x = 13, y = 4) { setMode('attack'); setTarget([x, y]); },
+      pan(index = 0) {
+        const camera = window.__profileBattleScene?.cameras.main;
+        if (camera) camera.scrollX += index % 2 ? 24 : -24;
+      },
       change(index = 0) {
         setBattle(previous => ({ ...previous, time: previous.time + 1,
           units: previous.units.map((unit, i) => i === index % previous.units.length
@@ -92,7 +96,8 @@ function Fixture() {
         const scene = window.__profileBattleScene;
         return scene && {
           gameObjects: scene.children.list.length, terrainCommands: scene.terrain.commandBuffer.length,
-          overlayCommands: scene.ground.commandBuffer.length, targetCommands: scene.targetOverlay.commandBuffer.length, labels: scene.labels.length,
+          overlayCommands: scene.ground.commandBuffer.length, attackRangeCommands: scene.attackRange.commandBuffer.length,
+          attackRangeRenders: scene.attackRangeRenders, targetCommands: scene.targetOverlay.commandBuffer.length, labels: scene.labels.length,
           sprites: scene.sprites.size, hpBars: scene.hp.size,
         };
       },

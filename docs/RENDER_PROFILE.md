@@ -25,3 +25,17 @@ The measured CPU hotspot was target movement. Each cursor change called `renderB
 Build the isolated fixture with `npx vite build --config scripts/profile/vite.config.mjs --mode profile`, serve `dist-profile` with `npx vite preview --outDir dist-profile --port 4174 --host 127.0.0.1`, and open `/scripts/profile/index.html` in a foreground Chrome tab. The fixture runs automatically and prints its status and result JSON in the page. `scripts/profile/collect-cdp.mjs` can save the JSON from a browser started with a remote debugging port. Do not compare a background tab's frame intervals: Chromium throttled `requestAnimationFrame` in the hidden in-app tab during this work.
 
 This clears the first renderer measurement at the 32×32, 8v8 cap. It does not measure GPU execution time, texture memory, real multiplayer state traffic, camera navigation, or slower devices. A release claim of stable 60+ FPS still needs a representative full match and GPU/frame traces on the chosen reference hardware.
+
+## 2026-09-27 attack-range and camera follow-up
+
+The fixture now sizes the canvas to the browser viewport and includes 30 battle changes while Attack is selected, plus 30 camera pans. A new minified profile used Headless Chrome 153 on Windows at a 1264×625 viewport and DPR 1, with the same 32×32, 8v8 scene. The original fixture had inherited a 500×500 `.board` rule under headless Chrome, so the fixture now overrides that rule. Full results are [`current-before.json`](../scripts/profile/current-before.json) and [`current-after.json`](../scripts/profile/current-after.json). This headless run reports one WebGL draw submission per frame; it is not directly comparable to the eight submissions in the earlier foreground run.
+
+| Scenario | Before `renderBattle` p95, three passes | After `renderBattle` p95, three passes | After scene objects |
+| --- | ---: | ---: | ---: |
+| Battle changes in Inspect | 1.3 / 0.9 / 0.8 ms | 1.0 / 0.8 / 0.9 ms | 69 |
+| Battle changes in Attack | 4.3 / 2.2 / 1.8 ms | 2.1 / 1.7 / 1.9 ms | 70 |
+| Weather changes in Attack | 2.7 / 2.1 / 1.8 ms | 2.1 / 1.7 / 1.7 ms | 70 |
+
+The Attack layer now keeps its range graphics and line-of-sight results while the source unit and position, move, map reference, weather, and active cover remain compatible. It rebuilt once across each 30-change Attack pass; weather changes forced rebuilds. A per-redraw array lookup also replaced 1,024 linear scans of the 16-unit roster for matchup labels. Attack targeting held one label. Target preview p95 remained around 0.1 ms. The extra range Graphics object raises scene object count by one.
+
+Frame interval p95 remained 16.7–16.8 ms in the measured scenarios, including camera navigation. Camera panning invoked no `renderBattle` calls. No main-thread tasks at least 50 ms were observed. The warm-pass Attack redraw improvement is modest, and frame intervals did not improve measurably. The full-map terrain render texture is 3264×1772 pixels at this cap, about 22 MiB of raw RGBA data; the canvas itself follows the viewport. Headless draw-call counts, JavaScript heap, and frame intervals do not measure GPU texture allocation or GPU time. Visible-cell culling remains contingent on a full-match profile on the release device.

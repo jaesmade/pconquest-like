@@ -6,7 +6,7 @@ import isoAssets from '../../public/assets/environment/isometric/isometric-manif
 import { abilityAbsorption, effectiveness, mapHeight, mapWidth, megaFormFor, MOVES } from '../content/data';
 import { TERRAIN_OBJECTS } from '../content/terrainObjects';
 import type { AttackVisualEvent, Battle, FeedbackEvent, Unit } from '../game/types';
-import { active, affectedTiles, canHitWithMove, inMoveRange, unitAt } from '../game/engine';
+import { active, affectedTiles, canHitWithMove, inMoveRange } from '../game/engine';
 import { hasLineOfSight, type MovementPath } from '../game/grid';
 import { mobilityState } from '../game/mobility';
 import { enqueueAttackCues } from './visualQueue';
@@ -35,6 +35,9 @@ class BattleScene extends Phaser.Scene {
   scenery: Phaser.GameObjects.Image[] = [];
   terrain!: Phaser.GameObjects.Graphics;
   ground!: Phaser.GameObjects.Graphics;
+  attackRange!: Phaser.GameObjects.Graphics;
+  attackRangeCache?: { map: Battle['map']; unitId: string; x: number; y: number; moveId: string; weather: Battle['weather']; coverExpiry: number };
+  attackRangeRenders = 0;
   targetOverlay!: Phaser.GameObjects.Graphics;
   labels: Phaser.GameObjects.Text[] = [];
   sprites = new Map<string, Phaser.GameObjects.Sprite>();
@@ -69,7 +72,8 @@ class BattleScene extends Phaser.Scene {
     const world = isoWorldSize(this.battle.map);
     this.terrainTexture = this.add.renderTexture(0, 0, world.width, world.height).setOrigin(0).setDepth(0);
     this.terrain = this.add.graphics().setDepth(0);
-    this.ground = this.add.graphics().setDepth(1);
+    this.attackRange = this.add.graphics().setDepth(1);
+    this.ground = this.add.graphics().setDepth(1.5);
     this.targetOverlay = this.add.graphics().setDepth(2);
     this.drawTerrain();
     const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
@@ -362,6 +366,10 @@ class BattleScene extends Phaser.Scene {
     const current = active(this.battle);
     const moveHighlights = this.mode === 'move' && (current.side === 'player' || this.controlBoth) ? new Set(this.moveRoutes?.keys()) : new Set<string>();
     const attackMove = this.mode === 'attack' && this.chosenMove && (current.side === 'player' || this.controlBoth) ? MOVES[this.chosenMove] : undefined;
+    this.renderAttackRange(attackMove ? current : undefined);
+    const width = mapWidth(this.battle.map);
+    const defenders = attackMove ? new Array<Unit | undefined>(width * mapHeight(this.battle.map)) : undefined;
+    if (defenders) for (const unit of this.battle.units) if (unit.hp > 0) defenders[unit.y * width + unit.x] = unit;
     const activeCover = new Set<string>();
     for (let y = 0; y < mapHeight(this.battle.map); y++) for (let x = 0; x < mapWidth(this.battle.map); x++) {
       const tile = this.battle.map.tiles[y][x], center = isoTileCenter(this.battle.map, x, y);
@@ -372,10 +380,7 @@ class BattleScene extends Phaser.Scene {
         if (!this.cover.has(key)) this.cover.set(key, this.add.image(center.x, center.y - 16, 'overlay-cover-16px').setScale(1.8).setDepth(3));
       }
       if (moveHighlights.has(`${x},${y}`)) { this.ground.fillStyle(0x9fe4bd, 0.38); this.fillDiamond(this.ground, center.x, center.y); }
-      if (attackMove && (attackMove.target !== 'unit' || x !== current.x || y !== current.y) && inMoveRange(this.battle, current, this.chosenMove!, x, y)) {
-        this.ground.fillStyle(0x8bbcff, 0.28); this.fillDiamond(this.ground, center.x, center.y);
-      }
-      const defender = attackMove ? unitAt(this.battle, x, y) : undefined;
+      const defender = defenders?.[y * width + x];
       if (attackMove?.power && defender && canHitWithMove(this.battle, current, this.chosenMove!, defender)) {
         const absorbed = !!abilityAbsorption(defender.ability, attackMove.type);
         const multiplier = absorbed ? 0 : effectiveness(attackMove.type, defender.types);
@@ -399,6 +404,26 @@ class BattleScene extends Phaser.Scene {
     }
     for (const [key, image] of this.cover) if (!activeCover.has(key)) { image.destroy(); this.cover.delete(key); }
     this.renderTarget();
+  }
+  private renderAttackRange(unit?: Unit) {
+    if (!unit || !this.chosenMove) { this.attackRange.setVisible(false); return; }
+    this.attackRange.setVisible(true);
+    const cached = this.attackRangeCache;
+    if (cached && cached.map === this.battle.map && cached.unitId === unit.id && cached.x === unit.x && cached.y === unit.y
+      && cached.moveId === this.chosenMove && cached.weather === this.battle.weather && this.battle.time < cached.coverExpiry) return;
+    this.attackRange.clear();
+    let coverExpiry = Infinity;
+    const move = MOVES[this.chosenMove];
+    for (let y = 0; y < mapHeight(this.battle.map); y++) for (let x = 0; x < mapWidth(this.battle.map); x++) {
+      const tile = this.battle.map.tiles[y][x];
+      if (tile.coverUntil && tile.coverUntil > this.battle.time) coverExpiry = Math.min(coverExpiry, tile.coverUntil);
+      if (move.target === 'unit' && x === unit.x && y === unit.y) continue;
+      if (!inMoveRange(this.battle, unit, this.chosenMove, x, y)) continue;
+      const center = isoTileCenter(this.battle.map, x, y);
+      this.attackRange.fillStyle(0x8bbcff, 0.28); this.fillDiamond(this.attackRange, center.x, center.y);
+    }
+    this.attackRangeCache = { map: this.battle.map, unitId: unit.id, x: unit.x, y: unit.y, moveId: this.chosenMove, weather: this.battle.weather, coverExpiry };
+    this.attackRangeRenders++;
   }
   renderTarget() {
     if (!this.targetOverlay) return;

@@ -26,7 +26,7 @@ Run `node scripts/measure-save.mjs` to repeat the local synthetic-map benchmark.
 
 ### Medium: rendering work still scales with every tile
 
-`src/battle/Board.tsx` redraws the dynamic grid after a battle or selection change and checks line of sight for each potential target cell. It also creates matchup text objects during a redraw. For large boards, profile CPU frame time and object count first, then cache static attack-range overlays until source, map blockers, or weather changes; draw only visible cells when scrolling is introduced. The board currently assumes a full-map camera and one 64-pixel tile per logical cell.
+`src/battle/Board.tsx` now redraws target previews separately from the full dynamic grid. The [32×32 browser profile](RENDER_PROFILE.md) measured attack-mode battle changes before and after caching the attack-range layer. That layer reuses its line-of-sight results while the actor, move, map, weather, and active cover remain compatible. Matchup labels still refresh with battle state; the fixture had one label and 70 scene objects during targeting after the change. The board has camera pan/zoom and viewport-sized canvas rendering; camera movement did not call `renderBattle` in the fixture. Static terrain remains a full-map render texture. Consider visible-cell culling only if a representative device profile shows a frame or memory problem.
 
 ### Medium: move and AI effect growth
 

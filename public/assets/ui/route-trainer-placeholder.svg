@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 32 32" shape-rendering="crispEdges" aria-hidden="true">
+  <!-- Original 32-pixel route explorer. Transparent canvas; ground point (16, 31). -->
+  <g fill="#172630">
+    <path d="M9 4h12v2H9zM7 6h16v5H7zM9 11h16v2H9z"/>
+    <path d="M10 12h14v7H10zM8 18h17v10H8zM9 27h15v4H9z"/>
+    <path d="M6 18h5v9H6zM23 20h4v7h-4z"/>
+  </g>
+  <!-- Travel pack and rolled blanket. -->
+  <g fill="#9b5938">
+    <path d="M7 18h4v8H7zM8 16h3v3H8z"/>
+    <path d="M6 20h2v5H6z"/>
+  </g>
+  <g fill="#dc9860">
+    <path d="M8 18h3v2H8zM7 21h1v3H7z"/>
+  </g>
+  <g fill="#e9cc86"><path d="M8 23h3v2H8zM9 17h2v1H9z"/></g>
+  <!-- Pale travel-cape tips frame the route avatar. -->
+  <g fill="#263449"><path d="M4 18h5v2H4zM3 20h7v2H3zM3 22h6v2H3zM24 18h5v2h-5zM23 20h7v2h-7zM24 22h6v2h-6z"/></g>
+  <g fill="#f6f3e5"><path d="M4 18h4v2H4zM3 20h6v2H3zM5 22h4v2H5zM25 18h4v2h-4zM24 20h6v2h-6zM24 22h5v2h-5z"/></g>
+  <!-- Trouser legs and boots, with a one-pixel stance gap. -->
+  <g fill="#263950"><path d="M11 26h5v3h-5zM18 26h5v3h-5z"/></g>
+  <g fill="#344e65"><path d="M11 26h2v2h-2zM18 26h2v2h-2z"/></g>
+  <g fill="#0e1d2b"><path d="M9 29h7v2H9zM17 29h8v2h-8z"/></g>
+  <g fill="#9b6449"><path d="M10 29h3v1h-3zM18 29h3v1h-3z"/></g>
+  <!-- Jacket, belt, scarf and visible hands. -->
+  <g fill="#3b294f">
+    <path d="M11 19h12v8H11zM9 20h3v6H9zM22 20h3v6h-3z"/>
+  </g>
+  <g fill="#765176"><path d="M12 19h3v7h-3zM10 20h1v5h-1zM22 20h1v4h-1z"/></g>
+  <g fill="#172630"><path d="M15 20h2v6h-2zM11 25h12v2H11z"/></g>
+  <g fill="#a65e3c"><path d="M12 25h10v2H12z"/></g>
+  <g fill="#f1c66a"><path d="M17 25h3v2h-3zM12 18h10v3H12z"/></g>
+  <g fill="#fff0a1"><path d="M13 18h7v1h-7z"/></g>
+  <g fill="#e8ad88"><path d="M9 25h3v2H9zM23 24h3v3h-3z"/></g>
+  <g fill="#f6ca9f"><path d="M10 25h2v1h-2zM24 24h2v2h-2z"/></g>
+  <!-- Original pink-haired traveller in a dark cap, viewed from three quarters. -->
+  <g fill="#643550"><path d="M11 11h11v7H11zM10 13h2v4h-2zM13 17h8v2h-8zM10 18h4v6h-4zM22 16h3v8h-3z"/></g>
+  <g fill="#e28eb3"><path d="M11 12h5v7h-5zM10 17h3v7h-3zM12 19h3v5h-3zM22 14h2v10h-2zM24 18h2v6h-2z"/></g>
+  <g fill="#dfa07f"><path d="M15 12h8v6h-8zM22 15h2v2h-2z"/></g>
+  <g fill="#f8cca5"><path d="M15 12h7v4h-7zM16 16h6v2h-6zM22 15h2v1h-2z"/></g>
+  <g fill="#192631"><path d="M21 14h1v2h-1zM23 17h1v1h-1z"/></g>
+  <g fill="#b16c67"><path d="M20 17h2v1h-2z"/></g>
+  <g fill="#22213b"><path d="M10 5h11v2H10zM8 7h15v4H8zM10 11h14v1H10z"/></g>
+  <g fill="#55476d"><path d="M11 5h6v2h-6zM9 7h8v3H9zM10 11h8v1h-8z"/></g>
+  <g fill="#171a32"><path d="M20 7h3v4h-3zM17 9h8v2h-8z"/></g>
+  <g fill="#e4aa5d"><path d="M10 8h4v1h-4z"/></g>
+</svg>

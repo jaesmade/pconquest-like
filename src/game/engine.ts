@@ -6,10 +6,10 @@ import { canEnter, hasLineOfSight, routeTo, stepCost } from './grid';
 import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
 import { calculateDamage, damageRange } from './damage';
-import { setTileEffects } from './clone';
-import { expireHazardZones, placeHazardZone } from './hazards';
-import { changeStage, emptyStageExpiry, expireStages } from './stages';
+import { expireHazardZones } from './hazards';
+import { emptyStageExpiry, expireStages } from './stages';
 import { hasMoveTag } from '../content/moves';
+import { resolveMoveEffects } from './moveEffects';
 import { canDeploy, chooseEnemyDeployment, resolvePlayerDeployment } from './deployment';
 import { createMap } from '../content/maps';
 import { SHOP_STOCK } from '../content/shop';
@@ -309,33 +309,9 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   if (!alive(target)) return;
   const reaction = hasMoveTag(move, 'contact') && abilityContactReaction(target.ability);
   if (reaction && random(battle) < reaction.chance) { feedback(battle, 'ability', target.ability, target); source.status[reaction.status] = battle.time + reaction.duration; log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
-  for (const effect of move.effects ?? []) {
-    if (effect.on !== 'hit' || !alive(target)) continue;
-    if (effect.kind === 'status' && random(battle) < effect.chance) {
-      target.status[effect.status] = battle.time + effect.duration;
-      log(battle, `${target.name} was ${effect.status}.`);
-    } else if (effect.kind === 'displace') {
-      const direction = effect.direction === 'push' ? 1 : -1;
-      for (let step = 0; step < effect.tiles; step++) {
-        const deltaX = target.x - source.x, deltaY = target.y - source.y;
-        const dx = Math.abs(deltaX) >= Math.abs(deltaY) ? Math.sign(deltaX) * direction : 0;
-        const dy = Math.abs(deltaY) > Math.abs(deltaX) ? Math.sign(deltaY) * direction : 0;
-        const nextX = target.x + dx, nextY = target.y + dy;
-        if (!canEnter(battle, target, nextX, nextY)) break;
-        target.x = nextX; target.y = nextY;
-        syncMobility(target, battle.map.tiles[nextY][nextX]);
-        visual.tiles.push([nextX, nextY]);
-        applyTileEntry(battle, target, visual);
-        if (!alive(target) || battle.result) break;
-      }
-      log(battle, `${target.name} was ${effect.direction === 'push' ? 'pushed' : 'pulled'}.`);
-    } else if (effect.kind === 'tile' && effect.field === 'hazardUntil') placeHazardZone(battle, source.id, moveId, [[target.x, target.y]], battle.time + effect.duration);
-    else if (effect.kind === 'tile') setTileEffects(battle, [[target.x, target.y]], effect.field, battle.time + effect.duration);
-    else if (effect.kind === 'chain' && random(battle) < effect.chance) {
-      const chained = battle.units.find(unit => unit.side === target.side && unit.id !== target.id && alive(unit) && distance(unit, target) <= effect.radius);
-      if (chained) { visual.tiles.push([chained.x, chained.y]); applyDamage(battle, source, chained, moveId, visual, { damageFraction: effect.damageFraction }); }
-    }
-  }
+  resolveMoveEffects('hit', move.effects, { battle, source, target, move, moveId, tiles: visual.tiles, visual,
+    log: message => log(battle, message), enterTile: unit => applyTileEntry(battle, unit, visual),
+    chainHit: (unit, fraction) => applyDamage(battle, source, unit, moveId, visual, { damageFraction: fraction }) });
 }
 export function useMove(battle: Battle, moveId: string, x: number, y: number): string | undefined {
   const unit = battle.units.find(candidate => candidate.id === battle.current), move = MOVES[moveId];
@@ -353,18 +329,9 @@ export function useMove(battle: Battle, moveId: string, x: number, y: number): s
   // Recent presentation cues are disposable; battle rules, RNG, and log live elsewhere.
   battle.visualEvents = battle.visualEvents.slice(-24);
   log(battle, `${unit.name} used ${move.name} for ${move.apCost} AP.`);
-  for (const effect of move.effects ?? []) {
-    if (effect.on !== 'cast') continue;
-    if (effect.kind === 'weather') { battle.weather = effect.weather; battle.weatherUntil = battle.time + effect.duration; }
-    else if (effect.kind === 'tile' && effect.field === 'hazardUntil') placeHazardZone(battle, unit.id, moveId, tiles, battle.time + effect.duration);
-    else if (effect.kind === 'tile') setTileEffects(battle, tiles, effect.field, battle.time + effect.duration);
-    else if (effect.kind === 'stage') for (const other of battle.units.filter(alive)) {
-      if (!tiles.some(([tileX, tileY]) => other.x === tileX && other.y === tileY)) continue;
-      if (effect.recipients === 'self' && other.id !== unit.id) continue;
-      if (effect.recipients === 'allies' && other.side !== unit.side) continue;
-      changeStage(other, effect.stat, effect.delta, battle.time + effect.duration);
-    }
-  }
+  resolveMoveEffects('cast', move.effects, { battle, source: unit, move, moveId, tiles, visual,
+    log: message => log(battle, message), enterTile: other => applyTileEntry(battle, other, visual),
+    chainHit: (other, fraction) => applyDamage(battle, unit, other, moveId, visual, { damageFraction: fraction }) });
   if (move.power) for (const target of battle.units.filter(other => canHitAtTarget(battle, unit, moveId, x, y, other))) applyDamage(battle, unit, target, moveId, visual);
   if (visual.targetIds.length) visual.hpAfter = Object.fromEntries(visual.targetIds.map(id => [id, battle.units.find(target => target.id === id)!.hp]));
   checkResult(battle);
@@ -440,6 +407,7 @@ export function completeBattle(run: Run): Run {
   return next;
 }
 export function evolve(run: Run, id: string) {
+  if (run.phase !== 'route') return run;
   const next = structuredClone(run), mon = next.party.find(p => p.id === id);
   if (!mon) return next;
   const evolution = SPECIES[mon.species].evolves;
@@ -492,6 +460,16 @@ export function selectRouteNode(run: Run, id: string): Run {
   return next;
 }
 
+export function cancelPreparation(run: Run): Run {
+  if (run.phase !== 'prepare' || !run.currentNodeId || run.route.visited.at(-1) !== run.currentNodeId) return run;
+  return {
+    ...run,
+    phase: 'route',
+    currentNodeId: undefined,
+    deployment: {},
+    route: { ...run.route, visited: run.route.visited.slice(0, -1) },
+  };
+}
 export function buyShopItem(run: Run, item: ItemId): Run {
   const offer = SHOP_STOCK.find(stock => stock.item === item);
   if (run.phase !== 'shop' || !offer || run.coins < offer.price) return run;

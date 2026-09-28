@@ -9,6 +9,7 @@ import { canDeploy, zoneCells } from '../game/deployment';
 import { terrainReachable } from '../game/grid';
 import { mobilityFor } from '../game/mobility';
 import { STARTING_PARTY_POINTS } from './roster';
+import { validateMoveEffect } from '../game/moveEffects';
 
 /** Content references are checked once at startup so new packs fail with useful IDs. */
 export function validateCatalog(): string[] {
@@ -20,13 +21,7 @@ export function validateCatalog(): string[] {
     if (move.category === 'Status' ? move.power !== 0 : move.power <= 0) errors.push(`Move ${id}: Status moves need zero power and damaging moves need positive power`);
     if (move.category === 'Status' ? move.delivery !== undefined : move.delivery !== 'melee' && move.delivery !== 'ranged') errors.push(`Move ${id}: damaging moves need melee or ranged delivery; Status moves have no attack delivery`);
     if (move.area && (!Number.isInteger(move.area.width) || !Number.isInteger(move.area.height) || move.area.width < 1 || move.area.height < 1)) errors.push(`Move ${id}: area must have positive integer dimensions`);
-    for (const effect of move.effects ?? []) {
-      if ('chance' in effect && (!Number.isFinite(effect.chance) || effect.chance < 0 || effect.chance > 1)) errors.push(`Move ${id}: effect chance must be between 0 and 1`);
-      if ('duration' in effect && (!Number.isInteger(effect.duration) || effect.duration < 1)) errors.push(`Move ${id}: effect duration must be a positive integer`);
-      if (effect.kind === 'chain' && (!Number.isFinite(effect.damageFraction) || effect.damageFraction <= 0)) errors.push(`Move ${id}: chain damage fraction must be positive`);
-      if (effect.kind === 'stage' && (!Number.isInteger(effect.delta) || effect.delta === 0)) errors.push(`Move ${id}: stage change must be a nonzero integer`);
-      if (effect.kind === 'displace' && (!Number.isInteger(effect.tiles) || effect.tiles < 1)) errors.push(`Move ${id}: displacement must be a positive tile count`);
-    }
+    for (const effect of move.effects ?? []) for (const message of validateMoveEffect(effect, move)) errors.push(`Move ${id}: ${message}`);
   }
   const formLinks = new Set<string>();
   for (const [id, species] of Object.entries(SPECIES)) {

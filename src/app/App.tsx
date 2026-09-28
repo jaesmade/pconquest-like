@@ -9,7 +9,7 @@ import TitleScreen from '../ui/TitleScreen';
 import type { TitleView } from '../ui/TitleScreen';
 import { itemCanEquip, itemFor, MAX_EQUIPPED_MOVES, MOVES } from '../content/data';
 import { MAX_RUN_POKEMON } from '../content/roster';
-import { active, advanceRoute, buyShopItem, commitEnemyAction, completeBattle, createLabBattle, evolve, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveSpecial, selectRouteNode, startBattle, useMove, useSpecial, unitAt } from '../game/engine';
+import { active, advanceRoute, buyShopItem, cancelPreparation, commitEnemyAction, completeBattle, createLabBattle, evolve, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveSpecial, selectRouteNode, startBattle, useMove, useSpecial, unitAt } from '../game/engine';
 import { ROUTE_COLUMNS } from '../game/route';
 import { EnemyPlanner } from '../game/enemyPlanner';
 import { cloneBattleForCommand } from '../game/clone';
@@ -20,6 +20,7 @@ import { freshRun, saveRun } from '../persistence/save';
 import { gameAudio } from '../audio/audio';
 
 const BattleScreen = lazy(() => import('../ui/BattleScreen'));
+const noRouteAction = () => {};
 const defaultLab: LabConfig = { allySpecies: 'bulbasaur', enemySpecies: 'charmander', allyLevel: 13, enemyLevel: 13, allyItem: 'None', enemyItem: 'None', weather: 'clear', seed: 12345 };
 
 export default function App({ initialRun }: { initialRun: Run }) {
@@ -164,6 +165,7 @@ export default function App({ initialRun }: { initialRun: Run }) {
     else if (next.selected.length < 6) next.selected.push(id);
   });
   const equipMove = (monId: string, moveId: string, slot: number) => patch(next => {
+    if (next.phase !== 'route') return;
     const mon = next.party.find(p => p.id === monId);
     if (!mon || !Number.isInteger(slot) || slot < 0 || slot >= MAX_EQUIPPED_MOVES || !mon.learned.includes(moveId)) return;
     const previousSlot = mon.equipped.indexOf(moveId);
@@ -172,7 +174,9 @@ export default function App({ initialRun }: { initialRun: Run }) {
     mon.equipped[slot] = moveId;
   });
   const equipItem = (monId: string, item: string) => patch(next => {
-    const mon = next.party.find(p => p.id === monId)!;
+    if (next.phase !== 'route') return;
+    const mon = next.party.find(p => p.id === monId);
+    if (!mon) return;
     if (!itemFor(item) || !itemCanEquip(item, mon.species)) return;
     const itemId = item as ItemId;
     if (itemId === mon.item) return;
@@ -183,6 +187,7 @@ export default function App({ initialRun }: { initialRun: Run }) {
   });
 
   const chooseItem = (monId: string, item: string) => {
+    if (run.phase !== 'route') return;
     const mon = run.party.find(candidate => candidate.id === monId);
     if (!mon || item === mon.item || !itemFor(item) || !itemCanEquip(item, mon.species)) return;
     if (item !== 'None' && !run.bag.includes(item as ItemId)) return;
@@ -198,18 +203,19 @@ export default function App({ initialRun }: { initialRun: Run }) {
 
   return <div className={`${animating ? 'app-shell animating' : 'app-shell'} ${(screen === 'game' && run.phase === 'battle') || screen === 'lab' ? 'in-battle' : ''}`}>
     {screen !== 'game' && screen !== 'lab' && <TitleScreen view={screen} canContinue={run.phase !== 'starter' && run.phase !== 'result'} saveFailed={saveFailed} soundMuted={soundMuted} labConfig={labConfig} setLabConfig={setLabConfig} onViewChange={setScreen} onContinue={() => setScreen('game')} onNewRun={() => { if (run.phase !== 'starter' && !window.confirm('Start a new run? This replaces the current saved run.')) return; setStarterDraft([]); setRun(freshRun(run.unlocks)); resetSelection(); setAnimating(false); setScreen('game'); }} onStartLab={startLab} onSoundMutedChange={muted => { gameAudio.setMuted(muted); setSoundMuted(muted); if (!muted) void gameAudio.unlock(); }} />}
-    {screen === 'game' && run.phase !== 'battle' && run.phase !== 'starter' && run.phase !== 'route' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button> · Column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} / {ROUTE_COLUMNS} · {run.coins} coins · Pokémon {run.party.length} / {MAX_RUN_POKEMON}</div></header>}
+    {screen === 'game' && run.phase !== 'battle' && run.phase !== 'starter' && run.phase !== 'route' && run.phase !== 'prepare' && run.phase !== 'intermission' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button> · Column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} / {ROUTE_COLUMNS} · {run.coins} coins · Pokémon {run.party.length} / {MAX_RUN_POKEMON}</div></header>}
+    {screen === 'game' && (run.phase === 'prepare' || run.phase === 'intermission') && <div className="route-scene-backdrop" aria-hidden="true"><RouteScreen backdropOnly run={run} onChoose={noRouteAction} onBack={noRouteAction} onEquipMove={noRouteAction} onEquipItem={noRouteAction} onEvolve={noRouteAction} /></div>}
     {screen === 'game' && <>
     {run.phase === 'starter' && <PartyBuilder selection={starterDraft} onSelectionChange={setStarterDraft} onStart={selection => setRun(newRun(selection, run.unlocks))} onBack={() => setScreen('title')} />}
-    {run.phase === 'route' && <RouteScreen run={run} onChoose={id => setRun(previous => selectRouteNode(previous, id))} onBack={() => setScreen('title')} />}
+    {run.phase === 'route' && <RouteScreen run={run} onChoose={id => setRun(previous => selectRouteNode(previous, id))} onBack={() => setScreen('title')} onEquipMove={equipMove} onEquipItem={chooseItem} onEvolve={id => setRun(previous => evolve(previous, id))} />}
     {(run.phase === 'shop' || run.phase === 'event') && <RouteStopScreen run={run} onBuy={item => { setRun(previous => buyShopItem(previous, item)); gameAudio.playItem(item); }} onContinue={() => setRun(previous => advanceRoute(previous))} onRecruit={(species, replaceId) => setRun(previous => resolveSpecial(previous, { kind: 'recruit', species, replaceId }))} onTakeCoins={() => setRun(previous => resolveSpecial(previous, { kind: 'coins' }))} />}
-    {run.phase === 'prepare' && <PrepareScreen run={run} onToggle={toggleDeploy} onEquipMove={equipMove} onEquipItem={chooseItem} onDeploymentChange={deployment => patch(next => { next.deployment = deployment; })} onStart={start} />}
+    {run.phase === 'prepare' && <PrepareScreen run={run} onToggle={toggleDeploy} onDeploymentChange={deployment => patch(next => { next.deployment = deployment; })} onStart={start} onBack={() => setRun(previous => cancelPreparation(previous))} />}
     {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={paused} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></Suspense>}
-    {run.phase === 'intermission' && <IntermissionScreen run={run} onEvolve={id => setRun(evolve(run, id))} onContinue={() => setRun(nextEncounter(run))} />}
+    {run.phase === 'intermission' && <IntermissionScreen run={run} onContinue={() => setRun(previous => nextEncounter(previous))} />}
     {run.phase === 'result' && <ResultScreen run={run} onNewRun={() => { setStarterDraft([]); setRun(freshRun(run.unlocks)); }} />}
     {paused && <div className="pause-backdrop" role="dialog" aria-modal="true" aria-label="Paused"><div className="pause-panel"><h2>Paused</h2><button autoFocus className="primary" onClick={() => { setPaused(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.battle-pause')?.focus()); }}>Resume</button><button onClick={() => { setPaused(false); setScreen('title'); }}>Title screen</button></div></div>}
     </>}
     {screen === 'lab' && labBattle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading Battle Lab…</h2></section></main>}><BattleScreen key={labSession} run={run} battle={labBattle} labSeed={labConfig.seed} controlBoth mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={false} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={startLab} onPause={() => { setAnimating(false); setScreen('lab-setup'); }} onLabReset={startLab} /></Suspense>}
-    {screen === 'game' && (run.phase === 'intermission' || run.phase === 'result') && <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>}
+    {screen === 'game' && run.phase === 'result' && <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>}
   </div>;
 }

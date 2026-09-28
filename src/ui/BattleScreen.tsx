@@ -6,6 +6,7 @@ import { abilityAbsorption, itemBlocksMove, itemFor, itemSpecial, mapHeight, map
 import { active, apGain, upcoming, unitAt } from '../game/engine';
 import { reachable } from '../game/grid';
 import { damageRange } from '../game/damage';
+import { previewMoveEffects } from '../game/moveEffects';
 import type { Battle, Run, StatStages, Unit } from '../game/types';
 import Sprite from './Sprite';
 
@@ -271,7 +272,9 @@ export default function BattleScreen(props: Props) {
       {notice && <p className="notice" role="status">{notice}</p>}
     </section>}
     {playerTurn && open && mode === 'attack' && !chosenMove && hoveredMove && <aside className="battle-move-tooltip" style={{ left: moveTooltip.left, top: moveTooltip.top }} role="status">
-      <b>{MOVES[hoveredMove].name}</b><p>{MOVES[hoveredMove].detail}</p><small>{MOVES[hoveredMove].type} · {MOVES[hoveredMove].category} · Power {MOVES[hoveredMove].power} · Range {MOVES[hoveredMove].range} · {MOVES[hoveredMove].apCost} AP</small>
+      <b>{MOVES[hoveredMove].name}</b><p>{MOVES[hoveredMove].detail}</p>
+      {current && previewMoveEffects(MOVES[hoveredMove], { battle, source: current, move: MOVES[hoveredMove], moveId: hoveredMove, tiles: [[current.x, current.y]] }).map((label, index) => <p key={`${hoveredMove}-${index}`}>{label}</p>)}
+      <small>{MOVES[hoveredMove].type} · {MOVES[hoveredMove].category} · Power {MOVES[hoveredMove].power} · Range {MOVES[hoveredMove].range} · {MOVES[hoveredMove].apCost} AP</small>
     </aside>}
     {playerTurn && mode === 'inspect' && inspected && !open && <aside className="inspect-card" aria-label="Tile inspection">
       {inspectedUnit && <div className="inspect-unit"><Sprite id={inspectedUnit.species} /><div><b>{inspectedUnit.name}</b><small>{inspectedUnit.side === 'player' ? 'Ally' : 'Opponent'} · {inspectedUnit.types.join(' / ')}</small><small>{inspectedUnit.hp}/{inspectedUnit.maxHp} HP · {inspectedUnit.ability}</small></div></div>}

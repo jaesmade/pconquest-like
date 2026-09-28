@@ -10,7 +10,7 @@ Give the game a distinct first impression before its existing run, Lab, and opti
 - Set **Pokémon** in dark navy above **Tactics** in coral. Use the pixel font with large responsive sizing and tight line spacing.
 - On the splash, keep the two-line wordmark centered in the upper-middle area and place **Press any key to start** near the lower edge. A pointer press anywhere also continues.
 - On the title menu, align the wordmark in the upper area and stack gray buttons with white outer edges and raspberry borders: **Continue** (only when a run is resumable), **New Run**, **Lab**, **Options**, and **Exit**.
-- Keep supporting screens over the same background. Put Lab setup, Options, and Exit text in a readable light panel instead of returning to the former dark title card.
+- Keep supporting screens over the same background. Put Lab setup, Options, and Exit text in a readable paper panel with navy body copy and the shared raspberry accents instead of returning to the former dark title card.
 
 The background is built from CSS gradients and grid layers in `src/styles/menus.css`; the title itself remains selectable HTML. The standalone island background documented in `ISOMETRIC_ASSETS.md` is not used in this screen design.
 

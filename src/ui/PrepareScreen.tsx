@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { itemCanEquip, ITEMS, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES } from '../content/data';
+import { MAPS, SPECIES } from '../content/data';
 import { encounterDefinition, statsAtLevel } from '../game/engine';
 import { canDeploy, resolvePlayerDeployment } from '../game/deployment';
 import type { GridPoint, PartyMon, Run } from '../game/types';
@@ -9,13 +9,12 @@ import Sprite from './Sprite';
 type Props = {
   run: Run;
   onToggle: (id: string) => void;
-  onEquipMove: (monId: string, moveId: string, slot: number) => void;
-  onEquipItem: (monId: string, item: string) => void;
   onDeploymentChange: (deployment: Record<string, GridPoint>) => void;
   onStart: () => void;
+  onBack: () => void;
 };
 
-export default function PrepareScreen({ run, onToggle, onEquipMove, onEquipItem, onDeploymentChange, onStart }: Props) {
+export default function PrepareScreen({ run, onToggle, onDeploymentChange, onStart, onBack }: Props) {
   const [focused, setFocused] = useState('');
   const [placementNotice, setPlacementNotice] = useState('');
   const encounter = encounterDefinition(run);
@@ -41,7 +40,8 @@ export default function PrepareScreen({ run, onToggle, onEquipMove, onEquipItem,
     setPlacementNotice(`${SPECIES[focusedMon.species].name} placed at column ${point[0] + 1}, row ${point[1] + 1}.`);
   };
 
-  return <main className="prepare-screen">
+  return <main className="prepare-screen route-modal-screen">
+    <div className="route-modal-frame prepare-frame">
     <header className="prepare-title"><span className="eyebrow">COLUMN {run.encounter + 1} · {map.name} · {map.weather} weather</span><h2>Choose Position</h2><p>Select up to six healthy Pokémon, then click a green tile on the rendered map. An occupied tile swaps the two Pokémon when both placements are legal.</p></header>
     <div className="prepare-layout">
       <aside className="prepare-roster" aria-label="Your party"><h3>Your Party <small>{selected.length} / 6</small></h3>
@@ -61,9 +61,7 @@ export default function PrepareScreen({ run, onToggle, onEquipMove, onEquipItem,
         <div className="prepare-map-footer"><span role="status">{placementNotice || (focusedMon ? `Placing ${SPECIES[focusedMon.species].name}. Choose a green tile.` : 'Select a healthy Pokémon.')}</span><button type="button" className="primary" disabled={!selected.length || selected.some(mon => !placements[mon.id])} onClick={onStart}>Enter battle →</button></div>
       </section>
     </div>
-    <details className="prepare-loadout"><summary>Moves and held items</summary><div className="prep-list">{run.party.map(mon => <article className="prep-card" key={mon.id}>
-      <div className="prep-head"><Sprite id={mon.species} /><div><strong>{SPECIES[mon.species].name}</strong><small>Lv {mon.level} · {mon.hp}/{statsAtLevel(mon.species, mon.level)[0]} HP</small></div></div>
-      <div className="prep-controls">{Array.from({ length: MAX_EQUIPPED_MOVES }, (_, slot) => <label key={slot}>Move {slot + 1} <select value={mon.equipped[slot]} onChange={event => onEquipMove(mon.id, event.target.value, slot)}>{mon.learned.map(id => <option value={id} key={id}>{MOVES[id].name}</option>)}</select></label>)}<label>Held item <select value={mon.item} onChange={event => onEquipItem(mon.id, event.target.value)}>{[mon.item, ...ITEMS.filter(item => (item === 'None' || run.bag.includes(item)) && itemCanEquip(item, mon.species))].filter((item, index, all) => all.indexOf(item) === index).map(item => <option key={item}>{item}</option>)}</select></label></div>
-    </article>)}</div></details>
+    </div>
+    <button type="button" className="route-modal-back" aria-label="Return to route selection" onClick={onBack}>&lt;</button>
   </main>;
 }

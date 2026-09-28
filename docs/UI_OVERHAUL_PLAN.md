@@ -4,7 +4,18 @@
 
 The title, party draft, route controls, preparation, shop, special encounter, and post-battle screens now use one interface palette. `src/styles/theme.css` defines navy ink (`#17303e`), raspberry borders (`#b6194e`), coral display accents (`#ed6b5d`), gold primary actions (`#ffcb3d`), pale aqua page backgrounds, and paper or gray panels. Pixel lettering is reserved for display headings and short controls; body copy stays in the readable sans-serif face. Primary actions use gold with a raspberry outline, while neutral menu choices use gray.
 
-The cavern illustration and isometric battle map keep their own environmental colors. Battle HUD panels use dark navy surfaces for contrast with the map, with the same raspberry outline and gold focus/current-turn cue. Health, teams, terrain, and targeting colors continue to communicate gameplay state and should not be recolored solely to match menu decoration. Shared styling loads after the screen styles so new screens can use the tokens without copying older green panel rules. Review at desktop and narrow widths; keep critical controls inside safe-area insets and give keyboard focus a visible gold outline.
+The isometric battle map keeps its environmental colors, while route stops use the same tiled floor as route selection. Battle HUD panels use dark navy surfaces for contrast with the map, with the same raspberry outline and gold focus/current-turn cue. Health, teams, terrain, and targeting colors continue to communicate gameplay state and should not be recolored solely to match menu decoration. Shared styling loads after the screen styles so new screens can use the tokens without copying older green panel rules. Review at desktop and narrow widths; keep critical controls inside safe-area insets and give keyboard focus a visible gold outline.
+
+## Implementation progress (palette and XP reward pass)
+
+- Shared colors now flow through the title options, route HUD and party panel, shop/special stops, preparation, battle HUD, and result screen. Navy glass frames and pale paper panels contain the content; raspberry outlines and gold primary actions give controls a consistent hierarchy. Healing and other gameplay signals keep their semantic colors. The shop/special and result screens use the same repeating route tile floor instead of the separate cavern backdrop.
+- The XP screen leads with a per-Pokémon XP and coin summary. Each scrollable card shows the portrait, final level, awarded XP, level progress, HP, and deployed/reserve state; a level-up badge appears when the new level can be established from the XP award. Level and move milestones sit below the cards. Cards and bars animate briefly unless reduced motion is enabled. The existing battle reward and progression rules are unchanged.
+- The local production build was checked. Screen appearance and interactions still need an in-browser review at desktop and narrow widths; the prior browser approval was unavailable because of the account usage limit.
+
+## Implementation progress (route-linked preparation and growth)
+
+- Deployment and post-battle XP now use the route selector as a noninteractive backdrop. A dark translucent outer frame and pale translucent panels follow the supplied position and XP references. Preparation keeps the live isometric placement board beside the party roster, with a Back control that returns to the route choice before battle. On small screens the roster sits in a scrollable strip above the map.
+- The growth screen replaces the text-only report with scrollable Pokémon cards showing portrait, level, awarded XP, level progress, and HP. Coins, level-ups, and learned-move messages remain visible below the cards. The action control continues the run. Route generation, placement legality, and XP awards are unchanged.
 
 ## Implementation progress (glass battle action menu)
 
@@ -51,9 +62,10 @@ The cavern illustration and isometric battle map keep their own environmental co
 
 ## Implementation progress (route and preparation)
 
-- The route is now a saved ten-column cavern graph with a guaranteed boss in column ten. Middle columns contain two to four nodes, with four-node branches guaranteed in columns 4 and 7. React renders the full-screen stone-grid board with raised layered node tiles, cyan paths, glowing amber-marked choices, a lead-Pokémon position marker, compact coin/party controls, a title return control, and a translucent responsive party overlay. Only the next connected nodes accept input. See [ROUTE_OVERHAUL.md](ROUTE_OVERHAUL.md).
+- The route is now a saved ten-column graph with a guaranteed boss in column ten. Middle columns contain two to four nodes, with four-node branches guaranteed in columns 4 and 7. React renders the full-screen repeating pale isometric tile board with larger raised and engraved node tiles, blue paths, glowing amber-marked choices, an original explorer marker, coin/Party controls on the left, a compact upper-right title return control, and a translucent responsive party overlay. The start and first battle align on the center row, columns have wider spacing, and the graph can be dragged horizontally through the boss; only the next connected nodes accept input. See [ROUTE_OVERHAUL.md](ROUTE_OVERHAUL.md).
 - Battle and elite nodes open preparation, healing fully restores and revives, stores sell held items for coins, and the initial special encounter offers one of two free recruits or a coin cache.
-- Preparation now places up to six selected Pokémon directly on the authored isometric map. The roster remains scrollable, and move and held-item controls remain available in an expandable section. Tile legality and saved positions use the same deployment rules as battle.
+- The route party overlay now expands each owned Pokémon into four learned-move selectors, a compatible bag-item selector, and an evolution action when eligible. These changes are available while choosing the next route node. The post-battle screen reports growth and points back to the route.
+- Preparation now places up to six selected Pokémon directly on the authored isometric map. Its scrollable roster and map are for deployment and positioning only. Tile legality and saved positions use the same deployment rules as battle.
 
 ## Goal and current baseline
 

@@ -14,3 +14,7 @@ Choose each Pokémon's species, level (1–100), and compatible held item, then 
 - The battle menu returns to setup. Battle Lab state is not written to the campaign save; the current run remains available from **Continue**.
 
 The arena is deliberately plain and flat. Campaign maps remain the place to inspect terrain, elevation, and hazard interactions. The lab is for quick move, item, ability, animation, and damage comparisons.
+
+## Scripted gameplay smoke playthrough
+
+Run `npm run playthrough` locally to exercise a deterministic three-Pokémon draft, first route node, preparation, battle against the solo enemy planner, XP and coin rewards, and return to the route. The script also uses Battle Lab state to check the current effect families: weather, stat stages, displacement, timed cover, Burn, and a Thunder Shock chain against a Ground-type secondary target. It checks that the enemy chooses useful weather and declines to recast it while active. Its player commands use a simple damage-first policy; the script is a rules and progression check, not an assertion that this is optimal play or a rendered UI check. The latest result is recorded in [the project master record](PROJECT_MASTER.md).

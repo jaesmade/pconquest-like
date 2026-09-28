@@ -1,7 +1,7 @@
 import { itemBlocksMove, mapHeight, mapWidth, MOVES } from '../content/data';
 import { active, affectedTiles, canHitAtTarget, canHitWithMove, canUseMove, damagePreview, inMoveRange, type EnemyAction } from './engine';
 import { AttackPositionSearch, stepCost } from './grid';
-import { MAX_STAGE } from './stages';
+import { scoreMoveEffects } from './moveEffects';
 import type { Battle, GridPoint, Unit } from './types';
 
 type Pursuit = { target: Unit; moveIds: string[] };
@@ -17,7 +17,10 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
   for (const target of targets) {
     const moves: { moveId: string; damage: number }[] = [];
     for (const moveId of enemy.moves) {
-      const damage = MOVES[moveId]?.power ? damagePreview(battle, enemy, target, moveId).damage : 0;
+      const move = MOVES[moveId];
+      const baseDamage = move?.power ? damagePreview(battle, enemy, target, moveId).damage : 0;
+      const damage = baseDamage > 0 ? baseDamage
+        + scoreMoveEffects(move, 'hit', { battle, source: enemy, target, move, moveId, tiles: [[target.x, target.y]] }) * 0.01 : 0;
       if (damage > 0) moves.push({ moveId, damage });
       yield;
     }
@@ -40,19 +43,9 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
   if (!enemy.attackedThisTurn) for (const moveId of enemy.moves) {
     const move = MOVES[moveId];
     if (!move || move.category !== 'Status' || enemy.ap < move.apCost || itemBlocksMove(enemy, move)) { yield; continue; }
-    if (move.effects?.some(effect => effect.kind === 'weather' && effect.weather === battle.weather)) { yield; continue; }
     if (move.target === 'self' && canUseMove(battle, enemy, moveId)) {
       const area = affectedTiles(battle.map, moveId, enemy.x, enemy.y);
-      const stages = (move.effects ?? []).filter(effect => effect.kind === 'stage');
-      let useful = !stages.length;
-      for (const effect of stages) for (const unit of battle.units) {
-        const applicable = unit.hp > 0 && area.some(([tx, ty]) => unit.x === tx && unit.y === ty)
-          && (effect.recipients === 'self' ? unit.id === enemy.id : effect.recipients === 'allies' ? unit.side === enemy.side : unit.side !== enemy.side)
-          && ((effect.delta > 0 ? unit.stages[effect.stat] < MAX_STAGE : unit.stages[effect.stat] > -MAX_STAGE)
-            || unit.stageUntil[effect.stat] <= battle.time + 100);
-        yield;
-        if (applicable) useful = true;
-      }
+      const useful = scoreMoveEffects(move, 'cast', { battle, source: enemy, move, moveId, tiles: area }) > 0;
       yield;
       if (useful) return { action: { kind: 'move-use', moveId, x: enemy.x, y: enemy.y } };
     } else if (move.target === 'tile') {
@@ -63,7 +56,8 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
         if (inRange) { target = candidate; break; }
       }
       const useful = target && canUseMove(battle, enemy, moveId, target.x, target.y)
-        && !move.effects?.some(effect => effect.kind === 'tile' && (battle.map.tiles[target.y][target.x][effect.field] ?? 0) > battle.time);
+        && scoreMoveEffects(move, 'cast', { battle, source: enemy, move, moveId,
+          tiles: affectedTiles(battle.map, moveId, target.x, target.y), target }) > 0;
       yield;
       if (useful && target) return { action: { kind: 'move-use', moveId, x: target.x, y: target.y } };
     } else yield;

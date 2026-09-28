@@ -8,5 +8,4 @@ profile-edge.log
 .docker-config/
 *.tsbuildinfo
 .rovodev/
-.agents/
 sample-assets/

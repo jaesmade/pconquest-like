@@ -2,7 +2,15 @@
 
 The new target assessment for 32×32 maps, competitive 8v8, 20 total owned Pokémon, and 60 FPS is in [SCALABILITY_TARGETS.md](SCALABILITY_TARGETS.md). This earlier review describes the current prototype.
 
-Review date: 2026-09-26. This is a code and architecture review of the early build. A local Node benchmark covers serialization and cloning on synthetic 8×8, 64×64, and 128×128 maps; low-end-device and browser frame profiles remain future work.
+Review date: 2026-09-26. This is a code and architecture review of the early build. A local Node benchmark covers serialization and cloning on synthetic 8×8, 64×64, and 128×128 maps; low-end-device and representative full-match browser profiles remain future work; a synthetic 32×32 browser profile was added later.
+
+## 2026-09-28 follow-up: current optimization check
+
+The production build still lazy-loads battle code. Its battle chunk is about 1.53 MB before compression (355 KB gzip); Vite reports the 500 KB chunk-size warning. This is a loading-budget signal, not evidence of an in-battle frame bottleneck. The prior [32×32 browser profile](RENDER_PROFILE.md) measured target-preview and attack-range work and supports keeping the current Phaser renderer until a full-match profile on a declared device identifies a slower path.
+
+The deployment preview rebuilt static SVG terrain and searched the selected roster for every tile on each placement update. `src/ui/DeploymentBoard.tsx` now memoizes map-derived cell coordinates, depth order, and static terrain elements by authored map reference; it builds a coordinate lookup for occupants and renders actor groups only for occupied or object tiles. Legal ally cells are recalculated when the focused species or map changes. Placement rules, art order, and the rendered hit cells remain the same. This is a source-level optimization, not a measured FPS improvement; the current authored battle maps are 8×8.
+
+The remaining high-value checks are: profile a full 32×32, 8v8 battle on the chosen release device (including GPU/texture memory and animation bursts); measure preparation render/interaction time on a 32×32 authored map before adding further culling; and watch IndexedDB write latency if rapid committed states ever outpace the existing 700 ms battle/150 ms menu debounce. The current `saveRun` promise chain preserves write order but can queue stale snapshots if storage becomes slower than the save interval. Do not change save ordering or full-board rendering solely from this static audit.
 
 ## Addressed in this review
 
@@ -30,7 +38,7 @@ Run `node scripts/measure-save.mjs` to repeat the local synthetic-map benchmark.
 
 ### Medium: move and AI effect growth
 
-`src/game/engine.ts` handles all cast and hit effect families in branching code, while enemy status-move selection separately understands weather, stages, and tile effects. Adding a new effect requires coordinating combat, AI usefulness, preview, and animation. Move effect handlers should expose explicit validation, resolve, preview, and AI-scoring hooks with a stable execution order. This is an architecture step, not a reason to add a generic event system before there are more effect families.
+The six current move-effect families now have `validate`, `resolve`, `preview`, and AI `score` hooks in `src/game/moveEffects.ts`. The engine calls them in authored order within cast and hit phases, the catalog uses their validation, move hover uses their preview, and enemy status choices use their score. The direct-damage and AP scheduler remain in `engine.ts`; there is no generic event system. Future effects still need deliberate choices about AI weight, animation cues, and whether they can run on chained hits. See the [scaling guide](SCALING.md) for the execution contract.
 
 ### Medium: animation playback backlog
 

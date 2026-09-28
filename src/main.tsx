@@ -13,6 +13,7 @@ import './styles/route.css';
 import './styles/battle-actions.css';
 import './styles/theme.css';
 import './styles/battle-menu.css';
+import './styles/route-overlays.css';
 
 const contentErrors = [...validateCatalog(), ...validateMoveVisuals(), ...validateMoveSounds()];
 function AppLoader() {

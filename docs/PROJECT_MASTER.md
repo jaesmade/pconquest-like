@@ -25,6 +25,61 @@ For every future task that changes code, assets, behavior, or project documentat
 
 ## Recent changes
 
+### 2026-09-28 — Scripted gameplay playthrough
+
+- Added a repeatable local smoke playthrough (`npm run playthrough`) because the previous move-effect refactor had only been compiled. With a fixed battle seed and a three-Pokémon party, it completed draft, route choice, preparation, a six-round first-battle win, XP and coin rewards, and return to column two in 69 committed actions. Battle Lab checks also passed for Sandstorm, Harden, Water Pulse displacement, Rock Throw cover, Ember Burn, Thunder Shock chaining into a Ground-type immunity, and enemy weather selection without redundant recasting.
+- Main files: `scripts/playthrough-smoke-entry.ts`, `scripts/playthrough-smoke.mjs`, `package.json`; usage and scope are in [Battle Lab](BATTLE_LAB.md). The script passed locally. It exercises game rules directly; rendered UI, animation timing, and later route columns were not checked because browser visual access remains unavailable after the prior account usage-limit approval rejection.
+
+### 2026-09-28 — Shared move-effect handlers
+
+- Moved the six cast and hit effect families from engine branches into typed handlers with validation, resolution, preview, and AI scoring hooks. Catalog checks, enemy Status choices, damage-move tie breaking, and hover details now use those hooks. The engine keeps AP, direct damage, seeded RNG, and explicit cast-then-hit execution order.
+- Main files: `src/game/moveEffects.ts`, `src/game/engine.ts`, `src/game/enemyPlanner.ts`, `src/content/catalog.ts`, `src/ui/BattleScreen.tsx`; the contract is in [scaling guide](SCALING.md) and the finding is updated in [scalability audit](SCALABILITY_AUDIT.md). The local production build completed; no gameplay test or browser playthrough was run.
+
+### 2026-09-28 — Optimization audit and deployment preview reuse
+
+- Reviewed the current bundle, documented 32×32 render profile, battle redraws, save scheduling, route overlays, and preparation UI. The measured battle hotspot already has a target-preview cache; a renderer rewrite has no current evidence. Memoized static deployment SVG terrain and map geometry, indexed occupants by tile, and omitted empty actor groups so placement edits do less repeated work without changing placement rules.
+- Main file: `src/ui/DeploymentBoard.tsx`; findings and remaining measurement priorities are in [scalability audit](SCALABILITY_AUDIT.md) and [scaling guide](SCALING.md). The local production build completed and `git diff --check` passed. No new browser frame measurement was taken; visual browser access remains unavailable after the account usage-limit approval rejection.
+
+### 2026-09-28 — Shared palette and clearer XP rewards
+
+- Brought title options, route HUD, shop/special stops, preparation, battle HUD, and result panels closer to the same navy, paper, raspberry, and gold palette. Shop/special and result now share the route tile floor. Reworked the growth screen with a reward summary, clearer per-Pokémon XP cards and progress, level-up cues, milestone messages, and reduced-motion-aware animation; battle reward rules are unchanged.
+- Main files: `src/styles/theme.css`, `src/styles/menus.css`, `src/styles/route.css`, `src/styles/route-overlays.css`, `src/ui/RouteStopScreen.tsx`, `src/ui/ResultScreen.tsx`, `src/ui/IntermissionScreen.tsx`, [UI progress](UI_OVERHAUL_PLAN.md), [route guide](ROUTE_OVERHAUL.md), and [start screen guide](START_SCREEN_OVERHAUL.md). The local production build completed and `git diff --check` passed. Browser visual review remains unavailable following automatic approval review's account usage limit.
+
+### 2026-09-28 — Route-linked deployment and XP screens
+
+- Restyled battle preparation and post-battle growth to match the route selector's translucent overlay treatment. Preparation keeps the live isometric placement board and adds a Back action to return to route choice; growth now shows each Pokémon's portrait, level, awarded XP, progress, and HP in cards, with other rewards below.
+- Main files: `src/ui/PrepareScreen.tsx`, `src/ui/IntermissionScreen.tsx`, `src/ui/RouteScreen.tsx`, `src/app/App.tsx`, `src/game/engine.ts`, `src/styles/route-overlays.css`, [route behavior](ROUTE_OVERHAUL.md), and [UI progress](UI_OVERHAUL_PLAN.md). The local production build completed. Browser visual review remained unavailable because automatic approval review reported the account usage limit.
+
+### 2026-09-28 — Aligned, draggable route graph
+
+- Aligned the start tile and first battle with the route's center row, widened columns and rows, and expanded the horizontal map through the boss. Added mouse and touch drag scrolling with a movement threshold so dragging an available node does not select it.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, [route behavior](ROUTE_OVERHAUL.md), and [UI progress](UI_OVERHAUL_PLAN.md). The local production build completed; browser review remained blocked by automatic approval review because the account usage limit was reached. No gameplay test was run.
+
+### 2026-09-28 — Tile-only route floor
+
+- Replaced the route selector's decorative ruined-stone backdrop with a repeating isometric limestone tile asset. The route graph, raised encounter tokens, avatar, and HUD remain in their existing positions; only the floor art changes.
+- Main files: `public/assets/backgrounds/route-tiles.svg`, `src/styles/route.css`, [route art guide](ROUTE_OVERHAUL.md), and [UI progress](UI_OVERHAUL_PLAN.md). Local production build completed. Browser review was blocked by automatic approval review when the account usage limit was reached.
+
+### 2026-09-28 — Raised route token detail pass
+
+- Refined the isometric route tokens with shaded stone sides, inset borders, stronger grain, a detailed sword, a bright four-point elite emblem, and a pink-haired route avatar to follow the supplied image more closely. Removed the leftover rule that grayed out locked future nodes. Route generation and selection rules are unchanged.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, `public/assets/ui/route-trainer-placeholder.svg`, and [route art guide](ROUTE_OVERHAUL.md). The local production build completed and the route was visually inspected in a 1280×720 browser viewport. No gameplay test was run.
+
+### 2026-09-28 — Removed project-local game development skill pack
+
+- Removed all 74 locally installed skills from `gamedev-skills/awesome-gamedev-agent-skills`, deleted the tracked `skills-lock.json`, and removed the unused `.agents/` ignore rule. Project guidance remains in `AGENTS.md` and `docs/`; game code and assets were not changed by this removal.
+- Main files: `skills-lock.json` (deleted), `.gitignore`, and [scaling guide](SCALING.md). Checked that every lock entry belonged to the same source and that `.agents` and the lock file no longer exist. No build was needed for this tooling-only change.
+
+### 2026-09-28 — Stone-ruins route selector reference pass
+
+- Replaced the washed cavern route backdrop with original pale isometric ruins art, added a transparent pixel explorer marker, and enlarged and textured the colored raised node tiles. The route now uses blue links, amber choice pointers, a left coin/Party HUD, and a small upper-right back button without a large banner over the map. Kept the ten-column graph and legal-node rules; adjusted SVG framing and scroll positioning so the active tile and next choice remain visible on narrow screens.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, `public/assets/backgrounds/route-ruins-pixel.png`, `public/assets/ui/route-trainer-placeholder.svg`. Updated [route art and behavior](ROUTE_OVERHAUL.md) and [UI progress](UI_OVERHAUL_PLAN.md). Local production build completed; visually reviewed the route at 1920×1080 and 390×844 in the local browser. No gameplay test was run.
+
+### 2026-09-28 — Route-only party management
+
+- Moved four-move loadout editing, held-item assignment, and eligible evolution into each Pokémon's expandable card in the route party panel. Removed loadout editing from battle preparation and evolution actions from the post-battle growth report; preparation now focuses on deployment. The engine rejects evolution outside the route phase.
+- Main files: `src/ui/RouteScreen.tsx`, `src/ui/PrepareScreen.tsx`, `src/ui/IntermissionScreen.tsx`, `src/app/App.tsx`, `src/game/engine.ts`, `src/styles/route.css`. Updated [route behavior](ROUTE_OVERHAUL.md), [game rules](PLAN.md), and [UI progress](UI_OVERHAUL_PLAN.md). Local production build completed; no gameplay test was run.
+
 ### 2026-09-28 — Reference-matched route UI and four-node branches
 
 - Rebuilt the route screen around the supplied references: a full-screen isometric stone grid, raised layered nodes, cyan links, cyan-glowing choices with amber pointers, a lead-Pokémon marker, coin and party controls, a responsive translucent party overlay, and a compact title return control.

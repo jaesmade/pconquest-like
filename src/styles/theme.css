@@ -10,8 +10,12 @@
   --ui-white: #fff;
   --ui-stone: #c9c7c5;
   --ui-line: #a6b9b5;
+  --ui-muted: #405960;
+  --ui-berry-shadow: #741234;
   --ui-battle-panel: #132b36;
   --ui-battle-control: #29444e;
+  --ui-battle-muted: #d3e3df;
+  --ui-battle-line: #ad6b82;
 }
 
 .app-shell:not(.in-battle) {
@@ -57,7 +61,7 @@
   background: var(--ui-gold);
   border: 3px solid var(--ui-berry);
   border-radius: 10px;
-  box-shadow: 0 4px 0 #741234;
+  box-shadow: 0 4px 0 var(--ui-berry-shadow);
   font-weight: 800;
 }
 .primary:hover:not(:disabled),
@@ -65,9 +69,16 @@
 .primary:active,
 .party-start-button:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 1px 0 #741234;
+  box-shadow: 0 1px 0 var(--ui-berry-shadow);
 }
 .party-start-button:disabled { background: var(--ui-stone); }
+.pause-panel .primary {
+  color: var(--ui-ink);
+  background: var(--ui-gold);
+  border: 3px solid var(--ui-berry);
+  box-shadow: 0 4px 0 var(--ui-berry-shadow);
+}
+.pause-panel .primary:hover:not(:disabled) { background: #ffe079; }
 
 /* The cavern remains warm, while its labels and panels use the menu colors. */
 .route-heading h2 { color: var(--ui-coral); }
@@ -92,6 +103,30 @@
 .shop-grid button:hover:not(:disabled),
 .special-options button:hover:not(:disabled) { background: #fff2c2; }
 
+/* Route HUD and party management use the same navy glass as battle HUD. */
+.route-coins,
+.route-party-button,
+.route-back-button {
+  background: #132b36e8;
+  border-color: var(--ui-line);
+}
+.route-party-button:hover,
+.route-back-button:hover { background: #29444eef; }
+.route-party-panel {
+  background: #132b36ed;
+  border-color: var(--ui-line);
+}
+.route-party-head button {
+  color: var(--ui-paper);
+  background: var(--ui-battle-control);
+  border-color: var(--ui-line);
+}
+.route-party-card {
+  color: var(--ui-ink);
+  background: #f7f7f1e3;
+  border-color: var(--ui-line);
+}
+
 /* Preparation and rewards use the same aqua backdrop and panel language. */
 .prepare-screen { background: transparent; }
 .prepare-title .eyebrow { color: var(--ui-berry); }
@@ -100,22 +135,6 @@
 .prepare-map-panel { border-color: var(--ui-berry); }
 .prepare-map-head,
 .prepare-map-footer { background: var(--ui-paper); }
-.prepare-loadout {
-  background: var(--ui-paper);
-  border: 3px solid var(--ui-berry);
-}
-.prepare-loadout .prep-card {
-  color: var(--ui-ink);
-  background: var(--ui-white);
-  border-color: var(--ui-line);
-}
-.prepare-loadout .prep-head small,
-.prepare-loadout .prep-controls label { color: #405960; }
-.prepare-loadout .prep-controls select {
-  color: var(--ui-ink);
-  background: var(--ui-white);
-  border-color: var(--ui-berry);
-}
 
 .narrow .hero,
 .narrow .report,
@@ -133,7 +152,7 @@
 .narrow .hero p,
 .narrow .report p,
 .narrow .prep-card p,
-.narrow .prep-head small { color: #405960; }
+.narrow .prep-head small { color: var(--ui-muted); }
 .narrow .prep-card { background: var(--ui-white); }
 .narrow .prep-card button:not(.primary) {
   min-height: 44px;
@@ -144,12 +163,12 @@
 .narrow .prep-card button:not(.primary):hover { background: var(--ui-gold); }
 .narrow .report { padding: 16px 24px; }
 .narrow .report p + p { border-top: 1px solid var(--ui-line); }
-.app-shell:not(.in-battle) footer {
-  color: #405960;
+.app-shell:not(.in-battle) > footer {
+  color: var(--ui-muted);
   background: #f7f7f1e8;
   border-top: 3px solid var(--ui-berry);
 }
-.app-shell:not(.in-battle) footer a { color: var(--ui-berry); }
+.app-shell:not(.in-battle) > footer a { color: var(--ui-berry); }
 
 /* Dark battle surfaces carry the same berry outline and gold focus cue. */
 .battle-stage { background: var(--ui-ink-deep); }
@@ -159,12 +178,33 @@
 .camera-hud,
 .opponent-turn,
 .inspect-card,
-.pause-panel {
+.pause-panel,
+.battle-result,
+.lab-diagnostics {
   color: var(--ui-paper);
   background: #132b36ef;
   border: 2px solid var(--ui-berry);
   border-radius: 10px;
 }
+.battle-location small,
+.action-popup-head small,
+.inspect-unit small,
+.battle-log p,
+.lab-diagnostics p { color: var(--ui-battle-muted); }
+.battle-log p,
+.lab-diagnostics details,
+.lab-diagnostics details p { border-color: var(--ui-battle-line); }
+.battle-help {
+  color: var(--ui-battle-muted);
+  background: #132b36e8;
+  border: 1px solid var(--ui-battle-line);
+}
+.status-icon {
+  background: var(--ui-battle-control);
+  border-color: var(--ui-battle-line);
+}
+.status-icon small { color: var(--ui-battle-muted); }
+.minimap { border-color: var(--ui-line); }
 .battle-location .eyebrow { color: var(--ui-gold); }
 .turn-strip { background: #132b36e8; border: 2px solid var(--ui-berry); }
 .turn-portrait.now { border-color: var(--ui-gold); box-shadow: inset 0 0 0 2px var(--ui-gold); }
@@ -192,7 +232,7 @@
 .action-popup .end-turn {
   color: var(--ui-paper);
   background: var(--ui-battle-control);
-  border: 1px solid #ad6b82;
+  border: 1px solid var(--ui-battle-line);
 }
 .action-command-list button:first-child { background: #39525a; }
 .action-command-list button:hover:not(:disabled),
@@ -200,9 +240,9 @@
 .action-popup .moves button:hover:not(:disabled),
 .action-popup .end-turn:hover:not(:disabled) { background: #46636a; }
 .action-popup .moves button.active { border-color: var(--ui-gold); }
-.popup-confirm { background: var(--ui-battle-panel); border-top-color: #ad6b82; }
+.popup-confirm { background: var(--ui-battle-panel); border-top-color: var(--ui-battle-line); }
 .path-preview,
-.move-preview { background: #29444e; border-color: #ad6b82; }
+.move-preview { background: var(--ui-battle-control); border-color: var(--ui-battle-line); }
 .popup-connector { border-right-color: var(--ui-berry); }
 .action-popup.flip .popup-connector { border-left-color: var(--ui-berry); }
 .pause-panel h2 { font: 1.1rem/1.5 'Press Start 2P', monospace; }

@@ -20,10 +20,10 @@ export default function RouteStopScreen({ run, onBuy, onContinue, onRecruit, onT
   const [replaceId, setReplaceId] = useState<string>();
   const rosterFull = run.party.length >= MAX_RUN_POKEMON;
   const leaving = run.party.find(mon => mon.id === replaceId);
-  return <main className="route-stop-screen"><section className="route-stop-panel">
+  return <main className="route-stop-screen"><div className="route-stop-frame"><section className="route-stop-panel">
     {run.phase === 'shop' ? <>
       <span className="eyebrow">COLUMN {run.encounter + 1} · STORE</span><h2>Traveling Store</h2>
-      <p>You have <b>{run.coins} coins</b>. Purchased items go into your bag and can be assigned to a Pokémon during preparation.</p>
+      <p>You have <b>{run.coins} coins</b>. Purchased items go into your bag and can be assigned to a Pokémon at the next route choice.</p>
       <div className="shop-grid">{SHOP_STOCK.map(offer => <button key={offer.item} type="button" disabled={run.coins < offer.price} onClick={() => onBuy(offer.item)}><img src={`/assets/ui/icons/item-${offer.item.toLowerCase().replaceAll(' ', '-')}.svg`} alt="" /><span><strong>{offer.item}</strong><small>{itemFor(offer.item)?.description}</small></span><b>{offer.price} coins</b></button>)}</div>
       <p>Bag: {run.bag.length ? run.bag.join(', ') : 'Empty'}</p>
       <button className="primary" onClick={onContinue}>Continue route →</button>
@@ -44,5 +44,5 @@ export default function RouteStopScreen({ run, onBuy, onContinue, onRecruit, onT
         <div className="special-replacement-actions"><button type="button" onClick={() => { setPendingSpecies(undefined); setReplaceId(undefined); }}>Cancel</button><button type="button" className="primary" disabled={!leaving} onClick={() => { if (leaving) onRecruit(pendingSpecies, leaving.id); }}>Confirm replacement</button></div>
       </section>}
     </>}
-  </section></main>;
+  </section></div></main>;
 }

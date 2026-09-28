@@ -1,15 +1,21 @@
 import type { Move, MoveTag } from '../game/types';
 
 export const MOVE_TAGS: MoveTag[] = ['contact', 'punch', 'bomb', 'projectile', 'pulse', 'sound', 'weather', 'hazard'];
+export const MAX_EQUIPPED_MOVES = 4;
 export const hasMoveTag = (move: Move, tag: MoveTag) => move.tags.includes(tag);
 
 export const MOVES: Record<string, Move> = {
   tackle: { name: 'Tackle', type: 'Normal', category: 'Physical', delivery: 'melee', power: 45, range: 1, apCost: 1, target: 'unit', tags: ['contact'], detail: 'Adjacent hit.' },
+  scratch: { name: 'Scratch', type: 'Normal', category: 'Physical', delivery: 'melee', power: 50, range: 1, apCost: 1, target: 'unit', tags: ['contact'], detail: 'A direct claw attack.' },
+  quickAttack: { name: 'Quick Attack', type: 'Normal', category: 'Physical', delivery: 'melee', power: 40, range: 2, apCost: 1, target: 'unit', tags: ['contact'], detail: 'A quick strike up to two tiles away.' },
   ember: { name: 'Ember', type: 'Fire', category: 'Special', delivery: 'ranged', power: 48, range: 3, apCost: 1, target: 'unit', tags: ['projectile'], detail: '25% Burn.', effects: [{ kind: 'status', on: 'hit', status: 'burned', chance: 0.25, duration: 200 }] },
   vineWhip: { name: 'Vine Whip', type: 'Grass', category: 'Physical', delivery: 'melee', power: 50, range: 2, apCost: 1, target: 'unit', tags: ['contact'], detail: 'Pulls the target one tile.', effects: [{ kind: 'displace', on: 'hit', direction: 'pull', tiles: 1 }] },
+  razorLeaf: { name: 'Razor Leaf', type: 'Grass', category: 'Physical', delivery: 'ranged', power: 48, range: 3, apCost: 1, target: 'unit', tags: ['projectile'], detail: 'A leaf launched at a distant target.' },
   waterPulse: { name: 'Water Pulse', type: 'Water', category: 'Special', delivery: 'ranged', power: 50, range: 3, apCost: 1, target: 'unit', tags: ['pulse', 'projectile'], detail: 'Pushes the target one tile.', effects: [{ kind: 'displace', on: 'hit', direction: 'push', tiles: 1 }] },
+  bubble: { name: 'Bubble', type: 'Water', category: 'Special', delivery: 'ranged', power: 38, range: 2, apCost: 1, target: 'tile', tags: ['projectile'], area: { width: 2, height: 2, anchor: 'corner' }, detail: 'A 2×2 splash close to the user.' },
   thunderShock: { name: 'Thunder Shock', type: 'Electric', category: 'Special', delivery: 'ranged', power: 48, range: 3, apCost: 1, target: 'unit', tags: [], detail: '30% chance to chain to an adjacent enemy.', effects: [{ kind: 'chain', on: 'hit', chance: 0.3, radius: 1, damageFraction: 0.5 }] },
   rockThrow: { name: 'Rock Throw', type: 'Rock', category: 'Physical', delivery: 'ranged', power: 50, range: 3, apCost: 1, target: 'unit', tags: ['projectile'], detail: 'Creates temporary cover.', effects: [{ kind: 'tile', on: 'hit', field: 'coverUntil', duration: 150 }] },
+  rockSmash: { name: 'Rock Smash', type: 'Fighting', category: 'Physical', delivery: 'melee', power: 45, range: 1, apCost: 1, target: 'unit', tags: ['contact'], detail: 'An adjacent Fighting-type hit.' },
   mudSlap: { name: 'Mud Slap', type: 'Ground', category: 'Special', delivery: 'ranged', power: 42, range: 3, apCost: 1, target: 'unit', tags: ['projectile'], detail: 'Leaves slowing ground.', effects: [{ kind: 'tile', on: 'hit', field: 'mudUntil', duration: 150 }] },
   iceShard: { name: 'Ice Shard', type: 'Ice', category: 'Physical', delivery: 'ranged', power: 48, range: 6, apCost: 1, target: 'unit', tags: ['projectile'], detail: 'Long range.' },
   tailWhip: { name: 'Tail Whip', type: 'Normal', category: 'Status', power: 0, range: 0, apCost: 1, target: 'self', tags: [], area: { width: 3, height: 3, anchor: 'center' }, detail: 'Defense −1 for every Pokémon within a 3×3 area for 2 rounds.', effects: [{ kind: 'stage', on: 'cast', stat: 'defense', delta: -1, duration: 200, recipients: 'all' }] },

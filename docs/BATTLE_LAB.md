@@ -4,11 +4,11 @@ Battle Lab is a disposable 1v1 test battle reached from the title screen. It use
 
 ## Setup
 
-Choose each Pokémon's species, level (1–100), and compatible held item, then choose starting weather and a positive numeric seed. Both Pokémon begin at full HP. Each can use every move learned by its chosen level, so a move does not need to occupy one of the two campaign slots.
+Choose each Pokémon's species, level (1–100), and compatible held item, then choose starting weather and a positive numeric seed. Both Pokémon begin at full HP. Each has four equipped moves at the chosen level, favoring its first two species moves and then its most recent level unlocks.
 
 ## Inspecting results
 
-- Select **Attack**, choose a move, hover over a tile to preview range, type effectiveness, and damage, then click a valid tile to attack. The popup button can also use the previewed target.
+- Select **Attack**, hover or focus a move to see its description, then choose it. The board shows range and type effectiveness; click a valid tile to attack. Back returns to move choice without spending AP.
 - The **Damage lab** panel shows current HP and AP for both sides, starting seed, weather, noncritical and critical damage ranges for the selected move, and the combat log. Damage ranges use the same pure calculator as the battle engine and do not consume RNG.
 - **Replay seed** resets HP, statuses, items, weather, and turn order. With the same choices and command sequence, seeded combat rolls repeat. Animation playback and unique visual event IDs do not affect combat RNG.
 - The battle menu returns to setup. Battle Lab state is not written to the campaign save; the current run remains available from **Continue**.

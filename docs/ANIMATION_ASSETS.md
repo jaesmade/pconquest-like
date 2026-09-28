@@ -1,5 +1,7 @@
 # Animation asset guide
 
+For a start-to-finish workflow that covers unit sheets, move effects, and ability triggers, see the [unit, move, and ability authoring guide](UNIT_MOVE_ABILITY_ASSETS.md).
+
 ## Isometric battle environment and imported HUD art
 
 The current battlefield uses the [isometric environment family](ISOMETRIC_ASSETS.md): raised grass, water, lava, and stone tiles plus trees, rocks, and flowers. Tile tops are 96×48 pixels and elevation adds 20 pixels per level. The old Kenney terrain tiles below are retained in the repository as replaceable source material, but the active Phaser board loads the isometric manifest. The Kenney HUD frames remain active.
@@ -42,7 +44,34 @@ Named item and status icons remain in `public/assets/ui/icons/`. Grounded units 
 
 ## Attack effect files
 
-Every initial move has a named attack sheet under `public/assets/animations/attacks/`. The `attacks` entry in the manifest maps the exact move-data key to its URL and playback style. The styles are `melee` (effect at target, no projectile travel), `projectile` (travel from attacker to target, then play at impact), `area` (play across affected cells), `self` (play on the user), and `weather` (brief board-wide cue). A newly added move without a manifest entry uses the shared `effect-attack-impact` sheet as a fallback.
+Every initial move has a named attack sheet under `public/assets/animations/attacks/`. The `attacks` entry in the manifest maps a visual ID to its URL and playback style. The styles are `melee` (effect at target, no projectile travel), `projectile` (travel from attacker to target, then play at impact), `area` (play across affected cells), `self` (play on the user), and `weather` (brief board-wide cue). A newly added move without a named sheet automatically uses one of the reusable placeholders below.
+
+### Assignable placeholders for new moves
+
+These original, disposable pixel sheets live in `public/assets/animations/move-placeholders/`. Each PNG is **128×32 pixels: four transparent 32×32 frames in one row**. View the [contact sheet](MOVE_PLACEHOLDER_PREVIEW.png) at enlarged nearest-neighbor scale. The white effect pixels are tinted to the move's type at runtime; dark outlines stay dark. All 18 type tints are listed in `src/battle/moveVisuals.ts`. Named move art is drawn in its own colors and is not tinted.
+
+| Visual ID in `animation-manifest.json` | File | Style | Automatic use |
+| --- | --- | --- | --- |
+| `placeholderMelee` | `move-placeholder-melee-32px.png` | melee | Melee damaging move |
+| `placeholderProjectile` | `move-placeholder-projectile-32px.png` | projectile | Ranged single-target move |
+| `placeholderArea` | `move-placeholder-area-32px.png` | area | Move with an affected area |
+| `placeholderSelf` | `move-placeholder-self-32px.png` | self | Self-targeted status move |
+| `placeholderHazard` | `move-placeholder-hazard-32px.png` | area | Move that creates a tile effect or hazard |
+| `placeholderWeather` | `move-placeholder-weather-32px.png` | weather | Weather-changing move |
+
+The renderer chooses visual art in this order: **a named manifest entry whose ID matches the move ID**, then the move's optional `visualId`, then the automatic placeholder above. To choose a different placeholder or reuse an existing named visual, set `visualId` in `src/content/moves.ts`:
+
+```ts
+newMove: {
+  name: 'New Move', type: 'Fire', category: 'Special', delivery: 'ranged',
+  power: 50, range: 3, apCost: 1, target: 'unit', tags: ['projectile'],
+  visualId: 'placeholderProjectile', detail: 'Temporary move art.',
+},
+```
+
+`visualId` is an asset ID, not a filename. It must exist under `attacks` in the manifest; startup validation reports unknown IDs. To replace a placeholder for one move, add a unique `attacks` entry keyed by that move ID and point it to a four-frame PNG. That named entry automatically takes priority; other moves can keep using the shared placeholder. The effect style controls placement and travel, while `delivery` and `category` still choose the unit's Attack, Shoot, or Charge strip. Move rules, damage, and tags do not depend on the visual ID. Assign sound separately with `soundId` as described in the [audio guide](AUDIO_ASSETS.md).
+
+Run `py scripts/generate_move_placeholders.py` to recreate missing placeholder sheets and the preview. The script preserves existing files unless `--force` is passed. These assets were drawn by the project script with Pillow on 2026-09-28; they use no third-party art. Replace the named PNGs freely, keeping their four-frame dimensions and transparent background. The preview is documentation only and is not loaded by the game.
 
 | Move key       | PNG filename                    | Style      | Placeholder cue                            |
 | -------------- | ------------------------------- | ---------- | ------------------------------------------ |
@@ -91,7 +120,7 @@ Keep pixel edges sharp by using nearest-neighbor texture filtering. A reduced-mo
 2. Add a set under `unitSets` in the manifest. Each clip provides its own URL, frame width and height, frames per row, row count, fps, and loop flag. Set `facingRows` to match that set's source direction order. Add optional `shadows` URLs keyed by clip; each shadow sheet must match that clip's dimensions and frame layout. Species may have different frame sizes and counts.
 3. Point the species or Mega species ID in `units` to its set ID. Leave it mapped to `placeholder` until its own art is available.
 4. Assign a separate Normal portrait PNG to the set's `normal` URL. The shared placeholder portrait remains available until each species has its own art.
-5. Replace named attack sheets under `attacks/` separately. They remain four 32×32 frames. The move's melee/ranged delivery chooses Attack or Shoot; the effect style (`melee`, `projectile`, `area`, `self`, `weather`) chooses where the separate effect appears.
+5. Assign a reusable move placeholder with `visualId`, or let the renderer select one from the move definition. For unique art, add an `attacks` manifest entry keyed by the move ID and use a four-frame 32×32 sheet. The move's melee/ranged delivery chooses Attack or Shoot; the visual style (`melee`, `projectile`, `area`, `self`, `weather`) chooses where the separate effect appears.
 6. Shared effects under `effects/` remain four-frame 32×32 strips. Ground shadow sheets are tinted black in the renderer; use opaque mask pixels with transparent surroundings. Flight shadows and swim ripples still use Phaser ellipses.
 7. Refresh the local Vite browser after changing PNGs or manifest data. Run `npm run build` for a local production bundle. The old `scripts/generate_placeholder_animations.py` produces legacy combined sheets and is not the import path for these strips.
 

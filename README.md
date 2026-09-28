@@ -2,6 +2,8 @@
 
 This early browser build turns the [design plan](docs/PLAN.md) into a tactical run. It uses a shared temporary animation set and portrait until species-specific art is added. The battle board is Phaser, menus are React, and combat rules and content are TypeScript.
 
+The [project master record](docs/PROJECT_MASTER.md) indexes the design documents and records completed changes. Future work is logged there.
+
 ## Run locally
 
 ```powershell
@@ -35,6 +37,10 @@ Source layout: [main.tsx](src/main.tsx) loads and mounts the game; [App.tsx](src
 The battlefield now uses a [replaceable isometric tile family](docs/ISOMETRIC_ASSETS.md) and a generated reference-inspired title backdrop. The route uses a separate [generated cavern backdrop](docs/ROUTE_OVERHAUL.md). Its square combat rules remain unchanged; the renderer projects cells, units, paths, and attack effects into the new view. Pokémon sheets remain named placeholders.
 
 The [animation asset guide](docs/ANIMATION_ASSETS.md) describes filenames, sheet layout, direction rows, frame ranges, all 15 move-specific attack effects, and replacement steps. The runtime reads [animation-manifest.json](public/assets/animations/animation-manifest.json). Named starter sheets are included; other forms use the `placeholder` sheet until their artwork is added. Attack effects are queued on the board so quick enemy turns do not overwrite them.
+
+The [unit, move, and ability authoring guide](docs/UNIT_MOVE_ABILITY_ASSETS.md) gives the file naming rules and step-by-step manifest registration for replacement art and sounds.
+
+New moves can use six [assignable visual placeholders](docs/MOVE_PLACEHOLDER_PREVIEW.png) and matching sound cues for melee, projectile, area, self, hazard, and weather effects. Set a move's `visualId` and `soundId`, or let the renderer and audio system choose by move shape. Adding a named sheet or sound keyed by the move ID replaces its placeholder without changing battle rules.
 
 The [audio asset guide](docs/AUDIO_ASSETS.md) lists original placeholder music, move sounds, item sounds, and shared cues, with replacement instructions. The runtime reads [audio-manifest.json](public/assets/audio/audio-manifest.json); the top bar has a persistent Sound On/Off control.
 

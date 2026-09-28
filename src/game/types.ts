@@ -21,7 +21,7 @@ export type MoveEffect =
   | { kind: 'weather'; on: 'cast'; weather: Weather; duration: number };
 export type MoveTag = 'contact' | 'punch' | 'bomb' | 'projectile' | 'pulse' | 'sound' | 'weather' | 'hazard';
 export type AttackDelivery = 'melee' | 'ranged';
-type MoveBase = { name: string; type: string; power: number; range: number; apCost: number; target: 'unit' | 'tile' | 'self'; detail: string; tags: MoveTag[]; area?: { width: number; height: number; anchor: 'center' | 'corner' }; effects?: MoveEffect[] };
+type MoveBase = { name: string; type: string; power: number; range: number; apCost: number; target: 'unit' | 'tile' | 'self'; detail: string; tags: MoveTag[]; visualId?: string; soundId?: string; area?: { width: number; height: number; anchor: 'center' | 'corner' }; effects?: MoveEffect[] };
 export type Move = MoveBase & ({ category: 'Physical' | 'Special'; delivery: AttackDelivery } | { category: 'Status'; delivery?: never });
 export type MobilityState = 'grounded' | 'flying' | 'swimming';
 export type Mobility = { canFly: boolean; canSwim: boolean; state: MobilityState };

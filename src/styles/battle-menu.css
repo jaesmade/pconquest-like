@@ -1,0 +1,142 @@
+/* Floating battle controls; only each control has a glass surface. */
+.action-popup.glass-action-menu {
+  --glass-ink: #102a36;
+  --glass-edge: #d8ffffbd;
+  width: min(246px, calc(100vw - 24px));
+  max-height: min(68dvh, calc(100dvh - 190px));
+  gap: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--glass-ink);
+  background: transparent;
+  border: 0;
+  border-image: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.action-popup.glass-action-menu.choosing-move { width: min(320px, calc(100vw - 24px)); }
+.action-popup.glass-action-menu.targeting { width: 52px; }
+.glass-action-menu .action-command-list { display: grid; gap: 7px; overflow: visible; }
+.glass-action-menu button {
+  min-height: 44px;
+  border: 2px solid var(--glass-edge);
+  border-radius: 13px;
+  color: var(--glass-ink);
+  background: linear-gradient(145deg, #effffc9e, #cbf5ed78);
+  box-shadow: 0 4px 12px #0619237a, inset 0 1px 0 #ffffff9e;
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  font: clamp(.69rem, 1.1vw, .83rem)/1.45 'Press Start 2P', monospace;
+  text-shadow: 0 1px 1px #ffffff8c;
+  text-align: center;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.glass-action-menu .action-command-list button,
+.glass-action-menu .action-command-list button:first-child {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px;
+  color: var(--glass-ink);
+  background: linear-gradient(145deg, #effffc9e, #cbf5ed78);
+  border: 2px solid var(--glass-edge);
+}
+.glass-action-menu button:hover:not(:disabled),
+.glass-action-menu .action-command-list button:hover:not(:disabled),
+.glass-action-menu .action-move-choice .moves button:hover:not(:disabled) {
+  color: var(--glass-ink);
+  border-color: #fff;
+  background: linear-gradient(145deg, #effffcc2, #cdf8f0a8);
+}
+.glass-action-menu button:active:not(:disabled) { transform: translateY(1px); }
+.glass-action-menu button:disabled { opacity: .5; box-shadow: none; }
+.glass-action-menu button:focus-visible { outline: 3px solid var(--ui-gold); outline-offset: 2px; }
+
+.glass-action-menu .action-move-choice { display: grid; justify-items: center; gap: 9px; }
+.glass-action-menu .action-move-choice .moves {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 50px minmax(0, 1fr);
+  grid-template-rows: repeat(3, minmax(44px, auto));
+  align-items: center;
+  gap: 6px;
+  max-height: none;
+  margin: 0;
+  overflow: visible;
+  padding: 0;
+}
+.glass-action-menu .action-move-choice .moves button {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px;
+  overflow-wrap: anywhere;
+  color: var(--glass-ink);
+  background: linear-gradient(145deg, #effffc9e, #cbf5ed78);
+  border: 2px solid var(--glass-edge);
+  text-align: center;
+  font-size: .7rem;
+}
+.glass-action-menu .action-move-choice .moves .move-position-top,
+.glass-action-menu .action-move-choice .moves .move-position-bottom {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(124px, 100%);
+}
+.glass-action-menu .action-move-choice .moves .move-position-top { grid-row: 1; }
+.glass-action-menu .action-move-choice .moves .move-position-left { grid-column: 1; grid-row: 2; }
+.glass-action-menu .action-move-choice .moves .move-center { grid-column: 2; grid-row: 2; min-width: 0; padding: 0; font: 2.1rem/1 monospace; }
+.glass-action-menu .action-move-choice .moves .move-position-right { grid-column: 3; grid-row: 2; }
+.glass-action-menu .action-move-choice .moves .move-position-bottom { grid-row: 3; }
+.glass-action-menu .menu-back { width: 52px; min-width: 52px; min-height: 46px; padding: 0; font: 2.1rem/1 monospace; }
+.battle-move-tooltip {
+  position: absolute;
+  z-index: 7;
+  width: min(280px, calc(100vw - 24px));
+  max-height: 170px;
+  overflow: auto;
+  padding: 10px 12px;
+  color: #102a36;
+  background: #e5fff3a8;
+  border: 2px solid #d8ffffbd;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px #1d4d5147;
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  pointer-events: none;
+}
+.battle-move-tooltip b { display: block; font: .72rem/1.55 'Press Start 2P', monospace; }
+.battle-move-tooltip p { margin: 6px 0; color: #234750; font-size: .8rem; line-height: 1.45; }
+.battle-move-tooltip small { display: block; margin-top: 5px; color: #365a61; font-size: .72rem; line-height: 1.4; }
+.glass-action-menu .action-target-choice { display: flex; align-items: center; gap: 9px; }
+.glass-action-menu .action-special-choice { display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: center; }
+.glass-action-menu .action-special-choice > small { grid-column: 1 / -1; color: #365a61; text-align: center; font-size: .72rem; }
+.glass-action-menu .action-end-confirm { display: grid; gap: 8px; }
+.glass-action-menu .action-end-confirm p {
+  margin: 0 0 4px;
+  padding: 10px;
+  color: var(--glass-ink);
+  background: #e5fff3a8;
+  border: 2px solid var(--glass-edge);
+  border-radius: 12px;
+  font-size: .82rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.glass-action-menu .notice { margin-top: 8px; color: #803c36; }
+.battle-actor-hud button { border: 1px solid #cce8e4; border-radius: 9px; background: #ffffff2e; backdrop-filter: blur(10px); }
+
+@media (max-width: 700px) {
+  .action-popup.glass-action-menu,
+  .action-popup.glass-action-menu.choosing-move {
+    right: auto;
+    bottom: auto;
+    max-height: min(58dvh, calc(100dvh - 190px));
+  }
+  .glass-action-menu .action-move-choice .moves { grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr); gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-action-menu button { transition: none; }
+}

@@ -4,6 +4,8 @@ Static review of the early build on 2026-09-27. Compared `PLAN.md` and `BALANCE.
 
 ## Resolved since the review
 
+- **Full-roster special recruitment:** At 20 owned Pokémon, the special screen now asks which roster member to replace and requires confirmation. Resolution checks the offered species and replacement ID, returns the leaving Pokémon's held item to the bag, and transfers its selected party slot to the recruit. See `src/game/engine.ts` and `src/ui/RouteStopScreen.tsx`.
+
 - **Thunder Shock chain damage:** The chained target now gets its own evasion, absorption, type, critical, variance, stat, weather, and item checks. Damage is half of that target's calculated hit, rounded up. The chain applies no further on-hit effects or contact reactions. See `src/game/engine.ts` and `docs/PLAN.md`.
 - **Area damage through solid blockers:** Walls, trees, and rocks cannot be aim points. Each defender in a damaging area must have clear line of sight from the attacker. Targeting preview, AI, visual effect tiles, and damage resolution use that rule. See `src/game/grid.ts`, `src/game/engine.ts`, `src/game/enemyPlanner.ts`, `src/ui/MovePreview.tsx`, and `src/battle/Board.tsx`.
 - **Stealth Rock zone ownership:** Each caster's active zone has a source ID, zone ID, tiles, and expiry. Recasting removes only that caster's old zone, while overlapping zones from others remain. The derived tile expiry handles a single hazard trigger per entry. Save v13 keeps zone ownership and migrates old tile expiries as temporary legacy zones. See `src/game/hazards.ts` and `src/persistence/save.ts`.
@@ -24,7 +26,6 @@ Mega HP conversion is deferred by the user. Future Mega forms are intended to re
 
 | Priority | Gap | Evidence and next step |
 | --- | --- | --- |
-| P1 | **Special recruitment has no full-roster replacement.** The special node offers two recruit species or coins, but recruitment is disabled at the 20-Pokémon cap. | `src/game/engine.ts` `offerRecruits`, `resolveSpecial`; `src/ui/RouteStopScreen.tsx` special screen. Add a replacement flow when full. |
 | P2 | **The ten-column route has limited event variety and unlock effects.** Seeded battle, elite, heal, store, special, and boss nodes now branch, but the special event has one script and a win increments `unlocks` without changing future available content. | `src/game/route.ts`; `src/game/engine.ts`; `src/ui/RouteStopScreen.tsx`. Add data-driven special encounter variants and make at least one unlock alter a later run. |
 | P2 | **Movement and weather forecasts omit planned information.** Move preview shows AP and destination height but not hazard damage along the route. The battle HUD shows weather name without remaining duration or the next sandstorm tick. | `src/ui/BattleScreen.tsx` path preview and top HUD; `docs/PLAN.md` battle and weather rules. Derive forecast values from the selected path and battle time; do not consume RNG. |
 | Future target | **20 owned Pokémon and six deployed are supported locally; competitive 8v8 is not implemented.** Local AI has no authoritative match ownership or turn deadline. Competitive 8v8 remains future scope. | `docs/SCALABILITY_TARGETS.md`; `src/game/engine.ts`; `src/app/App.tsx`. Keep this as a separate multiplayer milestone, including server validation, replayable IDs, reconnect, AP-bank policy, and timeout rules. |

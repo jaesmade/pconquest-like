@@ -94,6 +94,12 @@ def song(name: str, bpm: int, melody: list[int], bass: list[int]) -> list[float]
 
 
 EFFECTS = {
+    "move-placeholders/move-placeholder-melee.wav": (0.22, 520, 110, "triangle", 0.22, 1),
+    "move-placeholders/move-placeholder-projectile.wav": (0.34, 710, 290, "square", 0.12, 3),
+    "move-placeholders/move-placeholder-area.wav": (0.42, 370, 760, "triangle", 0.16, 3),
+    "move-placeholders/move-placeholder-self.wav": (0.4, 300, 590, "triangle", 0.05, 2),
+    "move-placeholders/move-placeholder-hazard.wav": (0.43, 440, 100, "square", 0.34, 3),
+    "move-placeholders/move-placeholder-weather.wav": (0.64, 510, 170, "triangle", 0.52, 5),
     "moves/move-tackle.wav": (0.24, 180, 80, "triangle", 0.18, 1),
     "moves/move-ember.wav": (0.38, 420, 230, "square", 0.35, 5),
     "moves/move-vine-whip.wav": (0.33, 900, 130, "triangle", 0.32, 2),
@@ -152,7 +158,7 @@ def main() -> None:
     parser.add_argument("--force", action="store_true", help="Overwrite previously generated or replacement audio")
     args = parser.parse_args()
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    listed = {url.removeprefix("/assets/audio/") for category in ("music", "moves", "items", "abilities", "cues")
+    listed = {url.removeprefix("/assets/audio/") for category in ("music", "moves", "movePlaceholders", "items", "abilities", "cues")
               for url in manifest[category].values()}
     expected = set(EFFECTS) | set(SONGS)
     if listed != expected:

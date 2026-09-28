@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { itemCanEquip, ITEMS, MAPS, MOVES, SPECIES } from '../content/data';
+import { itemCanEquip, ITEMS, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES } from '../content/data';
 import { encounterDefinition, statsAtLevel } from '../game/engine';
 import { canDeploy, resolvePlayerDeployment } from '../game/deployment';
 import type { GridPoint, PartyMon, Run } from '../game/types';
@@ -63,7 +63,7 @@ export default function PrepareScreen({ run, onToggle, onEquipMove, onEquipItem,
     </div>
     <details className="prepare-loadout"><summary>Moves and held items</summary><div className="prep-list">{run.party.map(mon => <article className="prep-card" key={mon.id}>
       <div className="prep-head"><Sprite id={mon.species} /><div><strong>{SPECIES[mon.species].name}</strong><small>Lv {mon.level} · {mon.hp}/{statsAtLevel(mon.species, mon.level)[0]} HP</small></div></div>
-      <div className="prep-controls"><label>Move 1 <select value={mon.equipped[0]} onChange={event => onEquipMove(mon.id, event.target.value, 0)}>{mon.learned.map(id => <option value={id} key={id}>{MOVES[id].name}</option>)}</select></label><label>Move 2 <select value={mon.equipped[1]} onChange={event => onEquipMove(mon.id, event.target.value, 1)}>{mon.learned.map(id => <option value={id} key={id}>{MOVES[id].name}</option>)}</select></label><label>Held item <select value={mon.item} onChange={event => onEquipItem(mon.id, event.target.value)}>{[mon.item, ...ITEMS.filter(item => (item === 'None' || run.bag.includes(item)) && itemCanEquip(item, mon.species))].filter((item, index, all) => all.indexOf(item) === index).map(item => <option key={item}>{item}</option>)}</select></label></div>
+      <div className="prep-controls">{Array.from({ length: MAX_EQUIPPED_MOVES }, (_, slot) => <label key={slot}>Move {slot + 1} <select value={mon.equipped[slot]} onChange={event => onEquipMove(mon.id, event.target.value, slot)}>{mon.learned.map(id => <option value={id} key={id}>{MOVES[id].name}</option>)}</select></label>)}<label>Held item <select value={mon.item} onChange={event => onEquipItem(mon.id, event.target.value)}>{[mon.item, ...ITEMS.filter(item => (item === 'None' || run.bag.includes(item)) && itemCanEquip(item, mon.species))].filter((item, index, all) => all.indexOf(item) === index).map(item => <option key={item}>{item}</option>)}</select></label></div>
     </article>)}</div></details>
   </main>;
 }

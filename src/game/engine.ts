@@ -1,4 +1,4 @@
-import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
+import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MAX_EQUIPPED_MOVES, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
 import { MAX_RUN_POKEMON, STARTING_PARTY_POINTS, partyDraftCost } from '../content/roster';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
@@ -48,8 +48,13 @@ const scaleStats = (stats: Unit['stats'], level: number) => stats.map((base, ind
   index === 6 ? base : Math.floor(2 * base * level / 100) + (index === 0 ? level + 10 : 5)) as Unit['stats'];
 export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
 export const xpForLevel = (level: number) => (level - 1) * 65;
-const learnedAtLevel = (species: string, level: number) => [...new Set([...SPECIES[species].moves, ...Object.entries(SPECIES[species].learn).filter(([required]) => Number(required) <= level).map(([, move]) => move)])];
-const makePartyMon = (species: string, level = RUN_START_LEVEL, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: learnedAtLevel(species, level).slice(0, 2), item });
+export const learnedAtLevel = (species: string, level: number) => [...new Set([...SPECIES[species].moves, ...Object.entries(SPECIES[species].learn).filter(([required]) => Number(required) <= level).map(([, move]) => move)])];
+export const defaultLoadoutAtLevel = (species: string, level: number) => {
+  const starting = SPECIES[species].moves;
+  const recent = learnedAtLevel(species, level).filter(id => !starting.includes(id)).reverse();
+  return [...new Set([...starting.slice(0, 2), ...recent, ...starting.slice(2)])].slice(0, MAX_EQUIPPED_MOVES);
+};
+const makePartyMon = (species: string, level = RUN_START_LEVEL, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: defaultLoadoutAtLevel(species, level), item });
 const recruitLevel = (run: Run) => Math.max(RUN_START_LEVEL, ...run.party.map(mon => mon.level));
 export function newRun(selectedSpecies: string[], unlocks = 0): Run {
   const draft = [...new Set(selectedSpecies)];
@@ -62,7 +67,7 @@ export function newRun(selectedSpecies: string[], unlocks = 0): Run {
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: side === 'player' ? [...mon.equipped] : [...mon.learned], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: [...mon.equipped], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
@@ -127,9 +132,7 @@ export function createLabBattle(config: LabConfig): Battle {
     playerSpawns: [[2, 3]], enemySpawns: [[2, 1]] });
   const ally = makeUnit(makePartyMon(config.allySpecies, config.allyLevel, config.allyItem), 'player', 2, 3, map.tiles[3][2]);
   const enemy = makeUnit(makePartyMon(config.enemySpecies, config.enemyLevel, config.enemyItem), 'enemy', 2, 1, map.tiles[1][2]);
-  // The lab exposes every level-eligible move, including moves normally left out of two campaign slots.
-  ally.moves = learnedAtLevel(config.allySpecies, config.allyLevel);
-  enemy.moves = learnedAtLevel(config.enemySpecies, config.enemyLevel);
+  // The lab uses each level's default four-move loadout, including newly learned moves.
   const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: 'defeat', units: [ally, enemy], weather: config.weather,
     weatherUntil: config.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0,
     current: '', rngState: config.seed >>> 0 || 1, log: [`Battle Lab · seed ${config.seed >>> 0 || 1}. Control both Pokémon.`],
@@ -443,6 +446,7 @@ export function evolve(run: Run, id: string) {
   if (!evolution || mon.level < evolution.level) return next;
   const hpGain = statsAtLevel(evolution.into, mon.level)[0] - statsAtLevel(mon.species, mon.level)[0];
   mon.species = evolution.into; if (mon.hp > 0) mon.hp += hpGain;
+  for (const move of SPECIES[mon.species].moves) if (!mon.learned.includes(move)) mon.learned.push(move);
   for (const [level, move] of Object.entries(SPECIES[mon.species].learn)) if (mon.level >= Number(level) && !mon.learned.includes(move)) mon.learned.push(move);
   next.report.push(`Evolved into ${SPECIES[mon.species].name}!`);
   return next;
@@ -497,13 +501,29 @@ export function buyShopItem(run: Run, item: ItemId): Run {
   return next;
 }
 
-export function resolveSpecial(run: Run, choice: { kind: 'recruit'; species: string } | { kind: 'coins' }): Run {
+export function resolveSpecial(run: Run, choice: { kind: 'recruit'; species: string; replaceId?: string } | { kind: 'coins' }): Run {
   if (run.phase !== 'event') return run;
-  if (choice.kind === 'recruit' && (run.party.length >= MAX_RUN_POKEMON || !offerRecruits(run).includes(choice.species))) return run;
+  if (choice.kind === 'recruit') {
+    if (!offerRecruits(run).includes(choice.species) || run.party.length > MAX_RUN_POKEMON) return run;
+    const full = run.party.length === MAX_RUN_POKEMON;
+    if (full !== (choice.replaceId !== undefined)) return run;
+    if (full && !run.party.some(mon => mon.id === choice.replaceId)) return run;
+  }
   const next = structuredClone(run);
   if (choice.kind === 'recruit') {
-    next.party.push(makePartyMon(choice.species, recruitLevel(next)));
-    next.report = [`${SPECIES[choice.species].name} joined your party.`];
+    const newcomer = makePartyMon(choice.species, recruitLevel(next));
+    if (choice.replaceId !== undefined) {
+      const index = next.party.findIndex(mon => mon.id === choice.replaceId);
+      const leaving = next.party[index];
+      if (leaving.item !== 'None') next.bag.push(leaving.item);
+      next.party[index] = newcomer;
+      next.selected = next.selected.map(id => id === leaving.id ? newcomer.id : id);
+      next.report = [`${SPECIES[leaving.species].name} left the roster; ${SPECIES[choice.species].name} joined.`,
+        ...(leaving.item !== 'None' ? [`${leaving.item} was returned to your bag.`] : [])];
+    } else {
+      next.party.push(newcomer);
+      next.report = [`${SPECIES[choice.species].name} joined your party.`];
+    }
   } else { next.coins += 18; next.report = ['You found 18 coins in a forgotten cache.']; }
   return advanceRoute(next);
 }

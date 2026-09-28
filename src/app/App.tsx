@@ -7,7 +7,7 @@ import IntermissionScreen from '../ui/IntermissionScreen';
 import ResultScreen from '../ui/ResultScreen';
 import TitleScreen from '../ui/TitleScreen';
 import type { TitleView } from '../ui/TitleScreen';
-import { itemCanEquip, itemFor, MOVES } from '../content/data';
+import { itemCanEquip, itemFor, MAX_EQUIPPED_MOVES, MOVES } from '../content/data';
 import { MAX_RUN_POKEMON } from '../content/roster';
 import { active, advanceRoute, buyShopItem, commitEnemyAction, completeBattle, createLabBattle, evolve, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveSpecial, selectRouteNode, startBattle, useMove, useSpecial, unitAt } from '../game/engine';
 import { ROUTE_COLUMNS } from '../game/route';
@@ -147,14 +147,6 @@ export default function App({ initialRun }: { initialRun: Run }) {
     else if (mode === 'attack') { setTarget([x, y]); attackAt(x, y); }
     else { const unit = unitAt(battle, x, y); if (unit) setNotice(`${unit.name} · ${unit.types.join('/')} · ${unit.hp}/${unit.maxHp} HP · ${unit.ability}`); else { const tile = battle.map.tiles[y][x]; setNotice(`${tile.object ?? tile.kind} · elevation ${tile.height}${tile.slope ? ` · ${tile.slope} slope` : ''}`); } }
   };
-  const confirmMove = () => {
-    if (animating || !target) return;
-    moveTo(target[0], target[1]);
-  };
-  const attack = () => {
-    if (animating || !target) return;
-    attackAt(target[0], target[1]);
-  };
   const special = () => {
     const success = battleAction(next => { const error = useSpecial(next); if (!error) finishTurn(next); return error; });
     if (success) resetSelection();
@@ -172,9 +164,11 @@ export default function App({ initialRun }: { initialRun: Run }) {
     else if (next.selected.length < 6) next.selected.push(id);
   });
   const equipMove = (monId: string, moveId: string, slot: number) => patch(next => {
-    const mon = next.party.find(p => p.id === monId)!;
-    const other = mon.equipped[slot === 0 ? 1 : 0];
-    if (other === moveId) return;
+    const mon = next.party.find(p => p.id === monId);
+    if (!mon || !Number.isInteger(slot) || slot < 0 || slot >= MAX_EQUIPPED_MOVES || !mon.learned.includes(moveId)) return;
+    const previousSlot = mon.equipped.indexOf(moveId);
+    if (previousSlot === slot) return;
+    if (previousSlot >= 0) mon.equipped[previousSlot] = mon.equipped[slot];
     mon.equipped[slot] = moveId;
   });
   const equipItem = (monId: string, item: string) => patch(next => {
@@ -204,18 +198,18 @@ export default function App({ initialRun }: { initialRun: Run }) {
 
   return <div className={`${animating ? 'app-shell animating' : 'app-shell'} ${(screen === 'game' && run.phase === 'battle') || screen === 'lab' ? 'in-battle' : ''}`}>
     {screen !== 'game' && screen !== 'lab' && <TitleScreen view={screen} canContinue={run.phase !== 'starter' && run.phase !== 'result'} saveFailed={saveFailed} soundMuted={soundMuted} labConfig={labConfig} setLabConfig={setLabConfig} onViewChange={setScreen} onContinue={() => setScreen('game')} onNewRun={() => { if (run.phase !== 'starter' && !window.confirm('Start a new run? This replaces the current saved run.')) return; setStarterDraft([]); setRun(freshRun(run.unlocks)); resetSelection(); setAnimating(false); setScreen('game'); }} onStartLab={startLab} onSoundMutedChange={muted => { gameAudio.setMuted(muted); setSoundMuted(muted); if (!muted) void gameAudio.unlock(); }} />}
-    {screen === 'game' && run.phase !== 'battle' && run.phase !== 'starter' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button> · Column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} / {ROUTE_COLUMNS} · {run.coins} coins · Pokémon {run.party.length} / {MAX_RUN_POKEMON}</div></header>}
+    {screen === 'game' && run.phase !== 'battle' && run.phase !== 'starter' && run.phase !== 'route' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button> · Column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} / {ROUTE_COLUMNS} · {run.coins} coins · Pokémon {run.party.length} / {MAX_RUN_POKEMON}</div></header>}
     {screen === 'game' && <>
     {run.phase === 'starter' && <PartyBuilder selection={starterDraft} onSelectionChange={setStarterDraft} onStart={selection => setRun(newRun(selection, run.unlocks))} onBack={() => setScreen('title')} />}
-    {run.phase === 'route' && <RouteScreen run={run} onChoose={id => setRun(previous => selectRouteNode(previous, id))} />}
-    {(run.phase === 'shop' || run.phase === 'event') && <RouteStopScreen run={run} onBuy={item => { setRun(previous => buyShopItem(previous, item)); gameAudio.playItem(item); }} onContinue={() => setRun(previous => advanceRoute(previous))} onRecruit={species => setRun(previous => resolveSpecial(previous, { kind: 'recruit', species }))} onTakeCoins={() => setRun(previous => resolveSpecial(previous, { kind: 'coins' }))} />}
+    {run.phase === 'route' && <RouteScreen run={run} onChoose={id => setRun(previous => selectRouteNode(previous, id))} onBack={() => setScreen('title')} />}
+    {(run.phase === 'shop' || run.phase === 'event') && <RouteStopScreen run={run} onBuy={item => { setRun(previous => buyShopItem(previous, item)); gameAudio.playItem(item); }} onContinue={() => setRun(previous => advanceRoute(previous))} onRecruit={(species, replaceId) => setRun(previous => resolveSpecial(previous, { kind: 'recruit', species, replaceId }))} onTakeCoins={() => setRun(previous => resolveSpecial(previous, { kind: 'coins' }))} />}
     {run.phase === 'prepare' && <PrepareScreen run={run} onToggle={toggleDeploy} onEquipMove={equipMove} onEquipItem={chooseItem} onDeploymentChange={deployment => patch(next => { next.deployment = deployment; })} onStart={start} />}
-    {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={paused} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></Suspense>}
+    {run.phase === 'battle' && battle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading battle…</h2></section></main>}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={paused} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></Suspense>}
     {run.phase === 'intermission' && <IntermissionScreen run={run} onEvolve={id => setRun(evolve(run, id))} onContinue={() => setRun(nextEncounter(run))} />}
     {run.phase === 'result' && <ResultScreen run={run} onNewRun={() => { setStarterDraft([]); setRun(freshRun(run.unlocks)); }} />}
     {paused && <div className="pause-backdrop" role="dialog" aria-modal="true" aria-label="Paused"><div className="pause-panel"><h2>Paused</h2><button autoFocus className="primary" onClick={() => { setPaused(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.battle-pause')?.focus()); }}>Resume</button><button onClick={() => { setPaused(false); setScreen('title'); }}>Title screen</button></div></div>}
     </>}
-    {screen === 'lab' && labBattle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading Battle Lab…</h2></section></main>}><BattleScreen key={labSession} run={run} battle={labBattle} labSeed={labConfig.seed} controlBoth mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={false} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); if (nextMode !== 'attack') setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onMove={confirmMove} onAttack={attack} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={startLab} onPause={() => { setAnimating(false); setScreen('lab-setup'); }} onLabReset={startLab} /></Suspense>}
+    {screen === 'lab' && labBattle && <Suspense fallback={<main className="narrow"><section className="hero"><h2>Loading Battle Lab…</h2></section></main>}><BattleScreen key={labSession} run={run} battle={labBattle} labSeed={labConfig.seed} controlBoth mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={false} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={startLab} onPause={() => { setAnimating(false); setScreen('lab-setup'); }} onLabReset={startLab} /></Suspense>}
     {screen === 'game' && (run.phase === 'intermission' || run.phase === 'result') && <footer>Fan prototype · original placeholder art and audio · local browser save · <a href="/assets/animations/animation-manifest.json">Animation manifest</a> · <a href="/assets/audio/audio-manifest.json">Audio manifest</a></footer>}
   </div>;
 }

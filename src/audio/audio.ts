@@ -1,4 +1,6 @@
 import manifest from '../../public/assets/audio/audio-manifest.json';
+import { moveAssetRole } from '../content/moveAssetRoles';
+import { MOVES } from '../content/moves';
 
 type MusicId = keyof typeof manifest.music;
 type CueId = keyof typeof manifest.cues;
@@ -56,7 +58,7 @@ class GameAudio {
     try { await this.context.resume(); }
     catch { return; }
     void this.syncMusic();
-    for (const url of [...Object.values(manifest.moves), ...Object.values(manifest.items), ...Object.values(manifest.abilities), ...Object.values(manifest.cues)]) {
+    for (const url of [...Object.values(manifest.moves), ...Object.values(manifest.movePlaceholders), ...Object.values(manifest.items), ...Object.values(manifest.abilities), ...Object.values(manifest.cues)]) {
       void this.load(url);
     }
   }
@@ -69,7 +71,12 @@ class GameAudio {
   }
 
   playMove(moveId: string) {
-    const url = (manifest.moves as Record<string, string>)[moveId] ?? manifest.cues.moveFallback;
+    const named = manifest.moves as Record<string, string>;
+    const placeholders = manifest.movePlaceholders as Record<string, string>;
+    const move = MOVES[moveId];
+    const soundId = move?.soundId;
+    const url = named[moveId] ?? (soundId && (named[soundId] ?? placeholders[soundId]))
+      ?? placeholders[moveAssetRole(move)] ?? manifest.cues.moveFallback;
     void this.playEffect(url);
   }
 
@@ -151,3 +158,14 @@ class GameAudio {
 }
 
 export const gameAudio = new GameAudio();
+
+export function validateMoveSounds(): string[] {
+  const named = manifest.moves as Record<string, string>;
+  const placeholders = manifest.movePlaceholders as Record<string, string>;
+  const errors = Object.entries(MOVES).flatMap(([id, move]) => move.soundId && !named[move.soundId] && !placeholders[move.soundId]
+    ? [`Move ${id}: unknown soundId ${move.soundId} in audio-manifest.json`]
+    : []);
+  for (const role of ['melee', 'projectile', 'area', 'self', 'hazard', 'weather'])
+    if (!placeholders[role]) errors.push(`Audio manifest: missing ${role} move placeholder`);
+  return errors;
+}

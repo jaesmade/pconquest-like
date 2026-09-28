@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app/App';
+import { validateMoveVisuals } from './battle/moveVisuals';
+import { validateMoveSounds } from './audio/audio';
 import { validateCatalog } from './content/catalog';
 import type { Run } from './game/types';
 import { loadRun } from './persistence/save';
@@ -9,8 +11,10 @@ import './styles/battle.css';
 import './styles/menus.css';
 import './styles/route.css';
 import './styles/battle-actions.css';
+import './styles/theme.css';
+import './styles/battle-menu.css';
 
-const contentErrors = validateCatalog();
+const contentErrors = [...validateCatalog(), ...validateMoveVisuals(), ...validateMoveSounds()];
 function AppLoader() {
   const [initialRun, setInitialRun] = useState<Run>();
   useEffect(() => {

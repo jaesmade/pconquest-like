@@ -2,7 +2,7 @@ import { ABILITIES } from './abilities';
 import { ENCOUNTERS } from './encounters';
 import { itemFor, ITEMS } from './items';
 import { MAPS, MAX_MAP_SIZE } from './maps';
-import { MOVES, MOVE_TAGS } from './moves';
+import { MAX_EQUIPPED_MOVES, MOVES, MOVE_TAGS } from './moves';
 import { RECRUITS, SPECIES, STARTERS } from './species';
 import { TYPES } from './typeChart';
 import { canDeploy, zoneCells } from '../game/deployment';
@@ -30,6 +30,8 @@ export function validateCatalog(): string[] {
   }
   const formLinks = new Set<string>();
   for (const [id, species] of Object.entries(SPECIES)) {
+    if (species.moves.length !== MAX_EQUIPPED_MOVES || new Set(species.moves).size !== MAX_EQUIPPED_MOVES)
+      errors.push(`Species ${id}: provide ${MAX_EQUIPPED_MOVES} distinct starting moves`);
     if (species.partyCost !== undefined && (!Number.isInteger(species.partyCost) || species.partyCost < 1 || species.partyCost > STARTING_PARTY_POINTS))
       errors.push(`Species ${id}: party cost must be an integer from 1 to ${STARTING_PARTY_POINTS}`);
     if (!ABILITIES[species.ability]) errors.push(`Species ${id}: unknown ability ${species.ability}`);

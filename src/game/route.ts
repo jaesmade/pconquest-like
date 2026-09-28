@@ -6,34 +6,60 @@ export type RouteNode = { id: string; column: number; lane: number; kind: RouteN
 export type RouteLink = { from: string; to: string };
 export type RoutePlan = { nodes: RouteNode[]; links: RouteLink[]; visited: string[] };
 
-const pick = <T,>(values: T[], state: { rngState: number }): T => values[Math.floor(random(state) * values.length)];
+const middleLanes: Record<number, number[]> = { 2: [0, 3], 3: [0, 1.5, 3], 4: [0, 1, 2, 3] };
+const guaranteedKinds: Partial<Record<number, RouteNodeKind[]>> = {
+  2: ['heal', 'store'], 3: ['special', 'elite'], 5: ['battle', 'special'],
+  7: ['special', 'store'], 9: ['elite', 'battle'],
+};
+const routeKinds: RouteNodeKind[] = ['battle', 'elite', 'heal', 'store', 'special'];
+
+function shuffled<T>(values: T[], state: { rngState: number }): T[] {
+  const copy = [...values];
+  for (let index = copy.length - 1; index > 0; index--) {
+    const swap = Math.floor(random(state) * (index + 1));
+    [copy[index], copy[swap]] = [copy[swap], copy[index]];
+  }
+  return copy;
+}
+
+function addLink(links: RouteLink[], seen: Set<string>, from: RouteNode, to: RouteNode) {
+  const key = `${from.id}:${to.id}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  links.push({ from: from.id, to: to.id });
+}
 
 /** Route generation has its own RNG stream, so revealing the map never consumes combat rolls. */
 export function createRoute(seed: number): RoutePlan {
   const state = { rngState: (seed ^ 0x726f7574) >>> 0 };
-  const nodes: RouteNode[] = [{ id: 'route-1-1', column: 1, lane: 1, kind: 'battle' }];
-  const choices: Partial<Record<number, [RouteNodeKind, RouteNodeKind]>> = {
-    2: ['heal', 'store'], 3: ['special', 'elite'], 5: ['battle', 'special'],
-    7: ['special', 'store'], 9: ['elite', 'battle'],
-  };
+  const nodes: RouteNode[] = [{ id: 'route-1-1', column: 1, lane: 1.5, kind: 'battle' }];
   for (let column = 2; column < ROUTE_COLUMNS; column++) {
-    const kinds = choices[column] ?? [pick<RouteNodeKind>(['battle', 'elite', 'heal'], state), pick<RouteNodeKind>(['battle', 'store', 'special'], state)];
-    for (const [index, kind] of kinds.entries()) {
-      const lane = index * 2;
-      nodes.push({ id: `route-${column}-${lane}`, column, lane, kind });
-    }
+    const count = column === 4 || column === 7 ? 4 : 2 + Math.floor(random(state) * 3);
+    const kinds = [...(guaranteedKinds[column] ?? ['battle'])];
+    for (const kind of shuffled(routeKinds, state)) if (kinds.length < count && !kinds.includes(kind)) kinds.push(kind);
+    const orderedKinds = shuffled(kinds.slice(0, count), state);
+    for (let index = 0; index < count; index++) nodes.push({
+      id: `route-${column}-${index + 1}`, column, lane: middleLanes[count][index], kind: orderedKinds[index],
+    });
   }
-  nodes.push({ id: 'route-10-1', column: ROUTE_COLUMNS, lane: 1, kind: 'boss' });
+  nodes.push({ id: 'route-10-1', column: ROUTE_COLUMNS, lane: 1.5, kind: 'boss' });
   const links: RouteLink[] = [];
+  const seen = new Set<string>();
   for (let column = 1; column < ROUTE_COLUMNS; column++) {
     const from = nodes.filter(node => node.column === column), to = nodes.filter(node => node.column === column + 1);
     if (column === 1 || column === 9) {
-      for (const source of from) for (const target of to) links.push({ from: source.id, to: target.id });
+      for (const source of from) for (const target of to) addLink(links, seen, source, target);
       continue;
     }
-    for (const source of from) links.push({ from: source.id, to: to.find(target => target.lane === source.lane)!.id });
-    const crossLane = column === 4 ? 0 : column === 6 ? 2 : random(state) < 0.5 ? 0 : 2;
-    links.push({ from: from.find(node => node.lane === crossLane)!.id, to: to.find(node => node.lane !== crossLane)!.id });
+    for (const source of from) {
+      const nearest = [...to].sort((a, b) => Math.abs(a.lane - source.lane) - Math.abs(b.lane - source.lane));
+      addLink(links, seen, source, nearest[0]);
+      if (nearest[1] && (from.length < to.length || random(state) < .68)) addLink(links, seen, source, nearest[1]);
+    }
+    for (const target of to) {
+      const nearest = [...from].sort((a, b) => Math.abs(a.lane - target.lane) - Math.abs(b.lane - target.lane))[0];
+      addLink(links, seen, nearest, target);
+    }
   }
   return { nodes, links, visited: [] };
 }
@@ -60,12 +86,27 @@ export function routeIsValid(route: RoutePlan, seed: number): boolean {
   return true;
 }
 
+/** Rebuilds an older saved graph while keeping the same progress and node kinds when possible. */
+export function migrateRoutePlan(route: RoutePlan, seed: number): RoutePlan {
+  const migrated = createRoute(seed);
+  for (const id of route.visited) {
+    const oldNode = routeNode(route, id);
+    const available = availableRouteNodes(migrated);
+    if (!available.length) break;
+    const sameKind = oldNode ? available.filter(node => node.kind === oldNode.kind) : [];
+    const candidates = sameKind.length ? sameKind : available;
+    const chosen = [...candidates].sort((a, b) => Math.abs(a.lane - (oldNode?.lane ?? 1.5)) - Math.abs(b.lane - (oldNode?.lane ?? 1.5)))[0];
+    migrated.visited.push(chosen.id);
+  }
+  return migrated;
+}
+
 export function legacyRoute(seed: number, completed: number, active: boolean): RoutePlan {
   const route = createRoute(seed);
   const count = Math.min(ROUTE_COLUMNS, completed + (active ? 1 : 0));
   for (let i = 0; i < count; i++) {
     const next = availableRouteNodes(route);
-    route.visited.push((next.find(node => node.lane === 0) ?? next[0]).id);
+    route.visited.push([...next].sort((a, b) => Math.abs(a.lane - 1.5) - Math.abs(b.lane - 1.5))[0].id);
   }
   return route;
 }

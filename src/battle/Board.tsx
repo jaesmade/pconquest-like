@@ -13,6 +13,7 @@ import { enqueueAttackCues } from './visualQueue';
 import { gameAudio } from '../audio/audio';
 import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoWorldSize } from './isometric';
 import { facingBetween, impactDelay, restingClip, unitAnimationKey, unitSet, unitSetId, unitShadowTextureKey, unitTextureKey, visualClip, type UnitClip } from './unitAnimations';
+import { moveVisualFor } from './moveVisuals';
 
 export type BoardView = { left: number; top: number; zoom: number; width: number; height: number };
 export type CameraCommand = 'zoom-in' | 'zoom-out' | 'fit' | 'center' | 'focus';
@@ -72,7 +73,10 @@ class BattleScene extends Phaser.Scene {
     for (const [id, url] of Object.entries(isoAssets.decorations)) this.load.svg(`iso-${id}`, url);
     for (const [id, url] of Object.entries(isoAssets.slopes)) this.load.svg(`iso-slope-${id}`, url);
     const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
-    const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
+    const visuals = new Map(this.battle.units.flatMap(unit => unit.moves).map(moveId => {
+      const visual = moveVisualFor(moveId);
+      return [visual.id, visual.asset] as const;
+    }));
     for (const id of unitIds) {
       const set = unitSet(id);
       for (const [clip, spec] of Object.entries(set.clips)) {
@@ -82,7 +86,7 @@ class BattleScene extends Phaser.Scene {
       }
     }
     for (const [id, url] of Object.entries(manifest.effects)) this.load.spritesheet(`effect-${id}`, url, { frameWidth: 32, frameHeight: 32 });
-    for (const [id, asset] of Object.entries(manifest.attacks)) if (moveIds.has(id)) this.load.spritesheet(`attack-${id}`, asset.url, { frameWidth: 32, frameHeight: 32 });
+    for (const [id, asset] of visuals) this.load.spritesheet(`attack-${id}`, asset.url, { frameWidth: 32, frameHeight: 32 });
   }
   create() {
     const world = isoWorldSize(this.battle.map);
@@ -93,13 +97,13 @@ class BattleScene extends Phaser.Scene {
     this.targetOverlay = this.add.graphics().setDepth(2);
     this.drawTerrain();
     const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
-    const moveIds = new Set(this.battle.units.flatMap(unit => unit.moves));
+    const visualIds = new Set(this.battle.units.flatMap(unit => unit.moves).map(moveId => moveVisualFor(moveId).id));
     for (const id of unitIds) for (const [clip, spec] of Object.entries(unitSet(id).clips)) for (let row = 0; row < spec.rows; row++) {
       const texture = unitTextureKey(id, clip as keyof typeof manifest.unitSets.placeholder.clips);
       this.anims.create({ key: `${texture}-${row}`, frames: this.anims.generateFrameNumbers(texture, { start: row * spec.frames, end: (row + 1) * spec.frames - 1 }), frameRate: spec.fps, repeat: spec.loop ? -1 : 0 });
     }
     for (const id of Object.keys(manifest.effects)) this.anims.create({ key: `effect-${id}`, frames: this.anims.generateFrameNumbers(`effect-${id}`, { start: 0, end: 3 }), frameRate: manifest.effectFps });
-    for (const id of Object.keys(manifest.attacks).filter(id => moveIds.has(id))) {
+    for (const id of visualIds) {
       const frames = this.anims.generateFrameNumbers(`attack-${id}`, { start: 0, end: manifest.attackFrameCount - 1 });
       this.anims.create({ key: `attack-${id}`, frames, frameRate: manifest.attackFps });
       this.anims.create({ key: `attack-${id}-travel`, frames, frameRate: manifest.attackFps, repeat: -1 });
@@ -404,7 +408,9 @@ class BattleScene extends Phaser.Scene {
   }
   private async playAttackEvent(event: AttackVisualEvent, fast: boolean) {
     gameAudio.playMove(event.moveId);
-    const asset = manifest.attacks[event.moveId as keyof typeof manifest.attacks];
+    const visual = moveVisualFor(event.moveId);
+    const asset = visual.asset;
+    const attackKey = `attack-${visual.id}`;
     const move = MOVES[event.moveId];
     const attacker = this.battle.units.find(unit => unit.id === event.sourceId);
     const attackerSprite = this.sprites.get(event.sourceId);
@@ -427,8 +433,9 @@ class BattleScene extends Phaser.Scene {
     await this.wait(impactDelay(attacker?.species ?? manifest.fallbackUnit, clip, fast));
     if (asset?.style === 'projectile') {
       const [sx, sy] = attacker ? this.unitCenter(attacker, event.from) : this.tileCenter(event.from), [tx, ty] = this.tileCenter(event.to);
-      const projectile = this.add.sprite(sx, sy, `attack-${event.moveId}`).setScale(1.5).setDepth(3000);
-      projectile.play(`attack-${event.moveId}-travel`);
+      const projectile = this.add.sprite(sx, sy, attackKey).setScale(1.5).setDepth(3000);
+      if (visual.tint) projectile.setTint(visual.tint);
+      projectile.play(`${attackKey}-travel`);
       const distance = Math.abs(tx - sx) + Math.abs(ty - sy);
       const duration = fast ? Math.min(160, Math.max(75, distance * 0.4)) : Math.max(150, distance) * 1.1;
       await new Promise<void>(resolve => this.tweens.add({ targets: projectile, x: tx, y: ty, duration, ease: 'Sine.easeInOut', onComplete: () => { projectile.destroy(); resolve(); } }));
@@ -440,9 +447,9 @@ class BattleScene extends Phaser.Scene {
     const unique = [...new Map(tiles.map(tile => [tile.join(','), tile])).values()];
     for (const tile of unique) {
       const [x, y] = this.tileCenter(tile);
-      const key = asset ? `attack-${event.moveId}` : 'effect-attack-impact';
-      const effect = this.add.sprite(x, y, key).setScale(asset?.style === 'area' ? 1.8 : 1.55).setDepth(3001);
-      effect.play(key);
+      const effect = this.add.sprite(x, y, attackKey).setScale(asset.style === 'area' ? 1.8 : 1.55).setDepth(3001);
+      if (visual.tint) effect.setTint(visual.tint);
+      effect.play(attackKey);
       effect.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => effect.destroy());
     }
     const hpCues = this.pendingHp.get(event.id) ?? [];
@@ -470,7 +477,7 @@ class BattleScene extends Phaser.Scene {
       });
     }
     if (event.targetIds.length) gameAudio.playCue('pokemonHit');
-    await this.wait(fast ? 160 : Math.round(1000 * (asset ? manifest.attackFrameCount / manifest.attackFps : manifest.effectFrameCount / manifest.effectFps)));
+    await this.wait(fast ? 160 : Math.round(1000 * manifest.attackFrameCount / manifest.attackFps));
     if (attacker && attackerSprite?.active && attacker.hp > 0) {
       attackerSprite.play(unitAnimationKey(attacker.species, attacker.facing, restingClip(attacker, this.battle.time)), true);
     }

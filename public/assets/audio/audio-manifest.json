@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "music": {
     "menu": "/assets/audio/music/bgm-menu-loop.wav",
     "route": "/assets/audio/music/bgm-route-loop.wav",
@@ -21,6 +21,14 @@
     "thunderbolt": "/assets/audio/moves/move-thunderbolt.wav",
     "sandstorm": "/assets/audio/moves/move-sandstorm.wav",
     "sunnyDay": "/assets/audio/moves/move-sunny-day.wav"
+  },
+  "movePlaceholders": {
+    "melee": "/assets/audio/move-placeholders/move-placeholder-melee.wav",
+    "projectile": "/assets/audio/move-placeholders/move-placeholder-projectile.wav",
+    "area": "/assets/audio/move-placeholders/move-placeholder-area.wav",
+    "self": "/assets/audio/move-placeholders/move-placeholder-self.wav",
+    "hazard": "/assets/audio/move-placeholders/move-placeholder-hazard.wav",
+    "weather": "/assets/audio/move-placeholders/move-placeholder-weather.wav"
   },
   "items": {
     "Leftovers": "/assets/audio/items/item-leftovers.wav",

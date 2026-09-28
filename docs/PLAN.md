@@ -26,7 +26,7 @@ Target run length for the ten-column route needs play-session measurement.
 | Maps                 | Three regular map templates and one boss map, reused by route nodes                                                                  |
 | Roster               | Six named starting Pokémon and at least two recruitable Pokémon, including a Fire user and a Mega-compatible species                |
 | Types in encounters  | Normal, Fire, Water, Grass, Electric, Ground, Rock, and Ice                                                                         |
-| Moves                | A growing pool of learned moves, with two equipped for battle, one passive ability, and a 1-in-24 critical chance on damaging moves |
+| Moves                | A growing pool of learned moves, with four equipped for battle, one passive ability, and a 1-in-24 critical chance on damaging moves |
 | Growth               | Shared encounter XP for the whole run party, level-based move learning, and at least one evolution available during a run           |
 | Held items           | One slot per Pokémon; Leftovers, Sitrus Berry, Assault Vest, X Attack, and one compatible Mega Stone                                |
 | Battle animation     | Replaceable four-direction pixel sheets for idle, move, attack, hurt, buff, debuff, special, and faint states                         |
@@ -155,16 +155,16 @@ Launch types should also have a tactical character: Fire creates damage and Burn
 
 ## Initial Pokémon and abilities
 
-These six Pokémon are the initial starter choices. Their two listed moves are suggested starting loadouts; additional moves can unlock through the level-based learnset.
+These six Pokémon are the initial starter choices. Each current species and form starts with four distinct learned and equipped moves; further moves unlock through its level-based learnset and can replace an equipped move during preparation.
 
-| Pokémon   | Type          | Ability                                                                                                                          | Starting moves         |
-| --------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Bulbasaur | Grass         | **Chlorophyll:** effective Speed ×2 while sun is active.                                                                         | Vine Whip, Tackle      |
-| Squirtle  | Water         | **Torrent:** Water move damage ×1.5 while current HP is below 50% of maximum HP.                                                 | Water Pulse, Tackle    |
-| Lapras    | Ice / Water   | **Water Absorb:** when hit by a Water move, take no damage or secondary effect and heal 25% of maximum HP, capped at maximum HP. | Ice Shard, Water Pulse |
-| Geodude   | Ground / Rock | **Sand Veil:** while sandstorm is active, enemy moves targeting it have an 80% chance to hit.                                    | Rock Throw, Mud Slap   |
-| Pikachu   | Electric      | **Static:** when hit by a contact move, has a chance to paralyze the attacker.                                                   | Thunder Shock, Tackle  |
-| Meowth    | Normal        | **Technician:** damaging moves costing at most 2 AP deal 50% more damage.                                                         | Tackle, Tail Whip      |
+| Pokémon   | Type          | Ability                                                                                                                          | Starting moves                                    |
+| --------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Bulbasaur | Grass         | **Chlorophyll:** effective Speed ×2 while sun is active.                                                                         | Vine Whip, Tackle, Razor Leaf, Tail Whip          |
+| Squirtle  | Water         | **Torrent:** Water move damage ×1.5 while current HP is below 50% of maximum HP.                                                 | Water Pulse, Tackle, Bubble, Tail Whip            |
+| Lapras    | Ice / Water   | **Water Absorb:** when hit by a Water move, take no damage or secondary effect and heal 25% of maximum HP, capped at maximum HP. | Ice Shard, Water Pulse, Bubble, Tackle            |
+| Geodude   | Ground / Rock | **Sand Veil:** while sandstorm is active, enemy moves targeting it have an 80% chance to hit.                                    | Rock Throw, Mud Slap, Rock Smash, Tackle          |
+| Pikachu   | Electric      | **Static:** when hit by a contact move, has a chance to paralyze the attacker.                                                   | Thunder Shock, Tackle, Quick Attack, Tail Whip    |
+| Meowth    | Normal        | **Technician:** damaging moves costing at most 2 AP deal 50% more damage.                                                         | Tackle, Tail Whip, Scratch, Quick Attack          |
 
 Paralysis halves effective Speed for 200 battle-time units. Keep the chance for Static, Thunderbolt, Ember's Burn, and Thunder Shock's chain in move and ability data for balance tuning. An attack that misses applies neither damage nor effects; Water Absorb intercepts a Water move after it hits and before damage. A Fire Pokémon for Ember and Sunny Day, plus one additional recruitable Pokémon that can use the initial Mega Stone, still need species choices.
 
@@ -196,11 +196,16 @@ The initial move list is grouped by AP cost and intended power. Exact damage pow
 | 1        | Mud Slap      | Ground / Special   | One target within 3 tiles                           | Weak damage; leaves slowing terrain.                                          |
 | 1        | Ice Shard     | Ice / Physical     | One target within 6 tiles                           | Weak damage.                                                                  |
 | 1        | Tackle        | Normal / Physical  | Adjacent target                                     | Weak damage.                                                                  |
+| 1        | Scratch       | Normal / Physical  | Adjacent target                                     | Direct claw damage.                                                           |
+| 1        | Quick Attack  | Normal / Physical  | One target within 2 tiles                           | A short rushing strike; no separate priority rule.                            |
+| 1        | Razor Leaf    | Grass / Physical   | One target within 3 tiles                           | Ranged leaf damage.                                                           |
+| 1        | Bubble        | Water / Special    | 2×2 area within 2 tiles                             | Close-range splash damage.                                                    |
+| 1        | Rock Smash    | Fighting / Physical| Adjacent target                                     | Fighting-type contact damage.                                                 |
 | 1        | Tail Whip     | Normal / Status    | Self-centered 3×3 area                              | Lowers Defense of **all** Pokémon in the area, including allies and the user. |
 | 1        | Harden        | Normal / Status    | Self                                                | Raises the user's Defense.                                                    |
 | 1        | Howl          | Normal / Status    | Self-centered 3×3 area                              | Raises Attack of allied Pokémon in the area, including the user.              |
 | 2        | Stealth Rock  | Rock / Status      | Place a 3×3 zone within 3 tiles                     | Pokémon entering the zone take hazard damage.                                 |
-| 3        | Thunderbolt   | Electric / Special | 2×2 area placed within 4 tiles on the square grid   | Strong damage; chance to paralyze each hit target, halving its Speed.         |
+| 4        | Thunderbolt   | Electric / Special | 2×2 area placed within 4 tiles on the square grid   | Strong damage; chance to paralyze each hit target, halving its Speed.         |
 | 4        | Sandstorm     | Rock / Status      | Whole battlefield                                   | Replaces the current weather with sandstorm and resets its duration.          |
 | 4        | Sunny Day     | Fire / Status      | Whole battlefield                                   | Replaces the current weather with sun and resets its duration.                |
 
@@ -208,8 +213,8 @@ The initial damaging moves are classified by delivery independently of their dam
 
 | Delivery | Moves |
 | -------- | ----- |
-| Melee | Tackle, Vine Whip |
-| Ranged | Ember, Water Pulse, Thunder Shock, Rock Throw, Mud Slap, Ice Shard, Thunderbolt |
+| Melee | Tackle, Scratch, Quick Attack, Rock Smash, Vine Whip |
+| Ranged | Ember, Razor Leaf, Water Pulse, Bubble, Thunder Shock, Rock Throw, Mud Slap, Ice Shard, Thunderbolt |
 
 Stealth Rock lasts 200 battle-time units and deals 1/8 of maximum HP, rounded up, when a Pokémon enters any tile in its 3×3 zone. It affects both teams and Flying Pokémon. Each zone has a stable caster ID and a distinct zone ID; one active Stealth Rock zone per caster can exist, and a new placement replaces only that caster's old zone. Zones from different casters may overlap, but a Pokémon takes Stealth Rock damage only once per tile entry. A zone remains after its caster faints until it expires or is replaced. Sandstorm and Sunny Day use the weather effects above. Thunderbolt uses a 2×2 target area that can be placed within four tiles on the square grid.
 
@@ -229,7 +234,7 @@ Each Pokémon may hold one item. The run also has a small bag for unequipped ite
 | X Attack              | Doubles the holder's Attack until the current battle ends.                                                 | Choose **Special → Use X Attack**; consumed on use.   |
 | Compatible Mega Stone | Changes its holder into its defined Mega form, replacing its ability and applying that form's stat values. | Choose **Special → Mega Evolve**; stone remains held. |
 
-The battle action UI has three primary commands: **Attack**, **Move**, and **Special**, plus **Pass**. Attack opens the Pokémon's two equipped moves, including Status-category moves unless an item such as Assault Vest blocks them. Selecting a move shows its AP cost, range, and type matchups before confirmation. Move previews tiles reachable with current AP and Movement. Special shows an available held-item action, such as X Attack (2 AP) or Mega Evolve (3 AP). Passive and automatic held items display their effects here but do not require a command. Attack becomes unavailable after one move use; movement and Special can still spend remaining AP.
+The battle action UI has three primary commands: **Attack**, **Move**, and **Special**, plus **Pass**. Attack opens the Pokémon's four equipped moves around a central Back button, including Status-category moves unless an item such as Assault Vest blocks them. Hover or keyboard focus shows a move description; selecting a move highlights its range and type matchups on the board. Move previews tiles reachable with current AP and Movement. Special shows an available held-item action, such as X Attack (2 AP) or Mega Evolve (3 AP). Passive and automatic held items display their effects here but do not require a command. Attack becomes unavailable after one move use; movement and Special can still spend remaining AP.
 
 A Mega Stone can be equipped only by its compatible Pokémon. Each Mega form is an individual species record with its own stable ID, types, stats, ability, mobility, moves, and asset key. Future Mega forms should retain their source species' HP stat; the current placeholder form has not yet been aligned to that rule. The form record names its source species and required stone; the source species does not embed Mega stats. Mega Evolution changes the battle unit's species ID immediately, once per holder per battle, and lasts until that battle ends. The run party retains its normal species and current HP after battle. If Speed changes, use the form's Speed when scheduling its next turn. Show the stat and ability changes before the player confirms Mega Evolution.
 
@@ -239,7 +244,7 @@ Combat rounds contain one turn for every living deployed Pokémon. After every e
 
 Resolve XP and level gains after the battle, then show an evolution step before the next encounter. If a Pokémon meets its species-specific evolution requirement, the player can evolve it then or defer the choice to a later intermission. Evolution changes its species form, stats, and any defined type or ability; it remains evolved for the rest of that run. Show a before-and-after preview, keep its held item, and preserve its battle damage: an unfainted Pokémon gains only the increase in maximum HP, while a fainted Pokémon stays at 0 HP. Mega Evolution remains a separate temporary battle form. Include at least one ordinary evolution line with a threshold reachable during the early run.
 
-After XP and any evolution choice, check every party Pokémon's current form and level against its level-based learnset. Teach all newly eligible moves, including moves from an evolved form that the Pokémon already qualifies for. This check happens after every encounter for deployed Pokémon, reserves, and fainted Pokémon alike. Show each new move and let the player equip it in one of two battle move slots, replacing an equipped move if necessary; declining to equip does not erase the learned move. The player may change the two equipped moves during battle preparation. Recruits arrive knowing all moves available to their form at their starting level. For the early build, arrange XP thresholds and learnsets so at least one party member can learn a move after each regular encounter.
+After XP and any evolution choice, check every party Pokémon's current form and level against its level-based learnset. Teach all newly eligible moves, including base moves from an evolved form. This check happens after every encounter for deployed Pokémon, reserves, and fainted Pokémon alike. Learned moves beyond the four equipped slots remain available; the player can replace any one of the four during battle preparation without forgetting the others. Selecting a move already equipped in another slot swaps their positions in the battle menu. Recruits arrive knowing all moves available to their form at their starting level and equip four by default, favoring their first two signature moves and recent level unlocks. For the early build, arrange XP thresholds and learnsets so at least one party member can learn a move after each regular encounter.
 
 Generate a ten-column route from seeded node templates so each run offers different choices while every branch reaches the column-ten boss. Normal battles award shared XP and coins; elites have stronger teams and larger rewards. Healing nodes fully restore and revive the whole owned party. Stores sell held items for coins. The initial special encounter offers one of two free recruits while under the 20-owned cap or a coin cache. The boss rewards completion and a permanent unlock. See [route behavior and prices](ROUTE_OVERHAUL.md).
 

@@ -33,7 +33,7 @@ On narrow screens, the party list moves above the catalog and can scroll indepen
 - src/content/species.ts defines the eligible species and may set optional partyCost.
 - src/ui/PartyBuilder.tsx renders the draft without mutating the run until Start Run.
 - src/game/engine.ts validates draft points and enforces the 20-owned cap during creation/recruitment.
-- src/persistence/save.ts writes schema v16 and migrates existing saves without dropping any of their Pokémon. Existing v14 and v15 rosters were already below the new cap.
+- src/persistence/save.ts writes schema v17 and migrates existing saves without dropping any of their Pokémon. Existing v14 and v15 rosters were already below the new cap.
 
 The initial catalog combines unique starter and recruit IDs and excludes temporary Mega forms. Ordinary evolutions appear later through progression rather than as separate initial draft choices. To add more choices, add species content and register the ID in STARTERS or RECRUITS; set a positive integer partyCost only when its cost should differ from two.
 

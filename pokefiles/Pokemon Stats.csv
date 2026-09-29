@@ -1,0 +1,1352 @@
+﻿dex no.,Name,Hp,Attack,Defense,Sp. Att,Sp. Def,Speed,Evolves:
+1,Bulbasaur,45,49,49,65,65,45,Ivysaur
+2,Ivysaur,60,62,63,80,80,60,Venusaur
+3,Venusaur,80,82,83,100,100,80,
+4,Charmander,39,52,43,60,50,65,Charmeleon
+5,Charmeleon,58,64,58,80,65,80,Charizard
+6,Charizard,78,84,78,109,85,100,
+7,Squirtle,44,48,65,50,64,43,Wartortle
+8,Wartortle,59,63,80,65,80,58,Blastoise
+9,Blastoise,79,83,100,85,105,78,
+10,Caterpie,45,30,35,20,20,45,Metapod
+11,Metapod,50,20,55,25,25,30,Butterfree
+12,Butterfree,60,45,50,90,80,70,
+13,Weedle,40,35,30,20,20,50,Kakuna
+14,Kakuna,45,25,50,25,25,35,Beedrill
+15,Beedrill,65,90,40,45,80,75,
+16,Pidgey,40,45,40,35,35,56,Pidgeotto
+17,Pidgeotto,63,60,55,50,50,71,Pidgeot
+18,Pidgeot,83,80,75,70,70,101,
+19,Rattata,30,56,35,25,35,72,Raticate
+20,Raticate,55,81,60,50,70,97,
+21,Spearow,40,60,30,31,31,70,Fearow
+22,Fearow,65,90,65,61,61,100,
+23,Ekans,35,60,44,40,54,55,Arbok
+24,Arbok,60,95,69,65,79,80,
+25,Pikachu,35,55,40,50,50,90,Raichu
+26,Raichu,60,90,55,90,80,110,
+27,Sandshrew,50,75,85,20,30,40,Sandslash
+28,Sandslash,75,100,110,45,55,65,
+29,Nidoran F,55,47,52,40,40,41,Nidorina
+30,Nidorina,70,62,67,55,55,56,Nidoqueen
+31,Nidoqueen,90,92,87,75,85,76,
+32,Nidoran M,46,57,40,40,40,50,Nidorino
+33,Nidorino,61,72,57,55,55,65,Nidoking
+34,Nidoking,81,102,77,85,75,85,
+35,Clefairy,70,45,48,60,65,35,Clefable
+36,Clefable,95,70,73,95,90,60,
+37,Vulpix,38,41,40,50,65,65,Ninetales
+38,Ninetales,73,76,75,81,100,100,
+39,Jigglypuff,115,45,20,45,25,20,Wigglytuff
+40,Wigglytuff,140,70,45,85,50,45,
+41,Zubat,40,45,35,30,40,55,Golbat
+42,Golbat,75,80,70,65,75,90,Crobat
+43,Oddish,45,50,55,75,65,30,Gloom
+44,Gloom,60,65,70,85,75,40,Vileplume; Bellossom
+45,Vileplume,75,80,85,110,90,50,
+46,Paras,35,70,55,45,55,25,Parasect
+47,Parasect,60,95,80,60,80,30,
+48,Venonat,60,55,50,40,55,45,Venomoth
+49,Venomoth,70,65,60,90,75,90,
+50,Diglett,10,55,25,35,45,95,Dugtrio
+51,Dugtrio,35,100,50,50,70,120,
+52,Meowth,40,45,35,40,40,90,Persian; Perrserker
+53,Persian,65,70,60,65,65,115,
+54,Psyduck,50,52,48,65,50,55,Golduck
+55,Golduck,80,82,78,95,80,85,
+56,Mankey,40,80,35,35,45,70,Primeape
+57,Primeape,65,105,60,60,70,95,Annihilape
+58,Growlithe,55,70,45,70,50,60,Arcanine
+59,Arcanine,90,110,80,100,80,95,
+60,Poliwag,40,50,40,40,40,90,Poliwhirl
+61,Poliwhirl,65,65,65,50,50,90,Poliwrath; Politoed
+62,Poliwrath,90,95,95,70,90,70,
+63,Abra,25,20,15,105,55,90,Kadabra
+64,Kadabra,40,35,30,120,70,105,Alakazam
+65,Alakazam,55,50,45,135,95,120,
+66,Machop,70,80,50,35,35,35,Machoke
+67,Machoke,80,100,70,50,60,45,Machamp
+68,Machamp,90,130,80,65,85,55,
+69,Bellsprout,50,75,35,70,30,40,Weepinbell
+70,Weepinbell,65,90,50,85,45,55,Victreebel
+71,Victreebel,80,105,65,100,70,70,
+72,Tentacool,40,40,35,50,100,70,Tentacruel
+73,Tentacruel,80,70,65,80,120,100,
+74,Geodude,40,80,100,30,30,20,Graveler
+75,Graveler,55,95,115,45,45,35,Golem
+76,Golem,80,120,130,55,65,45,
+77,Ponyta,50,85,55,65,65,90,Rapidash
+78,Rapidash,65,100,70,80,80,105,
+79,Slowpoke,90,65,65,40,40,15,Slowbro; Slowking
+80,Slowbro,95,75,110,100,80,30,
+81,Magnemite,25,35,70,95,55,45,Magneton
+82,Magneton,50,60,95,120,70,70,Magnezone
+83,Farfetch’d,52,90,55,58,62,60,Sirfetch’d
+84,Doduo,35,85,45,35,35,75,Dodrio
+85,Dodrio,60,110,70,60,60,110,
+86,Seel,65,45,55,45,70,45,Dewgong
+87,Dewgong,90,70,80,70,95,70,
+88,Grimer,80,80,50,40,50,25,Muk
+89,Muk,105,105,75,65,100,50,
+90,Shellder,30,65,100,45,25,40,Cloyster
+91,Cloyster,50,95,180,85,45,70,
+92,Gastly,30,35,30,100,35,80,Haunter
+93,Haunter,45,50,45,115,55,95,Gengar
+94,Gengar,60,65,60,130,75,110,
+95,Onix,35,45,160,30,45,70,Steelix
+96,Drowzee,60,48,45,43,90,42,Hypno
+97,Hypno,85,73,70,73,115,67,
+98,Krabby,30,105,90,25,25,50,Kingler
+99,Kingler,55,130,115,50,50,75,
+100,Voltorb,40,30,50,55,55,100,Electrode
+101,Electrode,60,50,70,80,80,150,
+102,Exeggcute,60,40,80,60,45,40,Exeggutor
+103,Exeggutor,95,95,85,125,75,55,
+104,Cubone,50,50,95,40,50,35,Marowak
+105,Marowak,60,80,110,50,80,45,
+106,Hitmonlee,50,120,53,35,110,87,
+107,Hitmonchan,50,105,79,35,110,76,
+108,Lickitung,90,55,75,60,75,30,Lickilicky
+109,Koffing,40,65,95,60,45,35,Weezing
+110,Weezing,65,90,120,85,70,60,
+111,Rhyhorn,80,85,95,30,30,25,Rhydon
+112,Rhydon,105,130,120,45,45,40,Rhyperior
+113,Chansey,250,5,5,35,105,50,Blissey
+114,Tangela,65,55,115,100,40,60,Tangrowth
+115,Kangaskhan,105,95,80,40,80,90,
+116,Horsea,30,40,70,70,25,60,Seadra
+117,Seadra,55,65,95,95,45,85,Kingdra
+118,Goldeen,45,67,60,35,50,63,Seaking
+119,Seaking,80,92,65,65,80,68,
+120,Staryu,30,45,55,70,55,85,Starmie
+121,Starmie,60,75,85,100,85,115,
+122,Mr. Mime,40,45,65,100,120,90,Mr. Rime
+123,Scyther,70,110,80,55,80,105,Scizor; Kleavor
+124,Jynx,65,50,35,115,95,95,
+125,Electabuzz,65,83,57,95,85,105,Electivire
+126,Magmar,65,95,57,100,85,93,Magmortar
+127,Pinsir,65,125,100,55,70,85,
+128,Tauros,75,100,95,40,70,110,
+129,Magikarp,20,10,55,15,20,80,Gyarados
+130,Gyarados,95,125,79,60,100,81,
+131,Lapras,130,85,80,85,95,60,
+132,Ditto,48,48,48,48,48,48,
+133,Eevee,55,55,50,45,65,55,Vaporeon; Jolteon; Flareon; Espeon; Umbreon; Leafeon; Glaceon; Sylveon
+134,Vaporeon,130,65,60,110,95,65,
+135,Jolteon,65,65,60,110,95,130,
+136,Flareon,65,130,60,95,110,65,
+137,Porygon,65,60,70,85,75,40,Porygon2
+138,Omanyte,35,40,100,90,55,35,Omastar
+139,Omastar,70,60,125,115,70,55,
+140,Kabuto,30,80,90,55,45,55,Kabutops
+141,Kabutops,60,115,105,65,70,80,
+142,Aerodactyl,80,105,65,60,75,130,
+143,Snorlax,160,110,65,65,110,30,
+144,Articuno,90,85,100,95,125,85,
+145,Zapdos,90,90,85,125,90,100,
+146,Moltres,90,100,90,125,85,90,
+147,Dratini,41,64,45,50,50,50,Dragonair
+148,Dragonair,61,84,65,70,70,70,Dragonite
+149,Dragonite,91,134,95,100,100,80,
+150,Mewtwo,106,110,90,154,90,130,
+151,Mew,100,100,100,100,100,100,
+152,Chikorita,45,49,65,49,65,45,Bayleef
+153,Bayleef,60,62,80,63,80,60,Meganium
+154,Meganium,80,82,100,83,100,80,
+155,Cyndaquil,39,52,43,60,50,65,Quilava
+156,Quilava,58,64,58,80,65,80,Typhlosion
+157,Typhlosion,78,84,78,109,85,100,
+158,Totodile,50,65,64,44,48,43,Croconaw
+159,Croconaw,65,80,80,59,63,58,Feraligatr
+160,Feraligatr,85,105,100,79,83,78,
+161,Sentret,35,46,34,35,45,20,Furret
+162,Furret,85,76,64,45,55,90,
+163,Hoothoot,60,30,30,36,56,50,Noctowl
+164,Noctowl,100,50,50,86,96,70,
+165,Ledyba,40,20,30,40,80,55,Ledian
+166,Ledian,55,35,50,55,110,85,
+167,Spinarak,40,60,40,40,40,30,Ariados
+168,Ariados,70,90,70,60,70,40,
+169,Crobat,85,90,80,70,80,130,
+170,Chinchou,75,38,38,56,56,67,Lanturn
+171,Lanturn,125,58,58,76,76,67,
+172,Pichu,20,40,15,35,35,60,Pikachu
+173,Cleffa,50,25,28,45,55,15,Clefairy
+174,Igglybuff,90,30,15,40,20,15,Jigglypuff
+175,Togepi,35,20,65,40,65,20,Togetic
+176,Togetic,55,40,85,80,105,40,Togekiss
+177,Natu,40,50,45,70,45,70,Xatu
+178,Xatu,65,75,70,95,70,95,
+179,Mareep,55,40,40,65,45,35,Flaaffy
+180,Flaaffy,70,55,55,80,60,45,Ampharos
+181,Ampharos,90,75,85,115,90,55,
+182,Bellossom,75,80,95,90,100,50,
+183,Marill,70,20,50,20,50,40,Azumarill
+184,Azumarill,100,50,80,60,80,50,
+185,Sudowoodo,70,100,115,30,65,30,
+186,Politoed,90,75,75,90,100,70,
+187,Hoppip,35,35,40,35,55,50,Skiploom
+188,Skiploom,55,45,50,45,65,80,Jumpluff
+189,Jumpluff,75,55,70,55,95,110,
+190,Aipom,55,70,55,40,55,85,Ambipom
+191,Sunkern,30,30,30,30,30,30,Sunflora
+192,Sunflora,75,75,55,105,85,30,
+193,Yanma,65,65,45,75,45,95,Yanmega
+194,Wooper,55,45,45,25,25,15,Quagsire; Clodsire
+195,Quagsire,95,85,85,65,65,35,
+196,Espeon,65,65,60,130,95,110,
+197,Umbreon,95,65,110,60,130,65,
+198,Murkrow,60,85,42,85,42,91,Honchkrow
+199,Slowking,95,75,80,100,110,30,
+200,Misdreavus,60,60,60,85,85,85,Mismagius
+201,Unown,48,72,48,72,48,48,
+202,Wobbuffet,190,33,58,33,58,33,
+203,Girafarig,70,80,65,90,65,85,Farigiraf
+204,Pineco,50,65,90,35,35,15,Forretress
+205,Forretress,75,90,140,60,60,40,
+206,Dunsparce,100,70,70,65,65,45,Dudunsparce
+207,Gligar,65,75,105,35,65,85,Gliscor
+208,Steelix,75,85,200,55,65,30,
+209,Snubbull,60,80,50,40,40,30,Granbull
+210,Granbull,90,120,75,60,60,45,
+211,Qwilfish,65,95,85,55,55,85,Overqwil
+212,Scizor,70,130,100,55,80,65,
+213,Shuckle,20,10,230,10,230,5,
+214,Heracross,80,125,75,40,95,85,
+215,Sneasel,55,95,55,35,75,115,Weavile; Sneasler
+216,Teddiursa,60,80,50,50,50,40,Ursaring
+217,Ursaring,90,130,75,75,75,55,Ursaluna
+218,Slugma,40,40,40,70,40,20,Magcargo
+219,Magcargo,60,50,120,90,80,30,
+220,Swinub,50,50,40,30,30,50,Piloswine
+221,Piloswine,100,100,80,60,60,50,Mamoswine
+222,Corsola,65,55,95,65,95,35,Cursola
+223,Remoraid,35,65,35,65,35,65,Octillery
+224,Octillery,75,105,75,105,75,45,
+225,Delibird,45,55,45,65,45,75,
+226,Mantine,85,40,70,80,140,70,
+227,Skarmory,65,80,140,40,70,70,
+228,Houndour,45,60,30,80,50,65,Houndoom
+229,Houndoom,75,90,50,110,80,95,
+230,Kingdra,75,95,95,95,95,85,
+231,Phanpy,90,60,60,40,40,40,Donphan
+232,Donphan,90,120,120,60,60,50,
+233,Porygon2,85,80,90,105,95,60,Porygon Z
+234,Stantler,73,95,62,85,65,85,Wyrdeer
+235,Smeargle,55,20,35,20,45,75,
+236,Tyrogue,35,35,35,35,35,35,Hitmonlee; Hitmonchan; Hitmontop
+237,Hitmontop,50,95,95,35,110,70,
+238,Smoochum,45,30,15,85,65,65,Jynx
+239,Elekid,45,63,37,65,55,95,Electabuzz
+240,Magby,45,75,37,70,55,83,Magmar
+241,Miltank,95,80,105,40,70,100,
+242,Blissey,255,10,10,75,135,55,
+243,Raikou,90,85,75,115,100,115,
+244,Entei,115,115,85,90,75,100,
+245,Suicune,100,75,115,90,115,85,
+246,Larvitar,50,64,50,45,50,41,Pupitar
+247,Pupitar,70,84,70,65,70,51,Tyranitar
+248,Tyranitar,100,134,110,95,100,61,
+249,Lugia,106,90,130,90,154,110,
+250,Ho Oh,106,130,90,110,154,90,
+251,Celebi,100,100,100,100,100,100,
+252,Treecko,40,45,35,65,55,70,Grovyle
+253,Grovyle,50,65,45,85,65,95,Sceptile
+254,Sceptile,70,85,65,105,85,120,
+255,Torchic,45,60,40,70,50,45,Combusken
+256,Combusken,60,85,60,85,60,55,Blaziken
+257,Blaziken,80,120,70,110,70,80,
+258,Mudkip,50,70,50,50,50,40,Marshtomp
+259,Marshtomp,70,85,70,60,70,50,Swampert
+260,Swampert,100,110,90,85,90,60,
+261,Poochyena,35,55,35,30,30,35,Mightyena
+262,Mightyena,70,90,70,60,60,70,
+263,Zigzagoon,38,30,41,30,41,60,Linoone
+264,Linoone,78,70,61,50,61,100,Obstagoon
+265,Wurmple,45,45,35,20,30,20,Silcoon; Cascoon
+266,Silcoon,50,35,55,25,25,15,Beautifly
+267,Beautifly,60,70,50,100,50,65,
+268,Cascoon,50,35,55,25,25,15,Dustox
+269,Dustox,60,50,70,50,90,65,
+270,Lotad,40,30,30,40,50,30,Lombre
+271,Lombre,60,50,50,60,70,50,Ludicolo
+272,Ludicolo,80,70,70,90,100,70,
+273,Seedot,40,40,50,30,30,30,Nuzleaf
+274,Nuzleaf,70,70,40,60,40,60,Shiftry
+275,Shiftry,90,100,60,90,60,80,
+276,Taillow,40,55,30,30,30,85,Swellow
+277,Swellow,60,85,60,75,50,125,
+278,Wingull,40,30,30,55,30,85,Pelipper
+279,Pelipper,60,50,100,95,70,65,
+280,Ralts,28,25,25,45,35,40,Kirlia
+281,Kirlia,38,35,35,65,55,50,Gardevoir; Gallade
+282,Gardevoir,68,65,65,125,115,80,
+283,Surskit,40,30,32,50,52,65,Masquerain
+284,Masquerain,70,60,62,100,82,80,
+285,Shroomish,60,40,60,40,60,35,Breloom
+286,Breloom,60,130,80,60,60,70,
+287,Slakoth,60,60,60,35,35,30,Vigoroth
+288,Vigoroth,80,80,80,55,55,90,Slaking
+289,Slaking,150,160,100,95,65,100,
+290,Nincada,31,45,90,30,30,40,Ninjask; Shedinja
+291,Ninjask,61,90,45,50,50,160,
+292,Shedinja,1,90,45,30,30,40,
+293,Whismur,64,51,23,51,23,28,Loudred
+294,Loudred,84,71,43,71,43,48,Exploud
+295,Exploud,104,91,63,91,73,68,
+296,Makuhita,72,60,30,20,30,25,Hariyama
+297,Hariyama,144,120,60,40,60,50,
+298,Azurill,50,20,40,20,40,20,Marill
+299,Nosepass,30,45,135,45,90,30,Probopass
+300,Skitty,50,45,45,35,35,50,Delcatty
+301,Delcatty,70,65,65,55,55,90,
+302,Sableye,50,75,75,65,65,50,
+303,Mawile,50,85,85,55,55,50,
+304,Aron,50,70,100,40,40,30,Lairon
+305,Lairon,60,90,140,50,50,40,Aggron
+306,Aggron,70,110,180,60,60,50,
+307,Meditite,30,40,55,40,55,60,Medicham
+308,Medicham,60,60,75,60,75,80,
+309,Electrike,40,45,40,65,40,65,Manectric
+310,Manectric,70,75,60,105,60,105,
+311,Plusle,60,50,40,85,75,95,
+312,Minun,60,40,50,75,85,95,
+313,Volbeat,65,73,75,47,85,85,
+314,Illumise,65,47,75,73,85,85,
+315,Roselia,50,60,45,100,80,65,Roserade
+316,Gulpin,70,43,53,43,53,40,Swalot
+317,Swalot,100,73,83,73,83,55,
+318,Carvanha,45,90,20,65,20,65,Sharpedo
+319,Sharpedo,70,120,40,95,40,95,
+320,Wailmer,130,70,35,70,35,60,Wailord
+321,Wailord,170,90,45,90,45,60,
+322,Numel,60,60,40,65,45,35,Camerupt
+323,Camerupt,70,100,70,105,75,40,
+324,Torkoal,70,85,140,85,70,20,
+325,Spoink,60,25,35,70,80,60,Grumpig
+326,Grumpig,80,45,65,90,110,80,
+327,Spinda,60,60,60,60,60,60,
+328,Trapinch,45,100,45,45,45,10,Vibrava
+329,Vibrava,50,70,50,50,50,70,Flygon
+330,Flygon,80,100,80,80,80,100,
+331,Cacnea,50,85,40,85,40,35,Cacturne
+332,Cacturne,70,115,60,115,60,55,
+333,Swablu,45,40,60,40,75,50,Altaria
+334,Altaria,75,70,90,70,105,80,
+335,Zangoose,73,115,60,60,60,90,
+336,Seviper,73,100,60,100,60,65,
+337,Lunatone,90,55,65,95,85,70,
+338,Solrock,90,95,85,55,65,70,
+339,Barboach,50,48,43,46,41,60,Whiscash
+340,Whiscash,110,78,73,76,71,60,
+341,Corphish,43,80,65,50,35,35,Crawdaunt
+342,Crawdaunt,63,120,85,90,55,55,
+343,Baltoy,40,40,55,40,70,55,Claydol
+344,Claydol,60,70,105,70,120,75,
+345,Lileep,66,41,77,61,87,23,Cradily
+346,Cradily,86,81,97,81,107,43,
+347,Anorith,45,95,50,40,50,75,Armaldo
+348,Armaldo,75,125,100,70,80,45,
+349,Feebas,20,15,20,10,55,80,Milotic
+350,Milotic,95,60,79,100,125,81,
+351,Castform,70,70,70,70,70,70,
+352,Kecleon,60,90,70,60,120,40,
+353,Shuppet,44,75,35,63,33,45,Banette
+354,Banette,64,115,65,83,63,65,
+355,Duskull,20,40,90,30,90,25,Dusclops
+356,Dusclops,40,70,130,60,130,25,Dusknoir
+357,Tropius,99,68,83,72,87,51,
+358,Chimecho,75,50,80,95,90,65,
+359,Absol,65,130,60,75,60,75,
+360,Wynaut,95,23,48,23,48,23,Wobbuffet
+361,Snorunt,50,50,50,50,50,50,Glalie; Froslass
+362,Glalie,80,80,80,80,80,80,
+363,Spheal,70,40,50,55,50,25,Sealeo
+364,Sealeo,90,60,70,75,70,45,Walrein
+365,Walrein,110,80,90,95,90,65,
+366,Clamperl,35,64,85,74,55,32,Huntail; Gorebyss
+367,Huntail,55,104,105,94,75,52,
+368,Gorebyss,55,84,105,114,75,52,
+369,Relicanth,100,90,130,45,65,55,
+370,Luvdisc,43,30,55,40,65,97,
+371,Bagon,45,75,60,40,30,50,Shelgon
+372,Shelgon,65,95,100,60,50,50,Salamence
+373,Salamence,95,135,80,110,80,100,
+374,Beldum,40,55,80,35,60,30,Metang
+375,Metang,60,75,100,55,80,50,Metagross
+376,Metagross,80,135,130,95,90,70,
+377,Regirock,80,100,200,50,100,50,
+378,Regice,80,50,100,100,200,50,
+379,Registeel,80,75,150,75,150,50,
+380,Latias,80,80,90,110,130,110,
+381,Latios,80,90,80,130,110,110,
+382,Kyogre,100,100,90,150,140,90,
+383,Groudon,100,150,140,100,90,90,
+384,Rayquaza,105,150,90,150,90,95,
+385,Jirachi,100,100,100,100,100,100,
+0386 (normal),Deoxys Normal,50,150,50,150,50,150,
+387,Turtwig,55,68,64,45,55,31,Grotle
+388,Grotle,75,89,85,55,65,36,Torterra
+389,Torterra,95,109,105,75,85,56,
+390,Chimchar,44,58,44,58,44,61,Monferno
+391,Monferno,64,78,52,78,52,81,Infernape
+392,Infernape,76,104,71,104,71,108,
+393,Piplup,53,51,53,61,56,40,Prinplup
+394,Prinplup,64,66,68,81,76,50,Empoleon
+395,Empoleon,84,86,88,111,101,60,
+396,Starly,40,55,30,30,30,60,Staravia
+397,Staravia,55,75,50,40,40,80,Staraptor
+398,Staraptor,85,120,70,50,60,100,
+399,Bidoof,59,45,40,35,40,31,Bibarel
+400,Bibarel,79,85,60,55,60,71,
+401,Kricketot,37,25,41,25,41,25,Kricketune
+402,Kricketune,77,85,51,55,51,65,
+403,Shinx,45,65,34,40,34,45,Luxio
+404,Luxio,60,85,49,60,49,60,Luxray
+405,Luxray,80,120,79,95,79,70,
+406,Budew,40,30,35,50,70,55,Roselia
+407,Roserade,60,70,65,125,105,90,
+408,Cranidos,67,125,40,30,30,58,Rampardos
+409,Rampardos,97,165,60,65,50,58,
+410,Shieldon,30,42,118,42,88,30,Bastiodon
+411,Bastiodon,60,52,168,47,138,30,
+412,Burmy,40,29,45,29,45,36,Wormadam; Mothim
+0413 (plant),Wormadam Plant,60,59,85,79,105,36,
+414,Mothim,70,94,50,94,50,66,
+415,Combee,30,30,42,30,42,70,Vespiquen
+416,Vespiquen,70,80,102,80,102,40,
+417,Pachirisu,60,45,70,45,90,95,
+418,Buizel,55,65,35,60,30,85,Floatzel
+419,Floatzel,85,105,55,85,50,115,
+420,Cherubi,45,35,45,62,53,35,Cherrim
+421,Cherrim,70,60,70,87,78,85,
+422,Shellos,76,48,48,57,62,34,Gastrodon
+423,Gastrodon,111,83,68,92,82,39,
+424,Ambipom,75,100,66,60,66,115,
+425,Drifloon,90,50,34,60,44,70,Drifblim
+426,Drifblim,150,80,44,90,54,80,
+427,Buneary,55,66,44,44,56,85,Lopunny
+428,Lopunny,65,76,84,54,96,105,
+429,Mismagius,60,60,60,105,105,105,
+430,Honchkrow,100,125,52,105,52,71,
+431,Glameow,49,55,42,42,37,85,Purugly
+432,Purugly,71,82,64,64,59,112,
+433,Chingling,45,30,50,65,50,45,Chimecho
+434,Stunky,63,63,47,41,41,74,Skuntank
+435,Skuntank,103,93,67,71,61,84,
+436,Bronzor,57,24,86,24,86,23,Bronzong
+437,Bronzong,67,89,116,79,116,33,
+438,Bonsly,50,80,95,10,45,10,Sudowoodo
+439,Mime Jr..,20,25,45,70,90,60,Mr. Mime
+440,Happiny,100,5,5,15,65,30,Chansey
+441,Chatot,76,65,45,92,42,91,
+442,Spiritomb,50,92,108,92,108,35,
+443,Gible,58,70,45,40,45,42,Gabite
+444,Gabite,68,90,65,50,55,82,Garchomp
+445,Garchomp,108,130,95,80,85,102,
+446,Munchlax,135,85,40,40,85,5,Snorlax
+447,Riolu,40,70,40,35,40,60,Lucario
+448,Lucario,70,110,70,115,70,90,
+449,Hippopotas,68,72,78,38,42,32,Hippowdon
+450,Hippowdon,108,112,118,68,72,47,
+451,Skorupi,40,50,90,30,55,65,Drapion
+452,Drapion,70,90,110,60,75,95,
+453,Croagunk,48,61,40,61,40,50,Toxicroak
+454,Toxicroak,83,106,65,86,65,85,
+455,Carnivine,74,100,72,90,72,46,
+456,Finneon,49,49,56,49,61,66,Lumineon
+457,Lumineon,69,69,76,69,86,91,
+458,Mantyke,45,20,50,60,120,50,Mantine
+459,Snover,60,62,50,62,60,40,Abomasnow
+460,Abomasnow,90,92,75,92,85,60,
+461,Weavile,70,120,65,45,85,125,
+462,Magnezone,70,70,115,130,90,60,
+463,Lickilicky,110,85,95,80,95,50,
+464,Rhyperior,115,140,130,55,55,40,
+465,Tangrowth,100,100,125,110,50,50,
+466,Electivire,75,123,67,95,85,95,
+467,Magmortar,75,95,67,125,95,83,
+468,Togekiss,85,50,95,120,115,80,
+469,Yanmega,86,76,86,116,56,95,
+470,Leafeon,65,110,130,60,65,95,
+471,Glaceon,65,60,110,130,95,65,
+472,Gliscor,75,95,125,45,75,95,
+473,Mamoswine,110,130,80,70,60,80,
+474,Porygon Z,85,80,70,135,75,90,
+475,Gallade,68,125,65,65,115,80,
+476,Probopass,60,55,145,75,150,40,
+477,Dusknoir,45,100,135,65,135,45,
+478,Froslass,70,80,70,80,70,110,
+479,Rotom,50,50,77,95,77,91,
+480,Uxie,75,75,130,75,130,95,
+481,Mesprit,80,105,105,105,105,80,
+482,Azelf,75,125,70,125,70,115,
+483,Dialga,100,120,120,150,100,90,
+484,Palkia,90,120,100,150,120,100,
+485,Heatran,91,90,106,130,106,77,
+486,Regigigas,110,160,110,80,110,100,
+0487 (altered),Giratina Altered,150,100,120,100,120,90,
+488,Cresselia,120,70,110,75,120,85,
+489,Phione,80,80,80,80,80,80,
+490,Manaphy,100,100,100,100,100,100,
+491,Darkrai,70,90,90,135,90,125,
+0492 (land),Shaymin Land,100,100,100,100,100,100,
+493,Arceus,120,120,120,120,120,120,
+494,Victini,100,100,100,100,100,100,
+495,Snivy,45,45,55,45,55,63,Servine
+496,Servine,60,60,75,60,75,83,Serperior
+497,Serperior,75,75,95,75,95,113,
+498,Tepig,65,63,45,45,45,45,Pignite
+499,Pignite,90,93,55,70,55,55,Emboar
+500,Emboar,110,123,65,100,65,65,
+501,Oshawott,55,55,45,63,45,45,Dewott
+502,Dewott,75,75,60,83,60,60,Samurott
+503,Samurott,95,100,85,108,70,70,
+504,Patrat,45,55,39,35,39,42,Watchog
+505,Watchog,60,85,69,60,69,77,
+506,Lillipup,45,60,45,25,45,55,Herdier
+507,Herdier,65,80,65,35,65,60,Stoutland
+508,Stoutland,85,110,90,45,90,80,
+509,Purrloin,41,50,37,50,37,66,Liepard
+510,Liepard,64,88,50,88,50,106,
+511,Pansage,50,53,48,53,48,64,Simisage
+512,Simisage,75,98,63,98,63,101,
+513,Pansear,50,53,48,53,48,64,Simisear
+514,Simisear,75,98,63,98,63,101,
+515,Panpour,50,53,48,53,48,64,Simipour
+516,Simipour,75,98,63,98,63,101,
+517,Munna,76,25,45,67,55,24,Musharna
+518,Musharna,116,55,85,107,95,29,
+519,Pidove,50,55,50,36,30,43,Tranquill
+520,Tranquill,62,77,62,50,42,65,Unfezant
+521,Unfezant,80,115,80,65,55,93,
+522,Blitzle,45,60,32,50,32,76,Zebstrika
+523,Zebstrika,75,100,63,80,63,116,
+524,Roggenrola,55,75,85,25,25,15,Boldore
+525,Boldore,70,105,105,50,40,20,Gigalith
+526,Gigalith,85,135,130,60,80,25,
+527,Woobat,65,45,43,55,43,72,Swoobat
+528,Swoobat,67,57,55,77,55,114,
+529,Drilbur,60,85,40,30,45,68,Excadrill
+530,Excadrill,110,135,60,50,65,88,
+531,Audino,103,60,86,60,86,50,
+532,Timburr,75,80,55,25,35,35,Gurdurr
+533,Gurdurr,85,105,85,40,50,40,Conkeldurr
+534,Conkeldurr,105,140,95,55,65,45,
+535,Tympole,50,50,40,50,40,64,Palpitoad
+536,Palpitoad,75,65,55,65,55,69,Seismitoad
+537,Seismitoad,105,95,75,85,75,74,
+538,Throh,120,100,85,30,85,45,
+539,Sawk,75,125,75,30,75,85,
+540,Sewaddle,45,53,70,40,60,42,Swadloon
+541,Swadloon,55,63,90,50,80,42,Leavanny
+542,Leavanny,75,103,80,70,80,92,
+543,Venipede,30,45,59,30,39,57,Whirlipede
+544,Whirlipede,40,55,99,40,79,47,Scolipede
+545,Scolipede,60,100,89,55,69,112,
+546,Cottonee,40,27,60,37,50,66,Whimsicott
+547,Whimsicott,60,67,85,77,75,116,
+548,Petilil,45,35,50,70,50,30,Lilligant
+549,Lilligant,70,60,75,110,75,90,
+0550 (red-striped),Basculin Red Striped,70,92,65,80,55,98,Basculegion
+551,Sandile,50,72,35,35,35,65,Krokorok
+552,Krokorok,60,82,45,45,45,74,Krookodile
+553,Krookodile,95,117,80,65,70,92,
+554,Darumaka,70,90,45,15,45,50,Darmanitan
+0555 (standard),Darmanitan Standard,105,140,55,30,55,95,
+556,Maractus,75,86,67,106,67,60,
+557,Dwebble,50,65,85,35,35,55,Crustle
+558,Crustle,70,105,125,65,75,45,
+559,Scraggy,50,75,70,35,70,48,Scrafty
+560,Scrafty,65,90,115,45,115,58,
+561,Sigilyph,72,58,80,103,80,97,
+562,Yamask,38,30,85,55,65,30,Cofagrigus; Runerigus
+563,Cofagrigus,58,50,145,95,105,30,
+564,Tirtouga,54,78,103,53,45,22,Carracosta
+565,Carracosta,74,108,133,83,65,32,
+566,Archen,55,112,45,74,45,70,Archeops
+567,Archeops,75,140,65,112,65,110,
+568,Trubbish,50,50,62,40,62,65,Garbodor
+569,Garbodor,80,95,82,60,82,75,
+570,Zorua,40,65,40,80,40,65,Zoroark
+571,Zoroark,60,105,60,120,60,105,
+572,Minccino,55,50,40,40,40,75,Cinccino
+573,Cinccino,75,95,60,65,60,115,
+574,Gothita,45,30,50,55,65,45,Gothorita
+575,Gothorita,60,45,70,75,85,55,Gothitelle
+576,Gothitelle,70,55,95,95,110,65,
+577,Solosis,45,30,40,105,50,20,Duosion
+578,Duosion,65,40,50,125,60,30,Reuniclus
+579,Reuniclus,110,65,75,125,85,30,
+580,Ducklett,62,44,50,44,50,55,Swanna
+581,Swanna,75,87,63,87,63,98,
+582,Vanillite,36,50,50,65,60,44,Vanillish
+583,Vanillish,51,65,65,80,75,59,Vanilluxe
+584,Vanilluxe,71,95,85,110,95,79,
+585,Deerling,60,60,50,40,50,75,Sawsbuck
+586,Sawsbuck,80,100,70,60,70,95,
+587,Emolga,55,75,60,75,60,103,
+588,Karrablast,50,75,45,40,45,60,Escavalier
+589,Escavalier,70,135,105,60,105,20,
+590,Foongus,69,55,45,55,55,15,Amoonguss
+591,Amoonguss,114,85,70,85,80,30,
+0592 (male),Frillish Male,55,40,50,65,85,40,Jellicent
+0593 (male),Jellicent Male,100,60,70,85,105,60,
+594,Alomomola,165,75,80,40,45,65,
+595,Joltik,50,47,50,57,50,65,Galvantula
+596,Galvantula,70,77,60,97,60,108,
+597,Ferroseed,44,50,91,24,86,10,Ferrothorn
+598,Ferrothorn,74,94,131,54,116,20,
+599,Klink,40,55,70,45,60,30,Klang
+600,Klang,60,80,95,70,85,50,Klinklang
+601,Klinklang,60,100,115,70,85,90,
+602,Tynamo,35,55,40,45,40,60,Eelektrik
+603,Eelektrik,65,85,70,75,70,40,Eelektross
+604,Eelektross,85,115,80,105,80,50,
+605,Elgyem,55,55,55,85,55,30,Beheeyem
+606,Beheeyem,75,75,75,125,95,40,
+607,Litwick,50,30,55,65,55,20,Lampent
+608,Lampent,60,40,60,95,60,55,Chandelure
+609,Chandelure,60,55,90,145,90,80,
+610,Axew,46,87,60,30,40,57,Fraxure
+611,Fraxure,66,117,70,40,50,67,Haxorus
+612,Haxorus,76,147,90,60,70,97,
+613,Cubchoo,55,70,40,60,40,40,Beartic
+614,Beartic,95,130,80,70,80,50,
+615,Cryogonal,80,50,50,95,135,105,
+616,Shelmet,50,40,85,40,65,25,Accelgor
+617,Accelgor,80,70,40,100,60,145,
+618,Stunfisk,109,66,84,81,99,32,
+619,Mienfoo,45,85,50,55,50,65,Mienshao
+620,Mienshao,65,125,60,95,60,105,
+621,Druddigon,77,120,90,60,90,48,
+622,Golett,59,74,50,35,50,35,Golurk
+623,Golurk,89,124,80,55,80,55,
+624,Pawniard,45,85,70,40,40,60,Bisharp
+625,Bisharp,65,125,100,60,70,70,Kingambit
+626,Bouffalant,95,110,95,40,95,55,
+627,Rufflet,70,83,50,37,50,60,Braviary
+628,Braviary,100,123,75,57,75,80,
+629,Vullaby,70,55,75,45,65,60,Mandibuzz
+630,Mandibuzz,110,65,105,55,95,80,
+631,Heatmor,85,97,66,105,66,65,
+632,Durant,58,109,112,48,48,109,
+633,Deino,52,65,50,45,50,38,Zweilous
+634,Zweilous,72,85,70,65,70,58,Hydreigon
+635,Hydreigon,92,105,90,125,90,98,
+636,Larvesta,55,85,55,50,55,60,Volcarona
+637,Volcarona,85,60,65,135,105,100,
+638,Cobalion,91,90,129,90,72,108,
+639,Terrakion,91,129,90,72,90,108,
+640,Virizion,91,90,72,90,129,108,
+0641 (incarnate),Tornadus Incarnate,79,115,70,125,80,111,
+0642 (incarnate),Thundurus Incarnate,79,115,70,125,80,111,
+643,Reshiram,100,120,100,150,120,90,
+644,Zekrom,100,150,120,120,100,90,
+0645 (incarnate),Landorus Incarnate,89,125,90,115,80,101,
+646,Kyurem,125,130,90,130,90,95,
+0647 (ordinary),Keldeo Ordinary,91,72,90,129,90,108,
+0648 (aria),Meloetta Aria,100,77,77,128,128,90,
+649,Genesect,71,120,95,120,95,99,
+650,Chespin,56,61,65,48,45,38,Quilladin
+651,Quilladin,61,78,95,56,58,57,Chesnaught
+652,Chesnaught,88,107,122,74,75,64,
+653,Fennekin,40,45,40,62,60,60,Braixen
+654,Braixen,59,59,58,90,70,73,Delphox
+655,Delphox,75,69,72,114,100,104,
+656,Froakie,41,56,40,62,44,71,Frogadier
+657,Frogadier,54,63,52,83,56,97,Greninja
+658,Greninja,72,95,67,103,71,122,
+659,Bunnelby,38,36,38,32,36,57,Diggersby
+660,Diggersby,85,56,77,50,77,78,
+661,Fletchling,45,50,43,40,38,62,Fletchinder
+662,Fletchinder,62,73,55,56,52,84,Talonflame
+663,Talonflame,78,81,71,74,69,126,
+664,Scatterbug,38,35,40,27,25,35,Spewpa
+665,Spewpa,45,22,60,27,30,29,Vivillon
+666,Vivillon,80,52,50,90,50,89,
+667,Litleo,62,50,58,73,54,72,Pyroar
+0668 (male),Pyroar Male,86,68,72,109,66,106,
+669,Flabébé,44,38,39,61,79,42,Floette
+670,Floette,54,45,47,75,98,52,Florges
+671,Florges,78,65,68,112,154,75,
+672,Skiddo,66,65,48,62,57,52,Gogoat
+673,Gogoat,123,100,62,97,81,68,
+674,Pancham,67,82,62,46,48,43,Pangoro
+675,Pangoro,95,124,78,69,71,58,
+676,Furfrou,75,80,60,65,90,102,
+677,Espurr,62,48,54,63,60,68,Meowstic
+0678 (male),Meowstic Male,74,48,76,83,81,104,
+679,Honedge,45,80,100,35,37,28,Doublade
+680,Doublade,59,110,150,45,49,35,Aegislash
+0681 (shield),Aegislash Shield,60,50,140,50,140,60,
+682,Spritzee,78,52,60,63,65,23,Aromatisse
+683,Aromatisse,101,72,72,99,89,29,
+684,Swirlix,62,48,66,59,57,49,Slurpuff
+685,Slurpuff,82,80,86,85,75,72,
+686,Inkay,53,54,53,37,46,45,Malamar
+687,Malamar,86,92,88,68,75,73,
+688,Binacle,42,52,67,39,56,50,Barbaracle
+689,Barbaracle,72,105,115,54,86,68,
+690,Skrelp,50,60,60,60,60,30,Dragalge
+691,Dragalge,65,75,90,97,123,44,
+692,Clauncher,50,53,62,58,63,44,Clawitzer
+693,Clawitzer,71,73,88,120,89,59,
+694,Helioptile,44,38,33,61,43,70,Heliolisk
+695,Heliolisk,62,55,52,109,94,109,
+696,Tyrunt,58,89,77,45,45,48,Tyrantrum
+697,Tyrantrum,82,121,119,69,59,71,
+698,Amaura,77,59,50,67,63,46,Aurorus
+699,Aurorus,123,77,72,99,92,58,
+700,Sylveon,95,65,65,110,130,60,
+701,Hawlucha,78,92,75,74,63,118,
+702,Dedenne,67,58,57,81,67,101,
+703,Carbink,50,50,150,50,150,50,
+704,Goomy,45,50,35,55,75,40,Sliggoo
+705,Sliggoo,68,75,53,83,113,60,Goodra
+706,Goodra,90,100,70,110,150,80,
+707,Klefki,57,80,91,80,87,75,
+708,Phantump,43,70,48,50,60,38,Trevenant
+709,Trevenant,85,110,76,65,82,56,
+0710 (average),Pumpkaboo Average,49,66,70,44,55,51,Gourgeist
+0711 (average),Gourgeist Average,65,90,122,58,75,84,
+712,Bergmite,55,69,85,32,35,28,Avalugg
+713,Avalugg,95,117,184,44,46,28,
+714,Noibat,40,30,35,45,40,55,Noivern
+715,Noivern,85,70,80,97,80,123,
+716,Xerneas,126,131,95,131,98,99,
+717,Yveltal,126,131,95,131,98,99,
+0718 (50),Zygarde 50,108,100,121,81,95,95,
+719,Diancie,50,100,150,100,150,50,
+720,Hoopa,80,110,60,150,130,70,
+721,Volcanion,80,110,120,130,90,70,
+722,Rowlet,68,55,55,50,50,42,Dartrix
+723,Dartrix,78,75,75,70,70,52,Decidueye
+724,Decidueye,78,107,75,100,100,70,
+725,Litten,45,65,40,60,40,70,Torracat
+726,Torracat,65,85,50,80,50,90,Incineroar
+727,Incineroar,95,115,90,80,90,60,
+728,Popplio,50,54,54,66,56,40,Brionne
+729,Brionne,60,69,69,91,81,50,Primarina
+730,Primarina,80,74,74,126,116,60,
+731,Pikipek,35,75,30,30,30,65,Trumbeak
+732,Trumbeak,55,85,50,40,50,75,Toucannon
+733,Toucannon,80,120,75,75,75,60,
+734,Yungoos,48,70,30,30,30,45,Gumshoos
+735,Gumshoos,88,110,60,55,60,45,
+736,Grubbin,47,62,45,55,45,46,Charjabug
+737,Charjabug,57,82,95,55,75,36,Vikavolt
+738,Vikavolt,77,70,90,145,75,43,
+739,Crabrawler,47,82,57,42,47,63,Crabominable
+740,Crabominable,97,132,77,62,67,43,
+0741 (baile),Oricorio Baile,75,70,70,98,70,93,
+742,Cutiefly,40,45,40,55,40,84,Ribombee
+743,Ribombee,60,55,60,95,70,124,
+744,Rockruff,45,65,40,30,40,60,Lycanroc
+0745 (midday),Lycanroc Midday,75,115,65,55,65,112,
+0746 (solo),Wishiwashi Solo,45,20,20,25,25,40,
+747,Mareanie,50,53,62,43,52,45,Toxapex
+748,Toxapex,50,63,152,53,142,35,
+749,Mudbray,70,100,70,45,55,45,Mudsdale
+750,Mudsdale,100,125,100,55,85,35,
+751,Dewpider,38,40,52,40,72,27,Araquanid
+752,Araquanid,68,70,92,50,132,42,
+753,Fomantis,40,55,35,50,35,35,Lurantis
+754,Lurantis,70,105,90,80,90,45,
+755,Morelull,40,35,55,65,75,15,Shiinotic
+756,Shiinotic,60,45,80,90,100,30,
+757,Salandit,48,44,40,71,40,77,Salazzle
+758,Salazzle,68,64,60,111,60,117,
+759,Stufful,70,75,50,45,50,50,Bewear
+760,Bewear,120,125,80,55,60,60,
+761,Bounsweet,42,30,38,30,38,32,Steenee
+762,Steenee,52,40,48,40,48,62,Tsareena
+763,Tsareena,72,120,98,50,98,72,
+764,Comfey,51,52,90,82,110,100,
+765,Oranguru,90,60,80,90,110,60,
+766,Passimian,100,120,90,40,60,80,
+767,Wimpod,25,35,40,20,30,80,Golisopod
+768,Golisopod,75,125,140,60,90,40,
+769,Sandygast,55,55,80,70,45,15,Palossand
+770,Palossand,85,75,110,100,75,35,
+771,Pyukumuku,55,60,130,30,130,5,
+772,Type Null,95,95,95,95,95,59,Silvally
+773,Silvally,95,95,95,95,95,95,
+0774 (red-meteor),Minior Red Meteor,60,60,100,60,100,60,
+775,Komala,65,115,65,75,95,65,
+776,Turtonator,60,78,135,91,85,36,
+777,Togedemaru,65,98,63,40,73,96,
+0778 (disguised),Mimikyu Disguised,55,90,80,50,105,96,
+779,Bruxish,68,105,70,70,70,92,
+780,Drampa,78,60,85,135,91,36,
+781,Dhelmise,70,131,100,86,90,40,
+782,Jangmo O,45,55,65,45,45,45,Hakamo O
+783,Hakamo O,55,75,90,65,70,65,Kommo O
+784,Kommo O,75,110,125,100,105,85,
+785,Tapu Koko,70,115,85,95,75,130,
+786,Tapu Lele,70,85,75,130,115,95,
+787,Tapu Bulu,70,130,115,85,95,75,
+788,Tapu Fini,70,75,115,95,130,85,
+789,Cosmog,43,29,31,29,31,37,Cosmoem
+790,Cosmoem,43,29,131,29,131,37,Solgaleo; Lunala
+791,Solgaleo,137,137,107,113,89,97,
+792,Lunala,137,113,89,137,107,97,
+793,Nihilego,109,53,47,127,131,103,
+794,Buzzwole,107,139,139,53,53,79,
+795,Pheromosa,71,137,37,137,37,151,
+796,Xurkitree,83,89,71,173,71,83,
+797,Celesteela,97,101,103,107,101,61,
+798,Kartana,59,181,131,59,31,109,
+799,Guzzlord,223,101,53,97,53,43,
+800,Necrozma,97,107,101,127,89,79,
+801,Magearna,80,95,115,130,115,65,
+802,Marshadow,90,125,80,90,90,125,
+803,Poipole,67,73,67,73,67,73,Naganadel
+804,Naganadel,73,73,73,127,73,121,
+805,Stakataka,61,131,211,53,101,13,
+806,Blacephalon,53,127,53,151,79,107,
+807,Zeraora,88,112,75,102,80,143,
+808,Meltan,46,65,65,55,35,34,Melmetal
+809,Melmetal,135,143,143,80,65,34,
+810,Grookey,50,65,50,40,40,65,Thwackey
+811,Thwackey,70,85,70,55,60,80,Rillaboom
+812,Rillaboom,100,125,90,60,70,85,
+813,Scorbunny,50,71,40,40,40,69,Raboot
+814,Raboot,65,86,60,55,60,94,Cinderace
+815,Cinderace,80,116,75,65,75,119,
+816,Sobble,50,40,40,70,40,70,Drizzile
+817,Drizzile,65,60,55,95,55,90,Inteleon
+818,Inteleon,70,85,65,125,65,120,
+819,Skwovet,70,55,55,35,35,25,Greedent
+820,Greedent,120,95,95,55,75,20,
+821,Rookidee,38,47,35,33,35,57,Corvisquire
+822,Corvisquire,68,67,55,43,55,77,Corviknight
+823,Corviknight,98,87,105,53,85,67,
+824,Blipbug,25,20,20,25,45,45,Dottler
+825,Dottler,50,35,80,50,90,30,Orbeetle
+826,Orbeetle,60,45,110,80,120,90,
+827,Nickit,40,28,28,47,52,50,Thievul
+828,Thievul,70,58,58,87,92,90,
+829,Gossifleur,40,40,60,40,60,10,Eldegoss
+830,Eldegoss,60,50,90,80,120,60,
+831,Wooloo,42,40,55,40,45,48,Dubwool
+832,Dubwool,72,80,100,60,90,88,
+833,Chewtle,50,64,50,38,38,44,Drednaw
+834,Drednaw,90,115,90,48,68,74,
+835,Yamper,59,45,50,40,50,26,Boltund
+836,Boltund,69,90,60,90,60,121,
+837,Rolycoly,30,40,50,40,50,30,Carkol
+838,Carkol,80,60,90,60,70,50,Coalossal
+839,Coalossal,110,80,120,80,90,30,
+840,Applin,40,40,80,40,40,20,Flapple; Appletun; Dipplin
+841,Flapple,70,110,80,95,60,70,
+842,Appletun,110,85,80,100,80,30,
+843,Silicobra,52,57,75,35,50,46,Sandaconda
+844,Sandaconda,72,107,125,65,70,71,
+845,Cramorant,70,85,55,85,95,85,
+846,Arrokuda,41,63,40,40,30,66,Barraskewda
+847,Barraskewda,61,123,60,60,50,136,
+848,Toxel,40,38,35,54,35,40,Toxtricity
+0849 (amped),Toxtricity Amped,75,98,70,114,70,75,
+850,Sizzlipede,50,65,45,50,50,45,Centiskorch
+851,Centiskorch,100,115,65,90,90,65,
+852,Clobbopus,50,68,60,50,50,32,Grapploct
+853,Grapploct,80,118,90,70,80,42,
+854,Sinistea,40,45,45,74,54,50,Polteageist
+855,Polteageist,60,65,65,134,114,70,
+856,Hatenna,42,30,45,56,53,39,Hattrem
+857,Hattrem,57,40,65,86,73,49,Hatterene
+858,Hatterene,57,90,95,136,103,29,
+859,Impidimp,45,45,30,55,40,50,Morgrem
+860,Morgrem,65,60,45,75,55,70,Grimmsnarl
+861,Grimmsnarl,95,120,65,95,75,60,
+862,Obstagoon,93,90,101,60,81,95,
+863,Perrserker,70,110,100,50,60,50,
+864,Cursola,60,95,50,145,130,30,
+865,Sirfetch’d,62,135,95,68,82,65,
+866,Mr. Rime,80,85,75,110,100,70,
+867,Runerigus,58,95,145,50,105,30,
+868,Milcery,45,40,40,50,61,34,Alcremie
+869,Alcremie,65,60,75,110,121,64,
+870,Falinks,65,100,100,70,60,75,
+871,Pincurchin,48,101,95,91,85,15,
+872,Snom,30,25,35,45,30,20,Frosmoth
+873,Frosmoth,70,65,60,125,90,65,
+874,Stonjourner,100,125,135,20,20,70,
+0875 (ice),Eiscue Ice,75,80,110,65,90,50,
+0876 (male),Indeedee Male,60,65,55,105,95,95,
+0877 (full-belly),Morpeko Full Belly,58,95,58,70,58,97,
+878,Cufant,72,80,49,40,49,40,Copperajah
+879,Copperajah,122,130,69,80,69,30,
+880,Dracozolt,90,100,90,80,70,75,
+881,Arctozolt,90,100,90,90,80,55,
+882,Dracovish,90,90,100,70,80,75,
+883,Arctovish,90,90,100,80,90,55,
+884,Duraludon,70,95,115,120,50,85,Archaludon
+885,Dreepy,28,60,30,40,30,82,Drakloak
+886,Drakloak,68,80,50,60,50,102,Dragapult
+887,Dragapult,88,120,75,100,75,142,
+888,Zacian,92,120,115,80,115,138,
+889,Zamazenta,92,120,115,80,115,138,
+890,Eternatus,140,85,95,145,95,130,
+891,Kubfu,60,90,60,53,50,72,Urshifu
+0892 (single-strike),Urshifu Single Strike,100,130,100,63,60,97,
+893,Zarude,105,120,105,70,95,105,
+894,Regieleki,80,100,50,100,50,200,
+895,Regidrago,200,100,50,100,50,80,
+896,Glastrier,100,145,130,65,110,30,
+897,Spectrier,100,65,60,145,80,130,
+898,Calyrex,100,80,80,80,80,80,
+899,Wyrdeer,103,105,72,105,75,65,
+900,Kleavor,70,135,95,45,70,85,
+901,Ursaluna,130,140,105,45,80,50,
+0902 (male),Basculegion Male,120,112,65,80,75,78,
+903,Sneasler,80,130,60,40,80,120,
+904,Overqwil,85,115,95,65,65,85,
+0905 (incarnate),Enamorus Incarnate,74,115,70,135,80,106,
+906,Sprigatito,40,61,54,45,45,65,Floragato
+907,Floragato,61,80,63,60,63,83,Meowscarada
+908,Meowscarada,76,110,70,81,70,123,
+909,Fuecoco,67,45,59,63,40,36,Crocalor
+910,Crocalor,81,55,78,90,58,49,Skeledirge
+911,Skeledirge,104,75,100,110,75,66,
+912,Quaxly,55,65,45,50,45,50,Quaxwell
+913,Quaxwell,70,85,65,65,60,65,Quaquaval
+914,Quaquaval,85,120,80,85,75,85,
+915,Lechonk,54,45,40,35,45,35,Oinkologne
+0916 (male),Oinkologne Male,110,100,75,59,80,65,
+917,Tarountula,35,41,45,29,40,20,Spidops
+918,Spidops,60,79,92,52,86,35,
+919,Nymble,33,46,40,21,25,45,Lokix
+920,Lokix,71,102,78,52,55,92,
+921,Pawmi,45,50,20,40,25,60,Pawmo
+922,Pawmo,60,75,40,50,40,85,Pawmot
+923,Pawmot,70,115,70,70,60,105,
+924,Tandemaus,50,50,45,40,45,75,Maushold
+0925 (family-of-four),Maushold Family Of Four,74,75,70,65,75,111,
+926,Fidough,37,55,70,30,55,65,Dachsbun
+927,Dachsbun,57,80,115,50,80,95,
+928,Smoliv,41,35,45,58,51,30,Dolliv
+929,Dolliv,52,53,60,78,78,33,Arboliva
+930,Arboliva,78,69,90,125,109,39,
+0931 (green-plumage),Squawkabilly Green Plumage,82,96,51,45,51,92,
+932,Nacli,55,55,75,35,35,25,Naclstack
+933,Naclstack,60,60,100,35,65,35,Garganacl
+934,Garganacl,100,100,130,45,90,35,
+935,Charcadet,40,50,40,50,40,35,Armarouge; Ceruledge
+936,Armarouge,85,60,100,125,80,75,
+937,Ceruledge,75,125,80,60,100,85,
+938,Tadbulb,61,31,41,59,35,45,Bellibolt
+939,Bellibolt,109,64,91,103,83,45,
+940,Wattrel,40,40,35,55,40,70,Kilowattrel
+941,Kilowattrel,70,70,60,105,60,125,
+942,Maschiff,60,78,60,40,51,51,Mabosstiff
+943,Mabosstiff,80,120,90,60,70,85,
+944,Shroodle,40,65,35,40,35,75,Grafaiai
+945,Grafaiai,63,95,65,80,72,110,
+946,Bramblin,40,65,30,45,35,60,Brambleghast
+947,Brambleghast,55,115,70,80,70,90,
+948,Toedscool,40,40,35,50,100,70,Toedscruel
+949,Toedscruel,80,70,65,80,120,100,
+950,Klawf,70,100,115,35,55,75,
+951,Capsakid,50,62,40,62,40,50,Scovillain
+952,Scovillain,65,108,65,108,65,75,
+953,Rellor,41,50,60,31,58,30,Rabsca
+954,Rabsca,75,50,85,115,100,45,
+955,Flittle,30,35,30,55,30,75,Espathra
+956,Espathra,95,60,60,101,60,105,
+957,Tinkatink,50,45,45,35,64,58,Tinkatuff
+958,Tinkatuff,65,55,55,45,82,78,Tinkaton
+959,Tinkaton,85,75,77,70,105,94,
+960,Wiglett,10,55,25,35,25,95,Wugtrio
+961,Wugtrio,35,100,50,50,70,120,
+962,Bombirdier,70,103,85,60,85,82,
+963,Finizen,70,45,40,45,40,75,Palafin
+0964 (zero),Palafin Zero,100,70,72,53,62,100,
+965,Varoom,45,70,63,30,45,47,Revavroom
+966,Revavroom,80,119,90,54,67,90,
+967,Cyclizar,70,95,65,85,65,121,
+968,Orthworm,70,85,145,60,55,65,
+969,Glimmet,48,35,42,105,60,60,Glimmora
+970,Glimmora,83,55,90,130,81,86,
+971,Greavard,50,61,60,30,55,34,Houndstone
+972,Houndstone,72,101,100,50,97,68,
+973,Flamigo,82,115,74,75,64,90,
+974,Cetoddle,108,68,45,30,40,43,Cetitan
+975,Cetitan,170,113,65,45,55,73,
+976,Veluza,90,102,73,78,65,70,
+977,Dondozo,150,100,115,65,65,35,
+0978 (curly),Tatsugiri Curly,68,50,60,120,95,82,
+979,Annihilape,110,115,80,50,90,90,
+980,Clodsire,130,75,60,45,100,20,
+981,Farigiraf,120,90,70,110,70,60,
+0982 (two-segment),Dudunsparce Two Segment,125,100,80,85,75,55,
+983,Kingambit,100,135,120,60,85,50,
+984,Great Tusk,115,131,131,53,53,87,
+985,Scream Tail,115,65,99,65,115,111,
+986,Brute Bonnet,111,127,99,79,99,55,
+987,Flutter Mane,55,55,55,135,135,135,
+988,Slither Wing,85,135,79,85,105,81,
+989,Sandy Shocks,85,81,97,121,85,101,
+990,Iron Treads,90,112,120,72,70,106,
+991,Iron Bundle,56,80,114,124,60,136,
+992,Iron Hands,154,140,108,50,68,50,
+993,Iron Jugulis,94,80,86,122,80,108,
+994,Iron Moth,80,70,60,140,110,110,
+995,Iron Thorns,100,134,110,70,84,72,
+996,Frigibax,65,75,45,35,45,55,Arctibax
+997,Arctibax,90,95,66,45,65,62,Baxcalibur
+998,Baxcalibur,115,145,92,75,86,87,
+999,Gimmighoul,45,30,70,75,70,10,Gholdengo
+1000,Gholdengo,87,60,95,133,91,84,
+1001,Wo Chien,85,85,100,95,135,70,
+1002,Chien Pao,80,120,80,90,65,135,
+1003,Ting Lu,155,110,125,55,80,45,
+1004,Chi Yu,55,80,80,135,120,100,
+1005,Roaring Moon,105,139,71,55,101,119,
+1006,Iron Valiant,74,130,90,120,60,116,
+1007,Koraidon,100,135,115,85,100,135,
+1008,Miraidon,100,85,100,135,115,135,
+1009,Walking Wake,99,83,91,125,83,109,
+1010,Iron Leaves,90,130,88,70,108,104,
+1011,Dipplin,80,80,110,95,80,40,Hydrapple
+1012,Poltchageist,40,45,45,74,54,50,Sinistcha
+1013,Sinistcha,71,60,106,121,80,70,
+1014,Okidogi,88,128,115,58,86,80,
+1015,Munkidori,88,75,66,130,90,106,
+1016,Fezandipiti,88,91,82,70,125,99,
+1017,Ogerpon,80,120,84,60,96,110,
+1018,Archaludon,90,105,130,125,65,85,
+1019,Hydrapple,106,80,110,120,80,44,
+1020,Gouging Fire,105,115,121,65,93,91,
+1021,Raging Bolt,125,73,91,137,89,75,
+1022,Iron Boulder,90,120,80,68,108,124,
+1023,Iron Crown,90,72,100,122,108,98,
+1024,Terapagos,90,65,85,65,85,60,
+1025,Pecharunt,88,88,160,88,88,88,
+0386 (attack),Deoxys Attack,50,180,20,180,20,150,
+0386 (defense),Deoxys Defense,50,70,160,70,160,90,
+0386 (speed),Deoxys Speed,50,95,90,95,90,180,
+0413 (sandy),Wormadam Sandy,60,79,105,59,85,36,
+0413 (trash),Wormadam Trash,60,69,95,69,95,36,
+0492 (sky),Shaymin Sky,100,103,75,120,75,127,
+0487 (origin),Giratina Origin,150,120,100,120,100,90,
+0479 (heat),Rotom Heat,50,65,107,105,107,86,
+0479 (wash),Rotom Wash,50,65,107,105,107,86,
+0479 (frost),Rotom Frost,50,65,107,105,107,86,
+0479 (fan),Rotom Fan,50,65,107,105,107,86,
+0479 (mow),Rotom Mow,50,65,107,105,107,86,
+0351 (sunny),Castform Sunny,70,70,70,70,70,70,
+0351 (rainy),Castform Rainy,70,70,70,70,70,70,
+0351 (snowy),Castform Snowy,70,70,70,70,70,70,
+0550 (blue-striped),Basculin Blue Striped,70,92,65,80,55,98,Basculegion
+0555 (zen),Darmanitan Zen,105,30,105,140,105,55,
+0648 (pirouette),Meloetta Pirouette,100,128,90,77,77,128,
+0641 (therian),Tornadus Therian,79,100,80,110,90,121,
+0642 (therian),Thundurus Therian,79,105,70,145,80,101,
+0645 (therian),Landorus Therian,89,145,90,105,80,91,
+0646 (black),Kyurem Black,125,170,100,120,90,95,
+0646 (white),Kyurem White,125,120,90,170,100,95,
+0647 (resolute),Keldeo Resolute,91,72,90,129,90,108,
+0678 (female),Meowstic Female,74,48,76,83,81,104,
+0681 (blade),Aegislash Blade,60,140,50,140,50,60,
+0710 (small),Pumpkaboo Small,44,66,70,44,55,56,Gourgeist
+0710 (large),Pumpkaboo Large,54,66,70,44,55,46,Gourgeist
+0710 (super),Pumpkaboo Super,59,66,70,44,55,41,Gourgeist
+0711 (small),Gourgeist Small,55,85,122,58,75,99,
+0711 (large),Gourgeist Large,75,95,122,58,75,69,
+0711 (super),Gourgeist Super,85,100,122,58,75,54,
+0003 (mega),Venusaur Mega,80,100,123,122,120,80,
+0006 (mega-x),Charizard Mega X,78,130,111,130,85,100,
+0006 (mega-y),Charizard Mega Y,78,104,78,159,115,100,
+0009 (mega),Blastoise Mega,79,103,120,135,115,78,
+0065 (mega),Alakazam Mega,55,50,65,175,105,150,
+0094 (mega),Gengar Mega,60,65,80,170,95,130,
+0115 (mega),Kangaskhan Mega,105,125,100,60,100,100,
+0127 (mega),Pinsir Mega,65,155,120,65,90,105,
+0130 (mega),Gyarados Mega,95,155,109,70,130,81,
+0142 (mega),Aerodactyl Mega,80,135,85,70,95,150,
+0150 (mega-x),Mewtwo Mega X,106,190,100,154,100,130,
+0150 (mega-y),Mewtwo Mega Y,106,150,70,194,120,140,
+0181 (mega),Ampharos Mega,90,95,105,165,110,45,
+0212 (mega),Scizor Mega,70,150,140,65,100,75,
+0214 (mega),Heracross Mega,80,185,115,40,105,75,
+0229 (mega),Houndoom Mega,75,90,90,140,90,115,
+0248 (mega),Tyranitar Mega,100,164,150,95,120,71,
+0257 (mega),Blaziken Mega,80,160,80,130,80,100,
+0282 (mega),Gardevoir Mega,68,85,65,165,135,100,
+0303 (mega),Mawile Mega,50,105,125,55,95,50,
+0306 (mega),Aggron Mega,70,140,230,60,80,50,
+0308 (mega),Medicham Mega,60,100,85,80,85,100,
+0310 (mega),Manectric Mega,70,75,80,135,80,135,
+0354 (mega),Banette Mega,64,165,75,93,83,75,
+0359 (mega),Absol Mega,65,150,60,115,60,115,
+0445 (mega),Garchomp Mega,108,170,115,120,95,92,
+0448 (mega),Lucario Mega,70,145,88,140,70,112,
+0460 (mega),Abomasnow Mega,90,132,105,132,105,30,
+0670 (eternal),Floette Eternal,74,65,67,125,128,92,Florges
+0380 (mega),Latias Mega,80,100,120,140,150,110,
+0381 (mega),Latios Mega,80,130,100,160,120,110,
+0260 (mega),Swampert Mega,100,150,110,95,110,70,
+0254 (mega),Sceptile Mega,70,110,75,145,85,145,
+0302 (mega),Sableye Mega,50,85,125,85,115,20,
+0334 (mega),Altaria Mega,75,110,110,110,105,80,
+0475 (mega),Gallade Mega,68,165,95,65,115,110,
+0531 (mega),Audino Mega,103,60,126,80,126,50,
+0319 (mega),Sharpedo Mega,70,140,70,110,65,105,
+0080 (mega),Slowbro Mega,95,75,180,130,80,30,
+0208 (mega),Steelix Mega,75,125,230,55,95,30,
+0018 (mega),Pidgeot Mega,83,80,80,135,80,121,
+0362 (mega),Glalie Mega,80,120,80,120,80,100,
+0719 (mega),Diancie Mega,50,160,110,160,110,110,
+0376 (mega),Metagross Mega,80,145,150,105,110,110,
+0382 (primal),Kyogre Primal,100,150,90,180,160,90,
+0383 (primal),Groudon Primal,100,180,160,150,90,90,
+0384 (mega),Rayquaza Mega,105,180,100,180,100,115,
+0025 (rock-star),Pikachu Rock Star,35,55,40,50,50,90,Raichu
+0025 (belle),Pikachu Belle,35,55,40,50,50,90,Raichu
+0025 (pop-star),Pikachu Pop Star,35,55,40,50,50,90,Raichu
+0025 (phd),Pikachu Phd,35,55,40,50,50,90,Raichu
+0025 (libre),Pikachu Libre,35,55,40,50,50,90,Raichu
+0025 (cosplay),Pikachu Cosplay,35,55,40,50,50,90,Raichu
+0720 (unbound),Hoopa Unbound,80,160,60,170,130,80,
+0323 (mega),Camerupt Mega,70,120,100,145,105,20,
+0428 (mega),Lopunny Mega,65,136,94,54,96,135,
+0373 (mega),Salamence Mega,95,145,130,120,90,120,
+0015 (mega),Beedrill Mega,65,150,40,15,80,145,
+0019 (alola),Rattata Alola,30,56,35,25,35,72,Raticate
+0020 (alola),Raticate Alola,75,71,70,40,80,77,
+0020 (totem-alola),Raticate Totem Alola,75,71,70,40,80,77,
+0025 (original-cap),Pikachu Original Cap,35,55,40,50,50,90,Raichu
+0025 (hoenn-cap),Pikachu Hoenn Cap,35,55,40,50,50,90,Raichu
+0025 (sinnoh-cap),Pikachu Sinnoh Cap,35,55,40,50,50,90,Raichu
+0025 (unova-cap),Pikachu Unova Cap,35,55,40,50,50,90,Raichu
+0025 (kalos-cap),Pikachu Kalos Cap,35,55,40,50,50,90,Raichu
+0025 (alola-cap),Pikachu Alola Cap,35,55,40,50,50,90,Raichu
+0026 (alola),Raichu Alola,60,85,50,95,85,110,
+0027 (alola),Sandshrew Alola,50,75,90,10,35,40,Sandslash
+0028 (alola),Sandslash Alola,75,100,120,25,65,65,
+0037 (alola),Vulpix Alola,38,41,40,50,65,65,Ninetales
+0038 (alola),Ninetales Alola,73,67,75,81,100,109,
+0050 (alola),Diglett Alola,10,55,30,35,45,90,Dugtrio
+0051 (alola),Dugtrio Alola,35,100,60,50,70,110,
+0052 (alola),Meowth Alola,40,35,35,50,40,90,Persian; Perrserker
+0053 (alola),Persian Alola,65,60,60,75,65,115,
+0074 (alola),Geodude Alola,40,80,100,30,30,20,Graveler
+0075 (alola),Graveler Alola,55,95,115,45,45,35,Golem
+0076 (alola),Golem Alola,80,120,130,55,65,45,
+0088 (alola),Grimer Alola,80,80,50,40,50,25,Muk
+0089 (alola),Muk Alola,105,105,75,65,100,50,
+0103 (alola),Exeggutor Alola,95,105,85,125,75,45,
+0105 (alola),Marowak Alola,60,80,110,50,80,45,
+0658 (battle-bond),Greninja Battle Bond,72,95,67,103,71,122,
+0658 (ash),Greninja Ash,72,145,67,153,71,132,
+0718 (10-power-construct),Zygarde 10 Power Construct,54,100,71,61,85,115,
+0718 (50-power-construct),Zygarde 50 Power Construct,108,100,121,81,95,95,
+0718 (complete),Zygarde Complete,216,100,121,91,95,85,
+0735 (totem),Gumshoos Totem,88,110,60,55,60,45,
+0738 (totem),Vikavolt Totem,77,70,90,145,75,43,
+0741 (pom-pom),Oricorio Pom Pom,75,70,70,98,70,93,
+0741 (pau),Oricorio Pau,75,70,70,98,70,93,
+0741 (sensu),Oricorio Sensu,75,70,70,98,70,93,
+0745 (midnight),Lycanroc Midnight,85,115,75,55,75,82,
+0746 (school),Wishiwashi School,45,140,130,140,135,30,
+0754 (totem),Lurantis Totem,70,105,90,80,90,45,
+0758 (totem),Salazzle Totem,68,64,60,111,60,117,
+0774 (orange-meteor),Minior Orange Meteor,60,60,100,60,100,60,
+0774 (yellow-meteor),Minior Yellow Meteor,60,60,100,60,100,60,
+0774 (green-meteor),Minior Green Meteor,60,60,100,60,100,60,
+0774 (blue-meteor),Minior Blue Meteor,60,60,100,60,100,60,
+0774 (indigo-meteor),Minior Indigo Meteor,60,60,100,60,100,60,
+0774 (violet-meteor),Minior Violet Meteor,60,60,100,60,100,60,
+0774 (red),Minior Red,60,100,60,100,60,120,
+0774 (orange),Minior Orange,60,100,60,100,60,120,
+0774 (yellow),Minior Yellow,60,100,60,100,60,120,
+0774 (green),Minior Green,60,100,60,100,60,120,
+0774 (blue),Minior Blue,60,100,60,100,60,120,
+0774 (indigo),Minior Indigo,60,100,60,100,60,120,
+0774 (violet),Minior Violet,60,100,60,100,60,120,
+0778 (busted),Mimikyu Busted,55,90,80,50,105,96,
+0778 (totem-disguised),Mimikyu Totem Disguised,55,90,80,50,105,96,
+0778 (totem-busted),Mimikyu Totem Busted,55,90,80,50,105,96,
+0784 (totem),Kommo O Totem,75,110,125,100,105,85,
+0801 (original),Magearna Original,80,95,115,130,115,65,
+0025 (partner-cap),Pikachu Partner Cap,35,55,40,50,50,90,Raichu
+0105 (totem),Marowak Totem,60,80,110,50,80,45,
+0743 (totem),Ribombee Totem,60,55,60,95,70,124,
+0744 (own-tempo),Rockruff Own Tempo,45,65,40,30,40,60,Lycanroc
+0745 (dusk),Lycanroc Dusk,75,117,65,55,65,110,
+0752 (totem),Araquanid Totem,68,70,92,50,132,42,
+0777 (totem),Togedemaru Totem,65,98,63,40,73,96,
+0800 (dusk),Necrozma Dusk,97,157,127,113,109,77,
+0800 (dawn),Necrozma Dawn,97,113,109,157,127,77,
+0800 (ultra),Necrozma Ultra,97,167,97,167,97,129,
+0025 (starter),Pikachu Starter,45,80,50,75,60,120,Raichu
+0133 (starter),Eevee Starter,65,75,70,65,85,75,Vaporeon; Jolteon; Flareon; Espeon; Umbreon; Leafeon; Glaceon; Sylveon
+0025 (world-cap),Pikachu World Cap,35,55,40,50,50,90,Raichu
+0052 (galar),Meowth Galar,50,65,55,40,40,40,Persian; Perrserker
+0077 (galar),Ponyta Galar,50,85,55,65,65,90,Rapidash
+0078 (galar),Rapidash Galar,65,100,70,80,80,105,
+0079 (galar),Slowpoke Galar,90,65,65,40,40,15,Slowbro; Slowking
+0080 (galar),Slowbro Galar,95,100,95,100,70,30,
+0083 (galar),Farfetch’d Galar,52,95,55,58,62,55,Sirfetch’d
+0110 (galar),Weezing Galar,65,90,120,85,70,60,
+0122 (galar),Mr. Mime Galar,50,65,65,90,90,100,Mr. Rime
+0144 (galar),Articuno Galar,90,85,85,125,100,95,
+0145 (galar),Zapdos Galar,90,125,90,85,90,100,
+0146 (galar),Moltres Galar,90,85,90,100,125,90,
+0199 (galar),Slowking Galar,95,65,80,110,110,30,
+0222 (galar),Corsola Galar,60,55,100,65,100,30,Cursola
+0263 (galar),Zigzagoon Galar,38,30,41,30,41,60,Linoone
+0264 (galar),Linoone Galar,78,70,61,50,61,100,Obstagoon
+0554 (galar),Darumaka Galar,70,90,45,15,45,50,Darmanitan
+0555 (galar-standard),Darmanitan Galar Standard,105,140,55,30,55,95,
+0555 (galar-zen),Darmanitan Galar Zen,105,160,55,30,55,135,
+0562 (galar),Yamask Galar,38,55,85,30,65,30,Cofagrigus; Runerigus
+0618 (galar),Stunfisk Galar,109,81,99,66,84,32,
+0718 (10),Zygarde 10,54,100,71,61,85,115,
+0845 (gulping),Cramorant Gulping,70,85,55,85,95,85,
+0845 (gorging),Cramorant Gorging,70,85,55,85,95,85,
+0849 (low-key),Toxtricity Low Key,75,98,70,114,70,75,
+0875 (noice),Eiscue Noice,75,80,70,65,50,130,
+0876 (female),Indeedee Female,70,55,65,95,105,85,
+0877 (hangry),Morpeko Hangry,58,95,58,70,58,97,
+0888 (crowned),Zacian Crowned,92,150,115,80,115,148,
+0889 (crowned),Zamazenta Crowned,92,120,140,80,140,128,
+0890 (eternamax),Eternatus Eternamax,255,115,250,125,250,130,
+0892 (rapid-strike),Urshifu Rapid Strike,100,130,100,63,60,97,
+0893 (dada),Zarude Dada,105,120,105,70,95,105,
+0898 (ice),Calyrex Ice,100,165,150,85,130,50,
+0898 (shadow),Calyrex Shadow,100,85,80,165,100,150,
+0003 (gmax),Venusaur Gmax,80,82,83,100,100,80,
+0006 (gmax),Charizard Gmax,78,84,78,109,85,100,
+0009 (gmax),Blastoise Gmax,79,83,100,85,105,78,
+0012 (gmax),Butterfree Gmax,60,45,50,90,80,70,
+0025 (gmax),Pikachu Gmax,35,55,40,50,50,90,Raichu
+0052 (gmax),Meowth Gmax,40,45,35,40,40,90,Persian; Perrserker
+0068 (gmax),Machamp Gmax,90,130,80,65,85,55,
+0094 (gmax),Gengar Gmax,60,65,60,130,75,110,
+0099 (gmax),Kingler Gmax,55,130,115,50,50,75,
+0131 (gmax),Lapras Gmax,130,85,80,85,95,60,
+0133 (gmax),Eevee Gmax,55,55,50,45,65,55,Vaporeon; Jolteon; Flareon; Espeon; Umbreon; Leafeon; Glaceon; Sylveon
+0143 (gmax),Snorlax Gmax,160,110,65,65,110,30,
+0569 (gmax),Garbodor Gmax,80,95,82,60,82,75,
+0809 (gmax),Melmetal Gmax,135,143,143,80,65,34,
+0812 (gmax),Rillaboom Gmax,100,125,90,60,70,85,
+0815 (gmax),Cinderace Gmax,80,116,75,65,75,119,
+0818 (gmax),Inteleon Gmax,70,85,65,125,65,120,
+0823 (gmax),Corviknight Gmax,98,87,105,53,85,67,
+0826 (gmax),Orbeetle Gmax,60,45,110,80,120,90,
+0834 (gmax),Drednaw Gmax,90,115,90,48,68,74,
+0839 (gmax),Coalossal Gmax,110,80,120,80,90,30,
+0841 (gmax),Flapple Gmax,70,110,80,95,60,70,
+0842 (gmax),Appletun Gmax,110,85,80,100,80,30,
+0844 (gmax),Sandaconda Gmax,72,107,125,65,70,71,
+0849 (amped-gmax),Toxtricity Amped Gmax,75,98,70,114,70,75,
+0851 (gmax),Centiskorch Gmax,100,115,65,90,90,65,
+0858 (gmax),Hatterene Gmax,57,90,95,136,103,29,
+0861 (gmax),Grimmsnarl Gmax,95,120,65,95,75,60,
+0869 (gmax),Alcremie Gmax,65,60,75,110,121,64,
+0879 (gmax),Copperajah Gmax,122,130,69,80,69,30,
+0884 (gmax),Duraludon Gmax,70,95,115,120,50,85,Archaludon
+0892 (single-strike-gmax),Urshifu Single Strike Gmax,100,130,100,63,60,97,
+0892 (rapid-strike-gmax),Urshifu Rapid Strike Gmax,100,130,100,63,60,97,
+0849 (low-key-gmax),Toxtricity Low Key Gmax,75,98,70,114,70,75,
+0058 (hisui),Growlithe Hisui,60,75,45,65,50,55,Arcanine
+0059 (hisui),Arcanine Hisui,95,115,80,95,80,90,
+0100 (hisui),Voltorb Hisui,40,30,50,55,55,100,Electrode
+0101 (hisui),Electrode Hisui,60,50,70,80,80,150,
+0157 (hisui),Typhlosion Hisui,73,84,78,119,85,95,
+0211 (hisui),Qwilfish Hisui,65,95,85,55,55,85,Overqwil
+0215 (hisui),Sneasel Hisui,55,95,55,35,75,115,Weavile; Sneasler
+0503 (hisui),Samurott Hisui,90,108,80,100,65,85,
+0549 (hisui),Lilligant Hisui,70,105,75,50,75,105,
+0570 (hisui),Zorua Hisui,35,60,40,85,40,70,Zoroark
+0571 (hisui),Zoroark Hisui,55,100,60,125,60,110,
+0628 (hisui),Braviary Hisui,110,83,70,112,70,65,
+0705 (hisui),Sliggoo Hisui,58,75,83,83,113,40,Goodra
+0706 (hisui),Goodra Hisui,80,100,100,110,150,60,
+0713 (hisui),Avalugg Hisui,95,127,184,34,36,38,
+0724 (hisui),Decidueye Hisui,88,112,80,95,95,60,
+0483 (origin),Dialga Origin,100,100,120,150,120,90,
+0484 (origin),Palkia Origin,90,100,100,150,120,120,
+0550 (white-striped),Basculin White Striped,70,92,65,80,55,98,Basculegion
+0902 (female),Basculegion Female,120,92,65,100,75,78,
+0905 (therian),Enamorus Therian,74,115,110,135,100,46,
+0128 (paldea-combat-breed),Tauros Paldea Combat Breed,75,110,105,30,70,100,
+0128 (paldea-blaze-breed),Tauros Paldea Blaze Breed,75,110,105,30,70,100,
+0128 (paldea-aqua-breed),Tauros Paldea Aqua Breed,75,110,105,30,70,100,
+0194 (paldea),Wooper Paldea,55,45,45,25,25,15,Quagsire; Clodsire
+0916 (female),Oinkologne Female,115,90,70,59,90,65,
+0982 (three-segment),Dudunsparce Three Segment,125,100,80,85,75,55,
+0964 (hero),Palafin Hero,100,160,97,106,87,100,
+0925 (family-of-three),Maushold Family Of Three,74,75,70,65,75,111,
+0978 (droopy),Tatsugiri Droopy,68,50,60,120,95,82,
+0978 (stretchy),Tatsugiri Stretchy,68,50,60,120,95,82,
+0931 (blue-plumage),Squawkabilly Blue Plumage,82,96,51,45,51,92,
+0931 (yellow-plumage),Squawkabilly Yellow Plumage,82,96,51,45,51,92,
+0931 (white-plumage),Squawkabilly White Plumage,82,96,51,45,51,92,
+0999 (roaming),Gimmighoul Roaming,45,30,25,75,45,80,Gholdengo
+1007 (limited-build),Koraidon Limited Build,100,135,115,85,100,135,
+1007 (sprinting-build),Koraidon Sprinting Build,100,135,115,85,100,135,
+1007 (swimming-build),Koraidon Swimming Build,100,135,115,85,100,135,
+1007 (gliding-build),Koraidon Gliding Build,100,135,115,85,100,135,
+1008 (low-power-mode),Miraidon Low Power Mode,100,85,100,135,115,135,
+1008 (drive-mode),Miraidon Drive Mode,100,85,100,135,115,135,
+1008 (aquatic-mode),Miraidon Aquatic Mode,100,85,100,135,115,135,
+1008 (glide-mode),Miraidon Glide Mode,100,85,100,135,115,135,
+0901 (bloodmoon),Ursaluna Bloodmoon,113,70,120,135,65,52,
+1017 (wellspring-mask),Ogerpon Wellspring Mask,80,120,84,60,96,110,
+1017 (hearthflame-mask),Ogerpon Hearthflame Mask,80,120,84,60,96,110,
+1017 (cornerstone-mask),Ogerpon Cornerstone Mask,80,120,84,60,96,110,
+1024 (terastal),Terapagos Terastal,95,95,110,105,110,85,
+1024 (stellar),Terapagos Stellar,160,105,110,130,110,85,
+0036 (mega),Clefable Mega,95,80,93,135,110,70,
+0071 (mega),Victreebel Mega,80,125,85,135,95,70,
+0121 (mega),Starmie Mega,60,100,105,130,105,120,
+0149 (mega),Dragonite Mega,91,124,115,145,125,100,
+0154 (mega),Meganium Mega,80,92,115,143,115,80,
+0160 (mega),Feraligatr Mega,85,160,125,89,93,78,
+0227 (mega),Skarmory Mega,65,140,110,40,100,110,
+0478 (mega),Froslass Mega,70,80,70,140,100,120,
+0500 (mega),Emboar Mega,110,148,75,110,110,75,
+0530 (mega),Excadrill Mega,110,165,100,65,65,103,
+0545 (mega),Scolipede Mega,60,140,149,75,99,62,
+0560 (mega),Scrafty Mega,65,130,135,55,135,68,
+0604 (mega),Eelektross Mega,85,145,80,135,90,80,
+0609 (mega),Chandelure Mega,60,75,110,175,110,90,
+0652 (mega),Chesnaught Mega,88,137,172,74,115,44,
+0655 (mega),Delphox Mega,75,69,72,159,125,134,
+0658 (mega),Greninja Mega,72,125,77,133,81,142,
+0668 (mega),Pyroar Mega,86,88,92,129,86,126,
+0670 (mega),Floette Mega,74,85,87,155,148,102,Florges
+0687 (mega),Malamar Mega,86,102,88,98,120,88,
+0689 (mega),Barbaracle Mega,72,140,130,64,106,88,
+0691 (mega),Dragalge Mega,65,85,105,132,163,44,
+0701 (mega),Hawlucha Mega,78,137,100,74,93,118,
+0718 (mega),Zygarde Mega,216,70,91,216,85,100,
+0780 (mega),Drampa Mega,78,85,110,160,116,36,
+0870 (mega),Falinks Mega,65,135,135,70,65,100,
+0026 (mega-x),Raichu Mega X,60,135,95,90,95,110,
+0026 (mega-y),Raichu Mega Y,60,100,55,160,80,130,
+0358 (mega),Chimecho Mega,75,50,110,135,120,65,
+0359 (mega-z),Absol Mega Z,65,154,60,75,60,151,
+0398 (mega),Staraptor Mega,85,140,100,60,90,110,
+0445 (mega-z),Garchomp Mega Z,108,130,85,141,85,151,
+0448 (mega-z),Lucario Mega Z,70,100,70,164,70,151,
+0485 (mega),Heatran Mega,91,120,106,175,141,67,
+0491 (mega),Darkrai Mega,70,120,130,165,130,85,
+0623 (mega),Golurk Mega,89,159,105,70,105,55,
+0678 (male-mega),Meowstic Male Mega,74,48,76,143,101,124,
+0740 (mega),Crabominable Mega,97,157,122,62,107,33,
+0768 (mega),Golisopod Mega,75,150,175,70,120,40,
+0801 (mega),Magearna Mega,80,125,115,170,115,95,
+0801 (original-mega),Magearna Original Mega,80,125,115,170,115,95,
+0807 (mega),Zeraora Mega,88,157,75,147,80,153,
+0952 (mega),Scovillain Mega,65,138,85,138,85,75,
+0970 (mega),Glimmora Mega,83,90,105,150,96,101,
+0978 (curly-mega),Tatsugiri Curly Mega,68,65,90,135,125,92,
+0978 (droopy-mega),Tatsugiri Droopy Mega,68,65,90,135,125,92,
+0978 (stretchy-mega),Tatsugiri Stretchy Mega,68,65,90,135,125,92,
+0998 (mega),Baxcalibur Mega,115,175,117,105,101,87,
+0678 (female-mega),Meowstic Female Mega,74,48,76,143,101,124,

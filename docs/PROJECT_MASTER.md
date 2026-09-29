@@ -25,6 +25,16 @@ For every future task that changes code, assets, behavior, or project documentat
 
 ## Recent changes
 
+### 2026-09-29 — Restored the isometric cube route tokens
+
+- Replaced circular medallions with flat, raised cube tokens based on the supplied route-map reference: broader diamond tops, pale stone sides, a slim dark underside, category-colored insets, smaller centered emblems, and turquoise links. Kept the non-spinning bobbing route marker. Updated the route art guide.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, and [route overhaul](ROUTE_OVERHAUL.md). Reviewed at the running local route screen; `npm run build`, `npm run playthrough`, and `git diff --check` passed. The build retains the existing 1.41 MB battle-chunk advisory.
+
+### 2026-09-29 — Replaced route tiles with circular medallions
+
+- Replaced the raised diamond plaques with round, category-colored route markers with dark rims, centered icons, and soft shadows. Kept route links, selection behavior, and node colors while giving markers a distinct silhouette against the diamond floor. Updated the route art guide.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, and [route overhaul](ROUTE_OVERHAUL.md). Visually checked the running local route screen; `npm run build` and `git diff --check` passed.
+
 ### 2026-09-29 — Refined route node plaques
 
 - Reshaped the route nodes into smaller, shallower diamond plaques with muted bevels and compact emblems; softened the connecting paths so branches and tiles sit more naturally on the map floor. Updated the route art guide.

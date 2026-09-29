@@ -52,19 +52,19 @@ function Glyph({ kind }: { kind: RouteNodeKind }) {
 }
 
 function TileLayers() {
-  return <g className="route-tile-art" transform="scale(1.12)">
-    <path className="route-node-shadow" d="M0 22 64-10 64 0 0 32-64 0-64-10Z" />
-    <path className="route-node-side" d="M-64-20 0 12 64-20 64-12 0 20-64-12Z" />
-    <path className="route-node-side-shade" d="M0 12 64-20 64-12 0 20Z" />
+  return <g className="route-tile-art" transform="scale(1.4)">
+    <path className="route-node-shadow" d="M0 28 64-4 64 3 0 35-64 3-64-4Z" />
+    <path className="route-node-side" d="M-64-20 0 12 64-20 64-3 0 29-64-3Z" />
+    <path className="route-node-side-shade" d="M0 12 64-20 64-3 0 29Z" />
     <path className="route-node-side-highlight" d="M-64-14 0 18 64-14 64-11 0 21-64-11Z" />
-    <path className="route-node-rim" d="M0-51 64-20 64-14 0 18-64-14-64-20Z" />
-    <path className="route-node-top" d="M0-48 61-19 0 10-61-19Z" />
-    <path className="route-node-top-light" d="M-54-19 0-45 54-19" />
-    <path className="route-node-inset" d="M0-42 51-18 0 6-51-18Z" />
-    <path className="route-node-bevel" d="M0-42 51-18 0-34-51-18Z" />
-    <path className="route-node-inset-shade" d="M51-18 0 6-51-18-43-18 0-2 43-18Z" />
-    <path className="route-node-texture" d="M0-42 51-18 0 6-51-18Z" />
-    <path className="route-node-inlay" d="M0-38 44-18 0 2-44-18Z" />
+    <path className="route-node-rim" d="M0-52 64-20 64-14 0 18-64-14-64-20Z" />
+    <path className="route-node-top" d="M0-50 62-20 0 11-62-20Z" />
+    <path className="route-node-top-light" d="M-56-20 0-47 56-20" />
+    <path className="route-node-inset" d="M0-45 52-20 0 6-52-20Z" />
+    <path className="route-node-bevel" d="M0-45 52-20 0-37-52-20Z" />
+    <path className="route-node-inset-shade" d="M52-20 0 6-52-20-44-20 0-2 44-20Z" />
+    <path className="route-node-texture" d="M0-45 52-20 0 6-52-20Z" />
+    <path className="route-node-inlay" d="M0-41 45-20 0 2-45-20Z" />
   </g>;
 }
 
@@ -278,7 +278,7 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
             onClick={() => { if (!backdropOnly && isAvailable) onChoose(node.id); }} onKeyDown={event => { if (!backdropOnly && isAvailable && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onChoose(node.id); } }}>
             <title>{names[node.kind]} · column {node.column}</title>
             <TileLayers />
-            {!isCurrent && <g className="route-glyph" transform="translate(0 -21) scale(1.1 .72)"><Glyph kind={node.kind} /></g>}
+            {!isCurrent && <g className="route-glyph" transform="translate(0 -26) scale(.9 .68)"><Glyph kind={node.kind} /></g>}
             {isAvailable && <g className="route-choice-marker" transform="translate(0 -138)"><path d="M0 43-29-10 0-27 29-10Z" /><path className="route-choice-shine" d="M0-20-20-9 0 2 20-9Z" /></g>}
           </g>;
         })}

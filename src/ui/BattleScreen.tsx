@@ -3,10 +3,11 @@ import Board from '../battle/Board';
 import type { BoardView, CameraCommand } from '../battle/Board';
 import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoWorldSize } from '../battle/isometric';
 import { abilityAbsorption, itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES, SPECIES } from '../content/data';
-import { active, apGain, upcoming, unitAt } from '../game/engine';
+import { active, apGain, effectiveSpeed, upcoming, unitAt } from '../game/engine';
 import { reachable } from '../game/grid';
 import { damageRange } from '../game/damage';
 import { previewMoveEffects } from '../game/moveEffects';
+import { ACTION_VALUE_PER_CYCLE } from '../game/actionValue';
 import type { Battle, Run, StatStages, Unit } from '../game/types';
 import Sprite from './Sprite';
 
@@ -21,10 +22,10 @@ type Props = {
 
 const statLabels: Record<string, string> = { attack: 'Attack', defense: 'Defense', specialAttack: 'Sp. Atk', specialDefense: 'Sp. Def' };
 function StatusIcons({ unit, time }: { unit: Unit; time: number }) {
-  const statuses = Object.entries(unit.status).filter(([key, until]) => key === 'flashFire' ? !!until : until >= time)
+  const statuses = Object.entries(unit.status).filter(([key, until]) => key === 'flashFire' ? !!until : until > time)
     .map(([key]) => ({ key, label: key, icon: key === 'burned' ? 'status-burned' : key === 'paralyzed' ? 'status-paralyzed' : 'status-charged' }));
   const stages = Object.entries(unit.stages).filter(([key, value]) => value !== 0 && unit.stageUntil[key as keyof StatStages] > time)
-    .map(([key, value]) => ({ key, label: `${statLabels[key]} ${value > 0 ? '+' : ''}${value} · ${Math.ceil((unit.stageUntil[key as keyof StatStages] - time) / 100)} rounds left`, icon: value > 0 ? 'stage-buff' : 'stage-debuff' }));
+    .map(([key, value]) => ({ key, label: `${statLabels[key]} ${value > 0 ? '+' : ''}${value} · ${Math.ceil((unit.stageUntil[key as keyof StatStages] - time) / ACTION_VALUE_PER_CYCLE)} cycles left`, icon: value > 0 ? 'stage-buff' : 'stage-debuff' }));
   return statuses.length || stages.length ? <div className="status-icons" aria-label="Status and stat changes">
     {[...statuses, ...stages].map(effect => <span className="status-icon" key={effect.key} title={effect.label} aria-label={effect.label}>
       <img src={`/assets/ui/icons/${effect.icon}.svg`} alt="" /><small>{effect.label}</small>
@@ -192,7 +193,8 @@ export default function BattleScreen(props: Props) {
     : !current || current.ap < 1 ? 'No AP remaining'
     : current.moves.every(id => current.ap < MOVES[id].apCost || itemBlocksMove(current, MOVES[id]))
       ? 'No equipped move is usable' : '';
-  const moveReason = !current || current.ap < 1 ? 'No AP remaining' : !routes.size ? 'No reachable tile' : '';
+  const moveReason = current?.movedThisTurn ? 'Move already used this turn'
+    : !current || current.ap < 1 ? 'No AP remaining' : !routes.size ? 'No reachable tile' : '';
   const held = current && itemFor(current.item);
   const specialReason = !current || current.item === 'None' ? 'No held item'
     : !held?.special ? 'This item activates passively'
@@ -229,10 +231,10 @@ export default function BattleScreen(props: Props) {
   return <main className="battle-stage" ref={stageRef}>
     <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
     <header className="battle-top-hud">
-      <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `COLUMN ${run.encounter + 1}`} · ROUND {battle.round}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
+      <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `COLUMN ${run.encounter + 1}`} · CYCLE {battle.round} · AV {Math.floor(battle.time)}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
       <div className="turn-strip" aria-label="Turn order">{upcoming(battle).slice(0, 6).map((unit, index) =>
-        <div key={`${unit.id}-${index}`} className={`turn-portrait ${unit.side} ${index === 0 ? 'now' : ''}`} title={index === 0 ? `${unit.name} · ${unit.ap} AP now` : `${unit.name} · ${unit.ap} AP banked · +${apGain(unit, battle)} next turn`}>
-          <Sprite id={unit.species} /><span>{unit.name}</span>
+        <div key={`${unit.id}-${index}`} className={`turn-portrait ${unit.side} ${index === 0 ? 'now' : ''}`} title={index === 0 ? `${unit.name} · acting now · ${Math.floor(effectiveSpeed(unit, battle))} SPD` : `${unit.name} · ${Math.ceil(Math.max(0, unit.nextAction - battle.time))} AV until turn · ${unit.ap} AP banked · +${apGain(unit, battle)} next turn`}>
+          <Sprite id={unit.species} /><span>{unit.name}</span><small>{index === 0 ? 'NOW' : `${Math.ceil(Math.max(0, unit.nextAction - battle.time))} AV`}</small>
         </div>)}</div>
       <button className="battle-pause" onClick={props.onPause}>{props.controlBoth ? '⚙ Setup' : '☰ Menu'}</button>
     </header>
@@ -302,6 +304,6 @@ export default function BattleScreen(props: Props) {
       }}><canvas ref={minimapRef} width="160" height="160" /></button>
       <div className="camera-buttons"><button onClick={() => issueCamera('zoom-in')} aria-label="Zoom in">+</button><button onClick={() => issueCamera('zoom-out')} aria-label="Zoom out">−</button><button onClick={() => issueCamera('fit')}>Fit map</button><button onClick={() => issueCamera('center')}>Center active</button></div>
     </aside>
-    <div className="battle-help">{mode === 'attack' ? chosenMove ? 'Click a target to attack · blue: range · green: strong · orange: resisted · gray: immune' : 'Choose a move from the action menu' : mode === 'move' ? selectedRoute ? `Click to move · ${selectedRoute.cost} AP · ${(current?.ap ?? 0) - selectedRoute.cost} AP left` : 'Click a green tile to move · drag to pan · scroll to zoom' : 'Drag map to pan · scroll to zoom · click tiles to inspect'}</div>
+    <div className="battle-help">{mode === 'attack' ? chosenMove ? 'Click a target to attack · blue: range · green: strong · orange: resisted · gray: immune' : 'Choose a move from the action menu' : mode === 'move' ? selectedRoute ? `Click to move · 1 AP · ${(current?.ap ?? 0) - 1} AP left` : 'Click a green tile to move · drag to pan · scroll to zoom' : 'Drag map to pan · scroll to zoom · click tiles to inspect'}</div>
   </main>;
 }

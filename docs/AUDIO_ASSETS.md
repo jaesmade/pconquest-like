@@ -23,7 +23,7 @@ The exact move IDs are `tackle`, `ember`, `vineWhip`, `waterPulse`, `thunderShoc
 - Menu, route/preparation, and battle each select their own looping track. The music crossfades when the run phase changes.
 - A move sound starts with its retained attack animation. A hit cue plays when the attack visual includes a damaged target. A faint cue plays when the fainted sprite leaves the board. A new move without a named mapping uses its role-based placeholder sound; the shared fallback cue remains available if a role sound is missing.
 - A held item's sound plays when that item is equipped in preparation. X Attack and Charizardite X play when their **Special** action succeeds. Leftovers and Sitrus Berry play when passive recovery actually restores HP.
-- Ability triggers play a distinct named cue and show a brief in-world label. Current triggers cover Chlorophyll at AP gain, damage boosts when a move is used, Water Absorb and Flash Fire absorption, Sand Veil dodges, and Static reactions. Cues are cosmetic and bounded; their event IDs do not consume seeded battle RNG.
+- Ability triggers play a distinct named cue and show a brief in-world label. Current triggers cover Chlorophyll when its weather Speed boost is active, damage boosts when a move is used, Water Absorb and Flash Fire absorption, Sand Veil dodges, and Static reactions. Cues are cosmetic and bounded; their event IDs do not consume seeded battle RNG.
 - The battle entrance uses `cue-pokemon-enter.wav`. `cue-ui-confirm.wav` is available for future menu actions.
 - Browsers start audio after the first pointer or keyboard action. **Options → Sound: On/Off** stores only the mute preference under `pokemon-tactics-audio-muted`; it does not enter the run save. Muting silences the master bus.
 

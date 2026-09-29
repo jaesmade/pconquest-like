@@ -2,7 +2,7 @@ import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abi
 import { MAX_RUN_POKEMON, STARTING_PARTY_POINTS, partyDraftCost } from '../content/roster';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
-import { canEnter, hasLineOfSight, routeTo, stepCost } from './grid';
+import { canEnter, hasLineOfSight, routeTo } from './grid';
 import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
 import { calculateDamage, damageRange } from './damage';
@@ -15,6 +15,7 @@ import { createMap } from '../content/maps';
 import { SHOP_STOCK } from '../content/shop';
 import { availableRouteNodes, createRoute, routeNode, ROUTE_COLUMNS } from './route';
 import type { Encounter } from './types';
+import { ACTION_VALUE_PER_CYCLE, actionInterval, toActionValueDuration } from './actionValue';
 
 export { reachable, reachableTiles } from './grid';
 
@@ -43,7 +44,7 @@ export function encounterDefinition(run: Run): Encounter {
 export const unitAt = (battle: Battle, x: number, y: number) => battle.units.find(unit => alive(unit) && unit.x === x && unit.y === y);
 export const active = (battle: Battle) => battle.units.find(unit => unit.id === battle.current)!;
 export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
-export const apGain = (unit: Unit, battle: Battle) => Math.max(1, Math.floor(effectiveSpeed(unit, battle)));
+export const apGain = (_unit: Unit, _battle: Battle) => 3;
 const scaleStats = (stats: Unit['stats'], level: number) => stats.map((base, index) =>
   index === 6 ? base : Math.floor(2 * base * level / 100) + (index === 0 ? level + 10 : 5)) as Unit['stats'];
 export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
@@ -67,7 +68,7 @@ export function newRun(selectedSpecies: string[], unlocks = 0): Run {
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
   const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, mobility: mobilityFor(species, tile), ability: species.ability, stats, moves: [...mon.equipped], hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, attackedThisTurn: false, status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, moves: [...mon.equipped], mobility: mobilityFor(species, tile), ability: species.ability, stats, hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, movedThisTurn: false, attackedThisTurn: false, nextAction: 0, nextActionShift: 0, scheduledSpeed: stats[5], status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
@@ -79,7 +80,7 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   if (selected.some(mon => !deployment[mon.id])) throw new Error(`Map ${map.id}: no legal ally deployment for the selected team.`);
   next.deployment = deployment;
   const players = selected.map(mon => { const [x, y] = deployment[mon.id]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
-  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: definition.id };
+  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: definition.id };
   const occupied = new Set(players.map(unit => `${unit.x},${unit.y}`));
   if (enemyDeployment && enemyDeployment.length !== definition.enemies.length) throw new Error(`Map ${map.id}: enemy deployment count does not match the team.`);
   for (const [index, id] of definition.enemies.entries()) {
@@ -94,30 +95,55 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   }
   next.battle = battle;
   next.phase = 'battle';
-  beginRound(battle, true);
+  for (const unit of battle.units) unit.scheduledSpeed = effectiveSpeed(unit, battle);
+  activateNext(battle, true);
   return next;
 }
-function beginRound(battle: Battle, initial = false) {
-  if (!initial) {
-    battle.round++;
-    battle.time += 100;
-    expireHazardZones(battle);
-    for (const unit of battle.units) expireStages(unit, battle.time);
-    for (const unit of battle.units.filter(alive)) {
-      if (battle.weather === 'sandstorm' && !unit.types.some(type => ['Rock', 'Steel', 'Ground'].includes(type))) hit(battle, unit, max(unit.maxHp / 16), 'sandstorm');
-      if (alive(unit) && unit.status.burned >= battle.time) hit(battle, unit, max(unit.maxHp / 16), 'Burn');
-      if (alive(unit)) { const fraction = itemPeriodicHeal(unit); if (fraction) heal(battle, unit, max(unit.maxHp * fraction), unit.item); }
-      if (alive(unit) && battle.map.tiles[unit.y][unit.x].kind === 'lava' && !unit.mobility.canFly) hit(battle, unit, max(unit.maxHp / 10), 'lava');
-    }
-    if (battle.weather !== 'clear' && battle.time >= battle.weatherUntil) { battle.weather = 'clear'; log(battle, 'The weather cleared.'); }
-    checkResult(battle);
-    if (battle.result) return;
+function nextSpeedExpiry(battle: Battle) {
+  const expiries = battle.units.filter(alive).map(unit => unit.status.paralyzed).filter(until => until > battle.time);
+  if (battle.weather !== 'clear' && battle.weatherUntil > battle.time) expiries.push(battle.weatherUntil);
+  return expiries.length ? Math.min(...expiries) : Number.POSITIVE_INFINITY;
+}
+function refreshTurnOrder(battle: Battle) {
+  const previous = new Map(battle.turnOrder.map((id, index) => [id, index]));
+  const ordered = battle.units.filter(alive).sort((a, b) => a.nextAction - b.nextAction
+    || (previous.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (previous.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+  if (battle.current && ordered[0]?.id !== battle.current) {
+    const currentIndex = ordered.findIndex(unit => unit.id === battle.current);
+    if (currentIndex >= 0) ordered.unshift(...ordered.splice(currentIndex, 1));
   }
-  battle.turnOrder = battle.units.filter(alive).map(unit => ({ unit, tie: random(battle) }))
-    .sort((a, b) => effectiveSpeed(b.unit, battle) - effectiveSpeed(a.unit, battle) || a.tie - b.tie)
-    .map(entry => entry.unit.id);
+  battle.turnOrder = ordered.map(unit => unit.id);
   battle.turnIndex = 0;
-  activateNext(battle);
+}
+function rescheduleForSpeedChanges(battle: Battle) {
+  for (const unit of battle.units.filter(alive)) {
+    const oldSpeed = unit.scheduledSpeed;
+    const newSpeed = effectiveSpeed(unit, battle);
+    if (oldSpeed > 0 && Math.abs(oldSpeed - newSpeed) > 1e-9 && unit.id !== battle.current && unit.nextAction > battle.time) {
+      const remaining = unit.nextAction - battle.time;
+      unit.nextAction = battle.time + remaining * oldSpeed / newSpeed;
+    }
+    unit.scheduledSpeed = newSpeed;
+  }
+}
+function processCycle(battle: Battle) {
+  battle.round++;
+  expireHazardZones(battle);
+  for (const unit of battle.units) expireStages(unit, battle.time);
+  for (const unit of battle.units.filter(alive)) {
+    if (battle.weather === 'sandstorm' && !unit.types.some(type => ['Rock', 'Steel', 'Ground'].includes(type))) hit(battle, unit, max(unit.maxHp / 16), 'sandstorm');
+    if (alive(unit) && unit.status.burned >= battle.time) hit(battle, unit, max(unit.maxHp / 16), 'Burn');
+    if (alive(unit)) { const fraction = itemPeriodicHeal(unit); if (fraction) heal(battle, unit, max(unit.maxHp * fraction), unit.item); }
+    if (alive(unit) && battle.map.tiles[unit.y][unit.x].kind === 'lava' && !unit.mobility.canFly) hit(battle, unit, max(unit.maxHp / 10), 'lava');
+  }
+  checkResult(battle);
+}
+function processTimedEventsAtCurrentTime(battle: Battle) {
+  while (battle.round * ACTION_VALUE_PER_CYCLE <= battle.time + 1e-9 && !battle.result) processCycle(battle);
+  expireHazardZones(battle);
+  for (const unit of battle.units) expireStages(unit, battle.time);
+  if (battle.weather !== 'clear' && battle.weatherUntil <= battle.time) { battle.weather = 'clear'; log(battle, 'The weather cleared.'); }
+  rescheduleForSpeedChanges(battle);
 }
 
 export type LabConfig = { allySpecies: string; enemySpecies: string; allyLevel: number; enemyLevel: number; allyItem: ItemId; enemyItem: ItemId; weather: Weather; seed: number };
@@ -134,30 +160,69 @@ export function createLabBattle(config: LabConfig): Battle {
   const enemy = makeUnit(makePartyMon(config.enemySpecies, config.enemyLevel, config.enemyItem), 'enemy', 2, 1, map.tiles[1][2]);
   // The lab uses each level's default four-move loadout, including newly learned moves.
   const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: 'defeat', units: [ally, enemy], weather: config.weather,
-    weatherUntil: config.weather === 'clear' ? 0 : 300, time: 0, round: 1, turnOrder: [], turnIndex: 0,
+    weatherUntil: config.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, time: 0, round: 1, turnOrder: [], turnIndex: 0,
     current: '', rngState: config.seed >>> 0 || 1, log: [`Battle Lab · seed ${config.seed >>> 0 || 1}. Control both Pokémon.`],
     visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: 'battle-lab' };
-  beginRound(battle, true);
+  for (const unit of battle.units) unit.scheduledSpeed = effectiveSpeed(unit, battle);
+  activateNext(battle, true);
   return battle;
 }
-function activateNext(battle: Battle) {
+function activateNext(battle: Battle, initial = false) {
   while (!battle.result) {
-    if (battle.turnIndex >= battle.turnOrder.length) { beginRound(battle); return; }
-    const unit = battle.units.find(candidate => candidate.id === battle.turnOrder[battle.turnIndex]);
-    if (!unit || !alive(unit)) { battle.turnIndex++; continue; }
+    const living = battle.units.filter(alive);
+    if (!living.length) { checkResult(battle); refreshTurnOrder(battle); return; }
+    const nextTime = Math.min(...living.map(unit => unit.nextAction));
+    const cycleTime = battle.round * ACTION_VALUE_PER_CYCLE;
+    const speedExpiry = nextSpeedExpiry(battle);
+    const eventTime = Math.min(cycleTime, speedExpiry);
+    if (eventTime <= nextTime + 1e-9 && eventTime > battle.time + 1e-9) {
+      battle.time = eventTime;
+      processTimedEventsAtCurrentTime(battle);
+      if (battle.result) { refreshTurnOrder(battle); return; }
+      continue;
+    }
+    battle.time = Math.max(battle.time, nextTime);
+    processTimedEventsAtCurrentTime(battle);
+    if (battle.result) { refreshTurnOrder(battle); return; }
+    const due = living.filter(unit => Math.abs(unit.nextAction - nextTime) <= 1e-9);
+    const previousOrder = new Map(battle.turnOrder.map((id, index) => [id, index]));
+    const dueOrder = [...due];
+    if (dueOrder.length > 1) {
+      if (dueOrder.every(candidate => previousOrder.has(candidate.id))) dueOrder.sort((a, b) => previousOrder.get(a.id)! - previousOrder.get(b.id)!);
+      else for (let index = dueOrder.length - 1; index > 0; index--) {
+        const swap = Math.floor(random(battle) * (index + 1));
+        [dueOrder[index], dueOrder[swap]] = [dueOrder[swap], dueOrder[index]];
+      }
+    }
+    const tieOrder = new Map(dueOrder.map((candidate, index) => [candidate.id, index]));
+    const queue = living.sort((a, b) => a.nextAction - b.nextAction
+      || (tieOrder.get(a.id) ?? previousOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER)
+        - (tieOrder.get(b.id) ?? previousOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+    const unit = dueOrder[0];
+    battle.turnOrder = queue.map(candidate => candidate.id);
+    battle.turnIndex = 0;
     battle.current = unit.id;
     unit.maxAp = apGain(unit, battle);
     if (abilitySpeedMultiplier(unit, battle.weather) > 1) feedback(battle, 'ability', unit.ability, unit);
     const bankedAp = unit.ap;
     unit.ap = Math.min(Number.MAX_SAFE_INTEGER, bankedAp + unit.maxAp);
+    unit.movedThisTurn = false;
     unit.attackedThisTurn = false;
-    log(battle, `${unit.name}'s turn · ${unit.ap} AP (${bankedAp} banked + ${unit.maxAp} gained)`);
+    if (initial) log(battle, `Action timeline started · ${unit.name} acts first.`);
+    log(battle, `${unit.name}'s turn · ${unit.ap} AP (${bankedAp} banked + ${unit.maxAp} gained) · AV ${Math.floor(battle.time)}`);
     return;
   }
 }
 function endCurrentTurn(battle: Battle) {
   if (battle.result) return;
-  battle.turnIndex++;
+  rescheduleForSpeedChanges(battle);
+  const unit = battle.units.find(candidate => candidate.id === battle.current);
+  if (unit && alive(unit)) {
+    unit.scheduledSpeed = effectiveSpeed(unit, battle);
+    unit.nextAction = Math.max(battle.time, battle.time + actionInterval(unit.scheduledSpeed) + unit.nextActionShift);
+    unit.nextActionShift = 0;
+  }
+  battle.current = '';
   activateNext(battle);
 }
 function hit(battle: Battle, unit: Unit, amount: number, source: string, visual?: AttackVisualEvent, duringMove = false) {
@@ -194,17 +259,18 @@ function applyTileEntry(battle: Battle, unit: Unit, visual?: AttackVisualEvent, 
 export function moveUnit(battle: Battle, x: number, y: number): string | undefined {
   const unit = battle.units.find(candidate => candidate.id === battle.current);
   if (battle.result || !unit || !alive(unit) || !Number.isInteger(x) || !Number.isInteger(y)) return 'Movement is unavailable.';
+  if (unit.movedThisTurn) return 'This Pokémon has already moved this turn.';
+  if (unit.ap < 1) return 'Movement needs 1 AP.';
   const route = routeTo(battle, unit, x, y);
-  if (!route) return 'Tile is out of reach or costs too much AP.';
+  if (!route) return 'Tile is out of reach.';
   travelPath(battle, unit, route.points);
 }
 function travelPath(battle: Battle, unit: Unit, points: GridPoint[]) {
+  unit.ap -= 1;
+  unit.movedThisTurn = true;
   unit.visualFrom = [unit.x, unit.y];
   const travelled: GridPoint[] = [];
-  let spent = 0;
   for (const [nextX, nextY] of points) {
-    const cost = stepCost(battle, unit, nextX, nextY, unit.x, unit.y);
-    unit.ap -= cost; spent += cost;
     unit.facing = nextX > unit.x ? 2 : nextX < unit.x ? 1 : nextY < unit.y ? 3 : 0;
     unit.x = nextX; unit.y = nextY;
     syncMobility(unit, battle.map.tiles[nextY][nextX]);
@@ -214,15 +280,13 @@ function travelPath(battle: Battle, unit: Unit, points: GridPoint[]) {
   }
   unit.visualPath = travelled;
   unit.visual = 'move'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;
-  log(battle, `${unit.name} moved to ${unit.x + 1}, ${unit.y + 1} for ${spent} AP.`);
+  log(battle, `${unit.name} moved to ${unit.x + 1}, ${unit.y + 1} for 1 AP.`);
 }
 function moveUnitAlongPath(battle: Battle, unit: Unit, points: GridPoint[]): boolean {
-  if (!points.length || points.length > unit.stats[6]) return false;
-  let x = unit.x, y = unit.y, cost = 0;
+  if (unit.movedThisTurn || unit.ap < 1 || !points.length || points.length > unit.stats[6]) return false;
+  let x = unit.x, y = unit.y;
   for (const [nextX, nextY] of points) {
     if (distance({ x, y }, { x: nextX, y: nextY }) !== 1 || !canEnter(battle, unit, nextX, nextY, x, y)) return false;
-    cost += stepCost(battle, unit, nextX, nextY, x, y);
-    if (cost > unit.ap) return false;
     x = nextX; y = nextY;
   }
   travelPath(battle, unit, points);
@@ -308,7 +372,7 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   if (secondary) return;
   if (!alive(target)) return;
   const reaction = hasMoveTag(move, 'contact') && abilityContactReaction(target.ability);
-  if (reaction && random(battle) < reaction.chance) { feedback(battle, 'ability', target.ability, target); source.status[reaction.status] = battle.time + reaction.duration; log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
+  if (reaction && random(battle) < reaction.chance) { feedback(battle, 'ability', target.ability, target); source.status[reaction.status] = battle.time + toActionValueDuration(reaction.duration); log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
   resolveMoveEffects('hit', move.effects, { battle, source, target, move, moveId, tiles: visual.tiles, visual,
     log: message => log(battle, message), enterTile: unit => applyTileEntry(battle, unit, visual),
     chainHit: (unit, fraction) => applyDamage(battle, source, unit, moveId, visual, { damageFraction: fraction }) });
@@ -365,18 +429,24 @@ export function commitEnemyAction(battle: Battle, action: EnemyAction): boolean 
   let acted = false;
   if (action.kind === 'move-use') acted = !useMove(battle, action.moveId, action.x, action.y);
   else if (action.kind === 'move') acted = moveUnitAlongPath(battle, unit, action.points);
-  if (battle.result) return acted;
+  if (battle.result) { refreshTurnOrder(battle); return acted; }
   if (!acted || !alive(unit) || unit.ap < 1) endCurrentTurn(battle);
-  else if (unit.ap >= before) throw new Error(`Enemy ${unit.id} acted without spending AP.`);
+  else {
+    rescheduleForSpeedChanges(battle);
+    refreshTurnOrder(battle);
+    if (unit.ap >= before) throw new Error(`Enemy ${unit.id} acted without spending AP.`);
+  }
   return acted;
 }
 export function finishTurn(battle: Battle) {
-  if (battle.result) return;
+  if (battle.result) { refreshTurnOrder(battle); return; }
+  rescheduleForSpeedChanges(battle);
+  refreshTurnOrder(battle);
   if (!alive(active(battle)) || active(battle).ap < 1) endCurrentTurn(battle);
 }
 export function passTurn(battle: Battle) { if (!battle.result) endCurrentTurn(battle); }
 export function upcoming(battle: Battle) {
-  const remaining = battle.turnOrder.slice(battle.turnIndex).map(id => battle.units.find(unit => unit.id === id)).filter((unit): unit is Unit => !!unit && alive(unit));
+  const remaining = battle.turnOrder.map(id => battle.units.find(unit => unit.id === id)).filter((unit): unit is Unit => !!unit && alive(unit));
   return remaining.slice(0, 6);
 }
 export function completeBattle(run: Run): Run {
@@ -564,4 +634,4 @@ export function resolveSpecial(run: Run, choice: { kind: 'recruit'; species: str
   delete next.pendingRouteEvent;
   return advanceRoute(next);
 }
-export function setWeather(battle: Battle, weather: Weather) { battle.weather = weather; battle.weatherUntil = battle.time + 300; }
+export function setWeather(battle: Battle, weather: Weather) { battle.weather = weather; battle.weatherUntil = battle.time + toActionValueDuration(300); }

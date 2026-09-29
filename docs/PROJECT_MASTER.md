@@ -25,6 +25,41 @@ For every future task that changes code, assets, behavior, or project documentat
 
 ## Recent changes
 
+### 2026-09-29 — Refined route node plaques
+
+- Reshaped the route nodes into smaller, shallower diamond plaques with muted bevels and compact emblems; softened the connecting paths so branches and tiles sit more naturally on the map floor. Updated the route art guide.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, and [route overhaul](ROUTE_OVERHAUL.md). Visually checked the running local route screen; `npm run build` and `git diff --check` passed.
+
+### 2026-09-29 — Stabilized the route pyramid marker
+
+- Removed the spinning projection and replaced it with fixed, clearly layered pyramid facets; kept the gentle vertical bob. This avoids the route marker changing shape or breaking during rotation.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, and [route overhaul](ROUTE_OVERHAUL.md). `npm run build` and `git diff --check` passed; verified the static pyramid and bobbing marker in the locally running route screen.
+
+### 2026-09-29 — Animated pyramid route marker
+
+- Replaced the route-selection avatar with a downward-pointing SVG pyramid above the current route position. It spins around its vertical axis and bobs up and down; reduced-motion settings turn off both animations. Updated the route art guide to describe the current marker.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, and [route overhaul](ROUTE_OVERHAUL.md). `npm run build` and `git diff --check` passed; viewed the spinning and bobbing marker on the running local route screen.
+
+### 2026-09-29 — Added volume to the route pyramid marker
+
+- Reworked the route marker as a perspective-projected square-base pyramid with separate top and visible side facets. Its face geometry updates as it rotates, keeping it visibly three-dimensional and pointed down instead of flattening edge-on like a 2D sprite. Updated the route art guide.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, and [route overhaul](ROUTE_OVERHAUL.md). `npm run build` and `git diff --check` passed; verified the changing top and side facets in the locally running route screen.
+
+### 2026-09-29 — Fixed AP gain and once-per-turn Move command
+
+- Replaced the prior Movement-based AP gain with a fixed 3 AP per Pokémon turn. AP still banks between turns. Each Pokémon may issue one Move command per turn for a flat 1 AP, within its Movement tile range, and one Attack command; the enemy planner follows the same limit. Added and migrated the per-turn Move flag with save schema v22. Updated the gameplay rules, UI guidance, scaling and balance notes, and scripted playthrough coverage.
+- Main files: `src/game/{engine,grid,enemyPlanner,types}.ts`, `src/persistence/save.ts`, `src/ui/BattleScreen.tsx`, and `scripts/playthrough-smoke-entry.ts`; related docs: [early build plan](PLAN.md), [balance baseline](BALANCE.md), [Battle Lab](BATTLE_LAB.md), [scaling guide](SCALING.md), [UI direction](UI_OVERHAUL_PLAN.md), and [README](../README.md). `npm run build`, `npm run playthrough`, and `git diff --check` passed. The playthrough checked 100/125/200 SPD intervals and proportional Speed rescheduling, fixed 3 AP gain, 1 AP multi-tile movement, blocked repeat Move and Attack commands, AP banking, and the campaign/effect smoke cases. The production build retains its advisory about the 1.41 MB battle chunk.
+
+### 2026-09-29 — Continuous Speed and Action Value timeline
+
+- Replaced round-by-round Speed sorting with per-unit next-action AV scheduling: turns use `10,000 / effective Speed`, waiting AV rescales when Speed changes, and move effects can advance or delay the next action of waiting or acting units. AP still comes from Movement. Timed effects and periodic damage now follow 2,000-AV cycles; save schema v21 migrates earlier active battles and timer values. Updated the battle HUD and relevant rules, balance, UI, Battle Lab, and scaling guidance.
+- Main files: `src/game/{actionValue,engine,moveEffects,types}.ts`, `src/persistence/save.ts`, `src/ui/BattleScreen.tsx`, `src/styles/battle.css`, and [early build plan](PLAN.md), [balance baseline](BALANCE.md), [scaling guide](SCALING.md), [Battle Lab](BATTLE_LAB.md), and [UI direction](UI_OVERHAUL_PLAN.md). Reviewed scheduler, migration, and Speed/AP references and checked the scoped diff; no automated test or gameplay playthrough was run.
+
+### 2026-09-29 — Movement-based action point gain
+
+- Changed each Pokémon's AP gain at turn start to `max(1, floor(Movement))`. Speed still controls turn order, while Movement now controls both AP gain and the tile limit per Move command. Updated the battle rules, balance baseline, scaling guidance, and ability cue wording to match.
+- Main files: `src/game/engine.ts` and [early build plan](PLAN.md), [balance baseline](BALANCE.md), [scaling guide](SCALING.md), and [audio guide](AUDIO_ASSETS.md). Checked all AP and Speed references for stale wording and reviewed the scoped diff; no gameplay playthrough was run.
+
 ### 2026-09-29 — Analyze and trim the Phaser battle bundle
 
 - Added an opt-in production bundle treemap (`npm run analyze`). The report showed Phaser dominated the lazy battle chunk, so the Vite resolver now uses Phaser's supplied build without Matter Physics, which the board does not use. The chunk fell from 1.53 MB / 355 KB gzip to 1.41 MB / 320 KB gzip; the 500 KB uncompressed-size warning remains. Updated the scalability audit with the result and the next tuning boundary.

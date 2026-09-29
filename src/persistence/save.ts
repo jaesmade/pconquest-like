@@ -1,10 +1,11 @@
 import { abilityFor, ENCOUNTERS, itemCanEquip, itemFor, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES, TYPES } from '../content/data';
-import { defaultLoadoutAtLevel, MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/engine';
+import { defaultLoadoutAtLevel, effectiveSpeed, MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
 import { resolvePlayerDeployment } from '../game/deployment';
 import { objectBlocksMovement } from '../content/terrainObjects';
 import { rebuildHazardTiles } from '../game/hazards';
+import { ACTION_VALUE_PER_CYCLE, actionInterval, LEGACY_TIME_PER_CYCLE } from '../game/actionValue';
 import { emptyStageExpiry, MAX_STAGE, STAGE_DURATION, STAGE_STATS } from '../game/stages';
 import { MAX_RUN_POKEMON } from '../content/roster';
 import { createRoute, legacyRoute, migrateRoutePlan, routeIsValid } from '../game/route';
@@ -20,8 +21,8 @@ type MapSnapshot = { id: string; signature: string; objectSignature?: string; ch
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents' | 'hpEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV20 = { schemaVersion: 20; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV20 | { schemaVersion: 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
+type SaveV22 = { schemaVersion: 22; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV22 | { schemaVersion: 21 | 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
 // Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
 const LEGACY_HP_BASE: Record<string, number> = {
   bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
@@ -104,6 +105,50 @@ function migrateRun(run: Run, version: number): Run {
       if (mon) unit.moves = [...mon.equipped];
     } else if (unit.side === 'enemy') unit.moves = defaultLoadoutAtLevel(unit.species, unit.level);
   }
+  if (version < 21 && next.battle && Array.isArray(next.battle.units)) {
+    const battle = next.battle;
+    const oldTime = Number.isFinite(battle.time) ? battle.time : 0;
+    const scale = ACTION_VALUE_PER_CYCLE / LEGACY_TIME_PER_CYCLE;
+    battle.time = oldTime * scale;
+    if (Number.isFinite(battle.weatherUntil)) battle.weatherUntil *= scale;
+    for (const unit of battle.units) {
+      if (!unit || typeof unit !== 'object') continue;
+      if (unit.status && typeof unit.status === 'object') for (const [key, until] of Object.entries(unit.status)) {
+        if (key !== 'flashFire' && Number.isFinite(until)) unit.status[key] = until * scale;
+      }
+      if (unit.stageUntil && typeof unit.stageUntil === 'object') for (const stat of STAGE_STATS) {
+        if (Number.isFinite(unit.stageUntil[stat])) unit.stageUntil[stat] *= scale;
+      }
+    }
+    if (Array.isArray(battle.hazardZones)) for (const zone of battle.hazardZones) if (zone && Number.isFinite(zone.until)) zone.until *= scale;
+    if (Array.isArray(battle.map?.tiles)) for (const row of battle.map.tiles) if (Array.isArray(row)) for (const tile of row) for (const field of ['hazardUntil', 'coverUntil', 'mudUntil'] as const) {
+      const until = tile?.[field];
+      if (until !== undefined && Number.isFinite(until)) tile[field] = until * scale;
+    }
+    for (const change of Object.values(battle.tileChanges ?? {})) for (const field of ['hazardUntil', 'coverUntil', 'mudUntil'] as const) {
+      const until = change?.[field];
+      if (change && until !== undefined && Number.isFinite(until)) change[field] = until * scale;
+    }
+    const previousOrder = Array.isArray(battle.turnOrder) ? battle.turnOrder : [];
+    const previousIndex = Number.isInteger(battle.turnIndex) ? battle.turnIndex : 0;
+    const pending = new Set(previousOrder.slice(previousIndex));
+    for (const unit of battle.units) {
+      if (!unit || typeof unit !== 'object') continue;
+      unit.status ??= {};
+      unit.nextActionShift = 0;
+      unit.scheduledSpeed = Array.isArray(unit.stats) && Number.isFinite(unit.stats[5])
+        ? effectiveSpeed(unit, battle) : 0.5;
+      unit.nextAction = unit.hp > 0 && !pending.has(unit.id)
+        ? battle.time + actionInterval(unit.scheduledSpeed)
+        : battle.time;
+    }
+    const order = battle.units.filter((unit): unit is Unit => !!unit && typeof unit === 'object' && unit.hp > 0).sort((a, b) => a.nextAction - b.nextAction
+      || previousOrder.indexOf(a.id) - previousOrder.indexOf(b.id));
+    const currentIndex = order.findIndex(unit => unit.id === battle.current);
+    if (currentIndex > 0) order.unshift(...order.splice(currentIndex, 1));
+    battle.turnOrder = order.map(unit => unit.id);
+    battle.turnIndex = 0;
+  }
   next.bag = next.bag.filter(item => !!itemFor(item));
   next.selected = [...new Set(next.selected.filter(id => next.party.some(mon => mon.id === id && mon.hp > 0)))].slice(0, 6);
   next.deployment = resolvePlayerDeployment({ ...next, deployment: next.deployment && typeof next.deployment === 'object' && !Array.isArray(next.deployment) ? next.deployment : {} }, MAPS[ENCOUNTERS.find(encounter => encounter.id === next.encounterId)!.mapId]);
@@ -123,6 +168,9 @@ function migrateRun(run: Run, version: number): Run {
   if (next.phase === 'battle' && !next.battle) next.phase = 'prepare';
   if (next.battle) {
     const battle = next.battle, authored = MAPS[battle.map?.id];
+    if (version < 22 && Array.isArray(battle.units)) for (const unit of battle.units) {
+      if (unit && typeof unit === 'object') unit.movedThisTurn = false;
+    }
     if (version === 5 && Array.isArray(battle.units)) {
       const enemyLevel = ENCOUNTERS.find(encounter => encounter.id === next.encounterId)?.enemyLevel ?? 2;
       for (const unit of battle.units) {
@@ -166,12 +214,15 @@ function migrateRun(run: Run, version: number): Run {
       && Object.values(unit.status).every(value => Number.isFinite(value) && value >= 0)
       && Number.isInteger(unit.x) && Number.isInteger(unit.y) && Number.isFinite(unit.hp)
       && Number.isSafeInteger(unit.ap) && unit.ap >= 0 && Number.isSafeInteger(unit.maxAp) && unit.maxAp >= 0
+      && Number.isFinite(unit.nextAction) && unit.nextAction >= 0 && (unit.hp <= 0 || unit.nextAction >= battle.time - 1e-9)
+      && Number.isFinite(unit.nextActionShift)
+      && Number.isFinite(unit.scheduledSpeed) && unit.scheduledSpeed >= 0.5
       && Number.isFinite(unit.maxHp) && unit.maxHp > 0 && unit.hp >= 0 && unit.hp <= unit.maxHp
       && Number.isInteger(unit.level) && unit.level >= 1 && unit.level <= 100
       && STAGE_STATS.every(stat => Number.isInteger(unit.stages?.[stat]) && Math.abs(unit.stages[stat]) <= MAX_STAGE
-        && Number.isSafeInteger(unit.stageUntil?.[stat]) && unit.stageUntil[stat] >= 0
+        && Number.isFinite(unit.stageUntil?.[stat]) && unit.stageUntil[stat] >= 0
         && (unit.stages[stat] === 0 ? unit.stageUntil[stat] === 0 : unit.stageUntil[stat] > battle.time))
-      && typeof unit.attackedThisTurn === 'boolean' && typeof unit.mobility?.canFly === 'boolean'
+      && typeof unit.movedThisTurn === 'boolean' && typeof unit.attackedThisTurn === 'boolean' && typeof unit.mobility?.canFly === 'boolean'
       && typeof unit.mobility?.canSwim === 'boolean'
       && battle.map.tiles[unit.y]?.[unit.x] && Array.isArray(unit.moves) && unit.moves.every(id => !!MOVES[id]));
     const unitIds = validUnits ? battle.units.map(unit => unit.id) : [];
@@ -182,17 +233,20 @@ function migrateRun(run: Run, version: number): Run {
       && Number.isFinite(zone.until) && zone.until >= 0 && Array.isArray(zone.tiles)
       && zone.tiles.length > 0 && zone.tiles.every(point => Array.isArray(point) && point.length === 2
         && Number.isInteger(point[0]) && Number.isInteger(point[1]) && !!battle.map.tiles[point[1]]?.[point[0]]));
+    const liveIds = validUnits ? battle.units.filter(unit => unit.hp > 0).map(unit => unit.id) : [];
+    const currentUnit = validUnits ? battle.units.find(unit => unit.id === battle.current) : undefined;
+    const earliestAction = validUnits && liveIds.length ? Math.min(...battle.units.filter(unit => unit.hp > 0).map(unit => unit.nextAction)) : Number.POSITIVE_INFINITY;
     const validQueue = validUnits && new Set(unitIds).size === unitIds.length && new Set(livePositions).size === livePositions.length
       && validZones && new Set(battle.hazardZones.map(zone => zone.id)).size === battle.hazardZones.length
       && ['clear', 'sun', 'rain', 'snow', 'sandstorm'].includes(battle.weather)
       && (battle.result === undefined || battle.result === 'win' || battle.result === 'loss')
-      && Number.isInteger(battle.round) && battle.round >= 1 && Number.isInteger(battle.time) && battle.time >= 0
-      && Array.isArray(battle.turnOrder) && battle.turnOrder.every(id => unitIds.includes(id))
+      && Number.isInteger(battle.round) && battle.round >= 1 && Number.isFinite(battle.time) && battle.time >= 0
+      && Array.isArray(battle.turnOrder) && battle.turnOrder.length === liveIds.length && battle.turnOrder.every(id => liveIds.includes(id))
       && new Set(battle.turnOrder).size === battle.turnOrder.length && Number.isInteger(battle.turnIndex)
-      && battle.turnIndex >= 0 && (battle.result || battle.turnIndex < battle.turnOrder.length)
+      && battle.turnIndex === 0
       && battle.units.some(unit => unit.id === battle.current) && battle.encounterId === next.encounterId
-      && (battle.result || (battle.turnOrder[battle.turnIndex] === battle.current
-        && battle.units.some(unit => unit.id === battle.current && unit.hp > 0)
+      && (battle.result || (battle.turnOrder[0] === battle.current && !!currentUnit && currentUnit.hp > 0
+        && currentUnit.nextAction <= earliestAction + 1e-9
         && (battle.units.some(unit => unit.side === 'enemy' && unit.hp > 0) || capturePending)));
     const changedAuthoredMap = !!validMap && version < 7 && mapSignature(battle.map, false) !== mapSignature(authored, false);
     const objectCollision = !!validUnits && battle.units.some(unit => unit.hp > 0 && objectBlocksMovement(authored!.tiles[unit.y][unit.x]));
@@ -278,20 +332,20 @@ function snapshotMap(battle: Battle): MapSnapshot {
   return { id: map.id, signature: mapSignature(authored, true), objectSignature: objectSignature(authored), changes };
 }
 
-export function snapshotRun(run: Run): SaveV20 {
+export function snapshotRun(run: Run): SaveV22 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, hpEvents: _hpEvents, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 20, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 22, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18 && envelope.schemaVersion !== 19 && envelope.schemaVersion !== 20) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18 && envelope.schemaVersion !== 19 && envelope.schemaVersion !== 20 && envelope.schemaVersion !== 21 && envelope.schemaVersion !== 22) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;

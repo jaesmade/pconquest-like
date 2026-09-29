@@ -83,18 +83,20 @@ export function canEnter(battle: Battle, unit: Unit, x: number, y: number, fromX
   return !occupied.has(`${x},${y}`) && canTraverseTerrain(battle.map, unit.mobility, x, y, fromX, fromY);
 }
 
-export function stepCost(battle: Battle, unit: Unit, x: number, y: number, fromX: number, fromY: number): number {
+/** Soft route weight for attack-position search; terrain never changes the AP price of movement. */
+export function navigationCost(battle: Battle, unit: Unit, x: number, y: number, fromX: number, fromY: number): number {
   const tile = battle.map.tiles[y][x], previous = battle.map.tiles[fromY][fromX];
   return 1 + (unit.mobility.canFly ? 0 : Math.max(0, tile.height - previous.height))
     + (!unit.mobility.canFly && tile.mudUntil && tile.mudUntil > battle.time ? 1 : 0);
 }
 
-/** The Movement stat caps tiles per command; AP pays the terrain-adjusted path cost. */
+/** The Movement stat caps tiles per command; a valid command costs one AP. */
 function searchReachable(battle: Battle, unit: Unit) {
   const start = `${unit.x},${unit.y},0`;
   const best = new Map<string, number>([[start, 0]]);
   const previous = new Map<string, string>();
   const destinations = new Map<string, { cost: number; key: string }>();
+  if (unit.movedThisTurn || unit.ap < 1) return { start, previous, destinations };
   const occupied = occupiedTiles(battle);
   const frontier = new MinHeap();
   frontier.push({ x: unit.x, y: unit.y, steps: 0, cost: 0, key: start });
@@ -105,8 +107,7 @@ function searchReachable(battle: Battle, unit: Unit) {
     for (const [dx, dy] of directions) {
       const x = node.x + dx, y = node.y + dy;
       if (!canEnter(battle, unit, x, y, node.x, node.y, occupied)) continue;
-      const cost = node.cost + stepCost(battle, unit, x, y, node.x, node.y);
-      if (cost > unit.ap) continue;
+      const cost = node.cost + 1;
       const steps = node.steps + 1, stateKey = `${x},${y},${steps}`, tileKey = `${x},${y}`;
       if (cost >= (best.get(stateKey) ?? Infinity)) continue;
       best.set(stateKey, cost);
@@ -121,7 +122,7 @@ function searchReachable(battle: Battle, unit: Unit) {
 export function reachable(battle: Battle, unit: Unit): Map<string, MovementPath> {
   const { start, previous, destinations } = searchReachable(battle, unit);
   const result = new Map<string, MovementPath>();
-  for (const [tile, route] of destinations) result.set(tile, { cost: route.cost, points: pathFrom(route.key, start, previous) });
+  for (const [tile, route] of destinations) result.set(tile, { cost: 1, points: pathFrom(route.key, start, previous) });
   return result;
 }
 
@@ -133,7 +134,7 @@ export function reachableTiles(battle: Battle, unit: Unit): Set<string> {
 export function routeTo(battle: Battle, unit: Unit, x: number, y: number): MovementPath | undefined {
   const { start, previous, destinations } = searchReachable(battle, unit);
   const destination = destinations.get(`${x},${y}`);
-  return destination && { cost: destination.cost, points: pathFrom(destination.key, start, previous) };
+  return destination && { cost: 1, points: pathFrom(destination.key, start, previous) };
 }
 
 /** Derived search state can be resumed across animation frames; it never changes the battle or RNG. */
@@ -161,7 +162,7 @@ export class AttackPositionSearch {
       for (const [dx, dy] of directions) {
         const x = node.x + dx, y = node.y + dy;
         if (!canEnter(this.battle, this.unit, x, y, node.x, node.y, this.occupied)) continue;
-        const cost = node.cost + stepCost(this.battle, this.unit, x, y, node.x, node.y), key = `${x},${y}`;
+        const cost = node.cost + navigationCost(this.battle, this.unit, x, y, node.x, node.y), key = `${x},${y}`;
         if (cost >= (this.best.get(key) ?? Infinity)) continue;
         this.best.set(key, cost);
         this.previous.set(key, node.key);

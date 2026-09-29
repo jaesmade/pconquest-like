@@ -1,6 +1,6 @@
 import { itemBlocksMove, mapHeight, mapWidth, MOVES } from '../content/data';
 import { active, affectedTiles, canHitAtTarget, canHitWithMove, canUseMove, damagePreview, inMoveRange, type EnemyAction } from './engine';
-import { AttackPositionSearch, stepCost } from './grid';
+import { AttackPositionSearch } from './grid';
 import { scoreMoveEffects } from './moveEffects';
 import type { Battle, GridPoint, Unit } from './types';
 
@@ -64,7 +64,7 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
   }
 
   const first = viable[0];
-  return { pursuit: first && enemy.ap >= 1 ? { target: first.target, moveIds: first.moves.map(candidate => candidate.moveId) } : undefined };
+  return { pursuit: first && !enemy.movedThisTurn && enemy.ap >= 1 ? { target: first.target, moveIds: first.moves.map(candidate => candidate.moveId) } : undefined };
 }
 
 function navigationKey(battle: Battle, enemy: Unit, { target, moveIds }: Pursuit): string {
@@ -73,14 +73,12 @@ function navigationKey(battle: Battle, enemy: Unit, { target, moveIds }: Pursuit
   return `${battle.map.id}:${battle.time}:${battle.weather}:${enemy.id}:${enemy.mobility.canFly}:${enemy.mobility.canSwim}:${target.id}:${moveIds.join(',')}:${otherUnits}`;
 }
 
-function movementPrefix(battle: Battle, enemy: Unit, route: GridPoint[]): GridPoint[] {
+function movementPrefix(enemy: Unit, route: GridPoint[]): GridPoint[] {
+  if (enemy.movedThisTurn || enemy.ap < 1) return [];
   const points: GridPoint[] = [];
-  let x = enemy.x, y = enemy.y, cost = 0;
   for (const [nextX, nextY] of route) {
-    const nextCost = stepCost(battle, enemy, nextX, nextY, x, y);
-    if (points.length >= enemy.stats[6] || cost + nextCost > enemy.ap) break;
+    if (points.length >= enemy.stats[6]) break;
     points.push([nextX, nextY]);
-    cost += nextCost; x = nextX; y = nextY;
   }
   return points;
 }
@@ -131,7 +129,7 @@ export class EnemyPlanner {
       this.route = result.path;
       this.search = undefined;
     }
-    const points = movementPrefix(battle, enemy, this.route);
+    const points = movementPrefix(enemy, this.route);
     return { pending: false, action: points.length ? { kind: 'move', points } : { kind: 'pass' } };
   }
 

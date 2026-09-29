@@ -18,7 +18,9 @@ export type MoveEffect =
   | { kind: 'tile'; on: 'hit' | 'cast'; field: 'coverUntil' | 'mudUntil' | 'hazardUntil'; duration: number }
   | { kind: 'chain'; on: 'hit'; chance: number; radius: number; damageFraction: number }
   | { kind: 'stage'; on: 'cast'; stat: keyof StatStages; delta: number; duration: number; recipients: 'self' | 'allies' | 'all' }
-  | { kind: 'weather'; on: 'cast'; weather: Weather; duration: number };
+  | { kind: 'weather'; on: 'cast'; weather: Weather; duration: number }
+  | { kind: 'action'; on: 'hit'; direction: 'advance' | 'delay'; amount: number }
+  | { kind: 'action'; on: 'cast'; direction: 'advance' | 'delay'; amount: number; recipients: 'self' | 'allies' | 'enemies' | 'all' };
 export type MoveTag = 'contact' | 'punch' | 'bomb' | 'projectile' | 'pulse' | 'sound' | 'weather' | 'hazard';
 export type AttackDelivery = 'melee' | 'ranged';
 type MoveBase = { name: string; type: string; power: number; range: number; apCost: number; target: 'unit' | 'tile' | 'self'; detail: string; tags: MoveTag[]; visualId?: string; soundId?: string; area?: { width: number; height: number; anchor: 'center' | 'corner' }; effects?: MoveEffect[] };
@@ -30,7 +32,7 @@ export type PartyMon = { id: string; species: string; level: number; xp: number;
 export type PendingMove = { monId: string; moveId: string };
 export type StatStages = { attack: number; defense: number; specialAttack: number; specialDefense: number };
 export type StageExpiry = Record<keyof StatStages, number>;
-export type Unit = { id: string; partyId?: string; side: 'player' | 'enemy'; species: string; name: string; level: number; types: string[]; mobility: Mobility; ability: AbilityId; stats: [number, number, number, number, number, number, number]; moves: string[]; hp: number; maxHp: number; x: number; y: number; facing: number; ap: number; maxAp: number; attackedThisTurn: boolean; status: Record<string, number>; stages: StatStages; stageUntil: StageExpiry; item: ItemId; itemAttackMultiplier: number; visual?: string; visualNonce?: number; visualFrom?: GridPoint; visualPath?: GridPoint[] };
+export type Unit = { id: string; partyId?: string; side: 'player' | 'enemy'; species: string; name: string; level: number; types: string[]; mobility: Mobility; ability: AbilityId; stats: [number, number, number, number, number, number, number]; moves: string[]; hp: number; maxHp: number; x: number; y: number; facing: number; ap: number; maxAp: number; movedThisTurn: boolean; attackedThisTurn: boolean; nextAction: number; nextActionShift: number; scheduledSpeed: number; status: Record<string, number>; stages: StatStages; stageUntil: StageExpiry; item: ItemId; itemAttackMultiplier: number; visual?: string; visualNonce?: number; visualFrom?: GridPoint; visualPath?: GridPoint[] };
 export type AttackVisualEvent = { id: string; moveId: string; sourceId: string; from: [number, number]; to: [number, number]; tiles: [number, number][]; targetIds: string[]; hpAfter?: Record<string, number>; abilityTriggered?: boolean };
 export type FeedbackEvent = { id: string; kind: 'ability' | 'item'; key: string; unitId: string };
 export type HpVisualEvent = { id: string; unitId: string; kind: 'damage' | 'heal'; amount: number; hpAfter: number; x: number; y: number; attackId?: string; duringMove?: boolean };

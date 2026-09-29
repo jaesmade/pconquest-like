@@ -4,6 +4,7 @@ import { placeHazardZone } from './hazards';
 import { syncMobility } from './mobility';
 import { random } from './rng';
 import { changeStage, MAX_STAGE } from './stages';
+import { changeNextAction, formatCycleDuration, toActionValueDuration } from './actionValue';
 import type { AttackVisualEvent, Battle, GridPoint, Move, MoveEffect, Unit } from './types';
 
 type Kind = MoveEffect['kind'];
@@ -28,15 +29,21 @@ const durationError = (duration: number) => Number.isInteger(duration) && durati
 const targets = (context: EffectView, effect: OfKind<'stage'>) => context.battle.units.filter(unit => unit.hp > 0
   && context.tiles.some(([x, y]) => unit.x === x && unit.y === y)
   && (effect.recipients === 'self' ? unit.id === context.source.id : effect.recipients === 'allies' ? unit.side === context.source.side : unit.side !== context.source.side));
+const actionTargets = (effect: OfKind<'action'>, context: EffectView) => effect.on === 'hit'
+  ? context.target ? [context.target] : []
+  : context.battle.units.filter(unit => unit.hp > 0 && context.tiles.some(([x, y]) => unit.x === x && unit.y === y)
+    && (effect.recipients === 'self' ? unit.id === context.source.id
+      : effect.recipients === 'allies' ? unit.side === context.source.side
+        : effect.recipients === 'enemies' ? unit.side !== context.source.side : true));
 
 /** The authored effect array is the order within each phase. This table owns all effect-family rules. */
 const handlers: { [K in Kind]: Handler<OfKind<K>> } = {
   status: {
     validate: effect => [...chanceError(effect.chance), ...durationError(effect.duration)],
     resolve: (effect, { battle, target, log }) => {
-      if (target && random(battle) < effect.chance) { target.status[effect.status] = battle.time + effect.duration; log(`${target.name} was ${effect.status}.`); }
+      if (target && random(battle) < effect.chance) { target.status[effect.status] = battle.time + toActionValueDuration(effect.duration); log(`${target.name} was ${effect.status}.`); }
     },
-    preview: effect => `${Math.round(effect.chance * 100)}% ${effect.status} for ${effect.duration} battle time on hit`,
+    preview: effect => `${Math.round(effect.chance * 100)}% ${effect.status} for ${formatCycleDuration(effect.duration)} on hit`,
     score: (effect, { battle, target }) => target && target.hp > 0 && (target.status[effect.status] ?? 0) <= battle.time ? effect.chance : 0,
   },
   displace: {
@@ -66,10 +73,11 @@ const handlers: { [K in Kind]: Handler<OfKind<K>> } = {
     resolve: (effect, { battle, source, moveId, tiles, target }) => {
       const points: GridPoint[] = effect.on === 'hit' ? target ? [[target.x, target.y]] : [] : tiles;
       if (!points.length) return;
-      if (effect.field === 'hazardUntil') placeHazardZone(battle, source.id, moveId, points, battle.time + effect.duration);
-      else setTileEffects(battle, points, effect.field, battle.time + effect.duration);
+      const until = battle.time + toActionValueDuration(effect.duration);
+      if (effect.field === 'hazardUntil') placeHazardZone(battle, source.id, moveId, points, until);
+      else setTileEffects(battle, points, effect.field, until);
     },
-    preview: effect => `${effect.field === 'hazardUntil' ? 'Hazard' : effect.field === 'mudUntil' ? 'Slowing ground' : 'Cover'} for ${effect.duration} battle time`,
+    preview: effect => `${effect.field === 'hazardUntil' ? 'Hazard' : effect.field === 'mudUntil' ? 'Slowing ground' : 'Cover'} for ${formatCycleDuration(effect.duration)}`,
     score: (effect, { battle, tiles, target }) => {
       const points = effect.on === 'hit' && target ? [[target.x, target.y]] : tiles;
       return points.some(([x, y]) => (battle.map.tiles[y]?.[x]?.[effect.field] ?? 0) <= battle.time) ? 1 : 0;
@@ -87,16 +95,27 @@ const handlers: { [K in Kind]: Handler<OfKind<K>> } = {
   },
   stage: {
     validate: effect => [...durationError(effect.duration), ...(!Number.isInteger(effect.delta) || effect.delta === 0 ? ['stage change must be a nonzero integer'] : [])],
-    resolve: (effect, context) => { for (const unit of targets(context, effect)) changeStage(unit, effect.stat, effect.delta, context.battle.time + effect.duration); },
-    preview: effect => `${effect.stat} ${effect.delta > 0 ? '+' : ''}${effect.delta} for ${effect.duration} battle time (${effect.recipients})`,
+    resolve: (effect, context) => { for (const unit of targets(context, effect)) changeStage(unit, effect.stat, effect.delta, context.battle.time + toActionValueDuration(effect.duration)); },
+    preview: effect => `${effect.stat} ${effect.delta > 0 ? '+' : ''}${effect.delta} for ${formatCycleDuration(effect.duration)} (${effect.recipients})`,
     score: (effect, context) => targets(context, effect).some(unit => (effect.delta > 0 ? unit.stages[effect.stat] < MAX_STAGE : unit.stages[effect.stat] > -MAX_STAGE)
-      || unit.stageUntil[effect.stat] <= context.battle.time + 100) ? 1 : 0,
+      || unit.stageUntil[effect.stat] <= context.battle.time + toActionValueDuration(100)) ? 1 : 0,
   },
   weather: {
     validate: effect => durationError(effect.duration),
-    resolve: (effect, { battle }) => { battle.weather = effect.weather; battle.weatherUntil = battle.time + effect.duration; },
-    preview: effect => `Sets ${effect.weather} for ${effect.duration} battle time`,
+    resolve: (effect, { battle }) => { battle.weather = effect.weather; battle.weatherUntil = battle.time + toActionValueDuration(effect.duration); },
+    preview: effect => `Sets ${effect.weather} for ${formatCycleDuration(effect.duration)}`,
     score: (effect, { battle }) => battle.weather === effect.weather ? 0 : 1,
+  },
+  action: {
+    validate: effect => Number.isInteger(effect.amount) && effect.amount > 0 ? [] : ['action value change must be a positive integer'],
+    resolve: (effect, context) => { for (const unit of actionTargets(effect, context)) changeNextAction(unit, context.battle, effect.direction, effect.amount); },
+    preview: effect => `${effect.direction === 'advance' ? 'Advances' : 'Delays'} ${effect.on === 'cast' ? effect.recipients : 'the target'} by ${effect.amount} AV`,
+    score: (effect, context) => Math.min(1, actionTargets(effect, context).reduce((score, unit) => {
+      if (unit.id !== context.battle.current && unit.nextAction < context.battle.time) return score;
+      const advancesAlly = effect.direction === 'advance' && unit.side === context.source.side;
+      const delaysEnemy = effect.direction === 'delay' && unit.side !== context.source.side;
+      return score + (advancesAlly || delaysEnemy ? 0.5 : 0.05);
+    }, 0)),
   },
 };
 

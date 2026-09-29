@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { validateCatalog } from '../src/content/catalog';
 import { MOVES } from '../src/content/moves';
 import { EnemyPlanner } from '../src/game/enemyPlanner';
-import { active, canHitAtTarget, canUseMove, commitEnemyAction, completeBattle, createLabBattle, damagePreview, finishTurn, moveUnit, newRun, nextEncounter, passTurn, selectRouteNode, startBattle, useMove } from '../src/game/engine';
+import { active, apGain, canHitAtTarget, canUseMove, commitEnemyAction, completeBattle, createLabBattle, damagePreview, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveLevelMove, selectRouteNode, startBattle, useMove } from '../src/game/engine';
 import { reachable } from '../src/game/grid';
 import { availableRouteNodes, createRoute } from '../src/game/route';
 import type { Battle, Unit } from '../src/game/types';
@@ -87,6 +87,10 @@ run = completeBattle(run);
 if (battle.result === 'win') {
   assert.equal(run.phase, 'intermission');
   assert.ok(run.report.some(line => line.includes('XP')));
+  while (run.pendingMoves.length) {
+    const offer = run.pendingMoves[0];
+    run = resolveLevelMove(run, offer.monId, offer.moveId);
+  }
   run = nextEncounter(run);
   assert.equal(run.phase, 'route');
   assert.equal(run.route.visited.length, 1);
@@ -103,9 +107,76 @@ function activateSide(battle: Battle, side: Unit['side']) {
   for (let i = 0; i < 3 && active(battle).side !== side; i++) passTurn(battle);
   assert.equal(active(battle).side, side);
 }
+function activateSideWithAp(battle: Battle, side: Unit['side'], minimumAp: number) {
+  for (let i = 0; i < 300 && (active(battle).side !== side || active(battle).ap < minimumAp); i++) passTurn(battle);
+  assert.equal(active(battle).side, side);
+  assert.ok(active(battle).ap >= minimumAp);
+}
+
+const timeline = lab('bulbasaur', 'meowth');
+const firstActor = active(timeline);
+const waitingActor = timeline.units.find(unit => unit.id !== firstActor.id)!;
+firstActor.stats[5] = 100;
+passTurn(timeline);
+assert.equal(active(timeline).id, waitingActor.id);
+waitingActor.stats[5] = 125;
+passTurn(timeline);
+assert.equal(timeline.time, 80, '125 Speed should act after 80 AV');
+assert.equal(active(timeline).id, waitingActor.id, 'the faster unit should take its next turn first');
+firstActor.stats[5] = 200;
+finishTurn(timeline);
+assert.ok(Math.abs(firstActor.nextAction - 90) < 1e-9, 'doubling a waiting unit\'s Speed should halve its remaining AV');
+passTurn(timeline);
+assert.equal(timeline.time, 90);
+assert.equal(active(timeline).id, firstActor.id);
+note('Battle Lab: 100/125/200 SPD timeline intervals and proportional Speed rescheduling passed.');
+
+const movementRules = lab('meowth', 'geodude', 13, 13, 321);
+activateSide(movementRules, 'player');
+const mover = active(movementRules);
+assert.equal(mover.ap, 3, 'a Pokémon should start its turn with 3 AP');
+assert.equal(mover.maxAp, 3);
+assert.ok(movementRules.units.every(unit => apGain(unit, movementRules) === 3), 'AP gain should be fixed across species');
+const multiTile = [...reachable(movementRules, mover)].find(([, path]) => path.points.length > 1);
+assert.ok(multiTile, 'the test should find a reachable multi-tile Move');
+assert.equal(multiTile[1].cost, 1, 'a multi-tile Move should still cost 1 AP');
+const [moveX, moveY] = multiTile[0].split(',').map(Number);
+assert.equal(moveUnit(movementRules, moveX, moveY), undefined);
+assert.equal(mover.ap, 2, 'movement should spend exactly 1 AP');
+assert.equal(mover.movedThisTurn, true);
+assert.equal(reachable(movementRules, mover).size, 0, 'movement should not be offered a second time this turn');
+assert.match(moveUnit(movementRules, mover.x, mover.y), /already moved/i);
+const opponent = movementRules.units.find(unit => unit.side === 'enemy')!;
+mover.stats[5] = 1;
+opponent.stats[5] = 100;
+passTurn(movementRules);
+for (let i = 0; i < 300 && active(movementRules).id !== opponent.id; i++) passTurn(movementRules);
+assert.equal(active(movementRules).id, opponent.id, 'the opponent should receive a turn before the mover returns');
+assert.equal(opponent.maxAp, 3, 'the opposing Pokémon should also gain 3 AP per turn');
+assert.ok(opponent.ap >= 3, 'the opposing Pokémon may also have banked AP');
+for (let i = 0; i < 300 && active(movementRules).id !== mover.id; i++) passTurn(movementRules);
+assert.equal(active(movementRules).id, mover.id);
+assert.equal(mover.ap, 5, 'the next turn should add 3 AP to the 2 AP banked');
+assert.equal(mover.movedThisTurn, false, 'the one-Move limit should reset on the next turn');
+note('Battle Lab: fixed 3 AP, one 1-AP multi-tile Move, blocked repeat Move, and AP banking passed.');
+
+const attackRules = lab('squirtle', 'charmander', 13, 13, 654);
+activateSide(attackRules, 'player');
+const attacker = active(attackRules);
+const attackTarget = attackRules.units.find(unit => unit.side === 'enemy')!;
+let attackChoice: { moveId: string; x: number; y: number } | undefined;
+for (const moveId of attacker.moves) for (let y = 0; y < attackRules.map.tiles.length && !attackChoice; y++)
+  for (let x = 0; x < attackRules.map.tiles[y].length && !attackChoice; x++)
+    if (canUseMove(attackRules, attacker, moveId, x, y) && canHitAtTarget(attackRules, attacker, moveId, x, y, attackTarget)) attackChoice = { moveId, x, y };
+assert.ok(attackChoice, 'the test should find one valid Attack');
+assert.equal(useMove(attackRules, attackChoice.moveId, attackChoice.x, attackChoice.y), undefined);
+assert.equal(attacker.attackedThisTurn, true);
+assert.equal(canUseMove(attackRules, attacker, attackChoice.moveId, attackChoice.x, attackChoice.y), false);
+assert.notEqual(useMove(attackRules, attackChoice.moveId, attackChoice.x, attackChoice.y), undefined, 'a second Attack should be rejected');
+note('Battle Lab: the second Attack in one turn was rejected.');
 
 const weather = lab('geodude', 'meowth');
-activateSide(weather, 'player');
+activateSideWithAp(weather, 'player', MOVES.sandstorm.apCost);
 const weatherSource = active(weather);
 assert.ok(weatherSource.moves.includes('sandstorm'));
 assert.equal(useMove(weather, 'sandstorm', weatherSource.x, weatherSource.y), undefined);
@@ -164,7 +235,7 @@ assert.ok(chainAttempted, 'Thunder Shock should attempt a chain across seeded ca
 note('Battle Lab: Thunder Shock chained; Ground secondary target stayed immune.');
 
 const statusAI = lab('meowth', 'geodude');
-activateSide(statusAI, 'enemy');
+activateSideWithAp(statusAI, 'enemy', MOVES.sandstorm.apCost);
 active(statusAI).moves = ['sandstorm'];
 const statusPlanner = new EnemyPlanner();
 let statusChoice = statusPlanner.plan(statusAI, 32);

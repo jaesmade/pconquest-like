@@ -68,51 +68,59 @@
 .route-start-link,
 .route-links line,
 .route-links line.reachable,
-.route-links line.cleared { stroke: #128db4; stroke-width: 7; opacity: 1; }
-.route-links line.reachable { stroke-width: 9; }
+.route-links line.cleared { stroke: #617980; stroke-width: 4; opacity: .72; }
+.route-links line.reachable { stroke: #168eaa; stroke-width: 5; opacity: .9; }
+.route-links line.cleared { stroke: #c79c4c; opacity: .86; }
 .route-tile-art,
-.route-glyph { shape-rendering: crispEdges; }
+.route-glyph { shape-rendering: geometricPrecision; }
 .route-start,
-.route-node { --tile-top: #845b2e; --tile-inset: #aa7740; --tile-edge: #51361f; }
+.route-node { --tile-top: #8b6335; --tile-inset: #ad8246; --tile-edge: #584126; }
 .route-node.battle,
 .route-node.special,
-.route-node.store { --tile-top: #9e6e37; --tile-inset: #ba8a4d; --tile-edge: #684622; }
-.route-node.elite { --tile-top: #ad2448; --tile-inset: #d84465; --tile-edge: #6e1934; }
-.route-node.boss { --tile-top: #692f55; --tile-inset: #9a4d74; --tile-edge: #421f3a; }
-.route-node.heal { --tile-top: #347d60; --tile-inset: #55af83; --tile-edge: #1e543e; }
-.route-node.recruit { --tile-top: #326b88; --tile-inset: #5aa4bb; --tile-edge: #21495e; }
+.route-node.store { --tile-top: #98703d; --tile-inset: #c09a5f; --tile-edge: #654927; }
+.route-node.elite { --tile-top: #96354b; --tile-inset: #bd596c; --tile-edge: #59243a; }
+.route-node.boss { --tile-top: #633852; --tile-inset: #925d78; --tile-edge: #40243d; }
+.route-node.heal { --tile-top: #34745a; --tile-inset: #559477; --tile-edge: #1d483a; }
+.route-node.recruit { --tile-top: #315d78; --tile-inset: #60899f; --tile-edge: #203f55; }
 .route-start { --tile-top: #365470; --tile-inset: #52799b; --tile-edge: #1b344d; }
-.route-node-shadow { fill: #152434; stroke: #142235; stroke-width: 5; stroke-linejoin: miter; }
-.route-node-side { fill: #eeefea; stroke: #17212b; stroke-width: 5; stroke-linejoin: miter; }
-.route-node-side-shade { fill: #aeb6b4; }
-.route-node-side-highlight { fill: #fffefa; }
-.route-node-rim { fill: #d7d9d5; stroke: #1d2530; stroke-width: 5; stroke-linejoin: miter; }
-.route-node-top { fill: var(--tile-edge); stroke: #302417; stroke-width: 4; stroke-linejoin: miter; }
-.route-node-top-light { fill: none; stroke: #ffe6aa88; stroke-width: 3; pointer-events: none; }
-.route-node-inset { fill: var(--tile-inset); stroke: var(--tile-top); stroke-width: 5; stroke-linejoin: miter; }
+.route-node-shadow { fill: #152434; stroke: #142235; stroke-width: 4; stroke-linejoin: round; }
+.route-node-side { fill: #34434b; stroke: #17252f; stroke-width: 3; stroke-linejoin: round; }
+.route-node-side-shade { fill: #243640; }
+.route-node-side-highlight { fill: #ccb983; opacity: .8; }
+.route-node-rim { fill: #c7b88f; stroke: #25323a; stroke-width: 3; stroke-linejoin: round; }
+.route-node-top { fill: var(--tile-edge); stroke: #26333b; stroke-width: 3; stroke-linejoin: round; }
+.route-node-top-light { fill: none; stroke: #ffe8b588; stroke-width: 2; pointer-events: none; }
+.route-node-inset { fill: var(--tile-inset); stroke: var(--tile-top); stroke-width: 3; stroke-linejoin: round; }
 .route-node-bevel { fill: #ffe6ac28; pointer-events: none; }
 .route-node-inset-shade { fill: #3d241f35; pointer-events: none; }
-.route-node-texture { fill: url(#route-stone-grain); pointer-events: none; }
-.route-node-inlay { fill: none; stroke: #ffe5ac88; stroke-width: 2; pointer-events: none; }
-.route-glyph { filter: drop-shadow(1px 3px 0 #332416a8); }
+.route-node-texture { fill: url(#route-stone-grain); opacity: .56; pointer-events: none; }
+.route-node-inlay { fill: none; stroke: #ffe5ac88; stroke-width: 1.5; pointer-events: none; }
+.route-glyph { filter: drop-shadow(0 2px 1px #27323b88); }
 .route-glyph path,
 .route-glyph text,
-.route-glyph circle { fill: #f7e8c5; stroke: #765a35; stroke-width: 2; paint-order: stroke; }
-.route-glyph g[fill='none'] path { fill: none; stroke: #f7e8c5; stroke-width: 6; }
+.route-glyph circle { fill: #f7e8c5; stroke: #655941; stroke-width: 1.5; paint-order: stroke; }
+.route-glyph g[fill='none'] path { fill: none; stroke: #f7e8c5; stroke-width: 5; }
 .route-glyph .route-glyph-cutout { fill: #4c253d; stroke: none; }
 .route-glyph .route-sword-line { fill: none; stroke: #b89f71; stroke-width: 2; }
 .route-glyph .route-sword-glint { fill: none; stroke: #fff8df; stroke-width: 2; }
 .route-node.elite .route-glyph path { fill: #fff1d8; stroke: #f9b1c3; stroke-width: 2; }
 .route-node.elite .route-glyph .route-spark-shine { fill: #fff8ef; stroke: none; }
-.route-node.heal .route-glyph path { fill: #3bf2a2; stroke: #ecffdb; }
+.route-node.heal .route-glyph path { fill: #d9f1d7; stroke: #548872; }
 .route-node:not(.available):not(.visited) { opacity: 1; filter: none; }
-.route-node.available { filter: url(#route-cyan-glow); }
-.route-node.available .route-node-rim { stroke: #d7fafd; stroke-width: 5; }
+.route-node.available { filter: none; }
+.route-node.available .route-node-rim { stroke: #b7e5e8; stroke-width: 3; filter: drop-shadow(0 0 5px #79dce499); }
 .route-node.available:hover .route-node-inset,
 .route-node.available:focus-visible .route-node-inset { fill: #e7ae62; }
 .route-choice-marker path { fill: #f4ad35; stroke: #251b18; stroke-width: 5; }
 .route-choice-marker .route-choice-shine { fill: #ffda55; stroke: #fff3aa; stroke-width: 2; }
-.route-player { filter: drop-shadow(0 5px 1px #172333b0); }
+.route-player-bob { transform-box: fill-box; transform-origin: center; animation: route-player-bob 1.8s ease-in-out infinite; }
+.route-player-pyramid-outline { fill: #132630; stroke: #e7ffff; stroke-width: 5; stroke-linejoin: round; }
+.route-player-pyramid-left { fill: #36b6c5; stroke: #173642; stroke-width: 2.5; stroke-linejoin: round; }
+.route-player-pyramid-right { fill: #16749b; stroke: #173642; stroke-width: 2.5; stroke-linejoin: round; }
+.route-player-pyramid-top { fill: #8df7ec; stroke: #123541; stroke-width: 2.5; stroke-linejoin: round; }
+.route-player-pyramid-glint { fill: #e3ffff; opacity: .74; }
+@keyframes route-player-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-11px); } }
+@media (prefers-reduced-motion: reduce) { .route-player-bob { animation: none; } }
 .route-guide {
   position: absolute;
   z-index: 6;

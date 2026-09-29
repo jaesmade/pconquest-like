@@ -13,6 +13,7 @@ type Props = {
   onStart: () => void;
   onBack: () => void;
 };
+const MAX_DEPLOY = 6;
 
 export default function PrepareScreen({ run, onToggle, onDeploymentChange, onStart, onBack }: Props) {
   const [focused, setFocused] = useState('');
@@ -42,23 +43,27 @@ export default function PrepareScreen({ run, onToggle, onDeploymentChange, onSta
 
   return <main className="prepare-screen route-modal-screen">
     <div className="route-modal-frame prepare-frame">
-    <header className="prepare-title"><span className="eyebrow">COLUMN {run.encounter + 1} · {map.name} · {map.weather} weather</span><h2>Choose Position</h2><p>Select up to six healthy Pokémon, then click a green tile on the rendered map. An occupied tile swaps the two Pokémon when both placements are legal.</p></header>
+    <header className="prepare-title"><span className="eyebrow">COLUMN {run.encounter + 1} · {map.name} · {map.weather} WEATHER</span><h2>Choose Positions</h2><p>Pick a Pokémon from the roster, then choose a highlighted tile in the ally zone.</p></header>
     <div className="prepare-layout">
-      <aside className="prepare-roster" aria-label="Your party"><h3>Your Party <small>{selected.length} / 6</small></h3>
+      <aside className="prepare-roster" aria-label="Your party"><div className="prepare-roster-head"><div><span>STEP 01 · SELECT</span><h3>Your Party</h3></div><b>{selected.length} / {MAX_DEPLOY}</b></div>
+        <div className="prepare-roster-meter" aria-label={`${selected.length} of ${MAX_DEPLOY} Pokémon selected`}>{Array.from({ length: MAX_DEPLOY }, (_, index) => <i key={index} className={index < selected.length ? 'filled' : ''} />)}</div>
         <div className="prepare-roster-grid">{run.party.map(mon => {
           const deployed = run.selected.includes(mon.id), active = focusedMon?.id === mon.id;
+          const maxHp = statsAtLevel(mon.species, mon.level)[0], species = SPECIES[mon.species];
+          const slot = selected.findIndex(candidate => candidate.id === mon.id) + 1;
           return <article key={mon.id} className={`prepare-roster-card${deployed ? ' selected' : ''}${active ? ' focused' : ''}${mon.hp <= 0 ? ' fainted' : ''}`}>
-            <button type="button" className="prepare-roster-focus" disabled={mon.hp <= 0 || (!deployed && selected.length >= 6)} onClick={() => { if (!deployed) onToggle(mon.id); setFocused(mon.id); }} aria-pressed={active}>
-              <Sprite id={mon.species} /><strong>{SPECIES[mon.species].name}</strong><small>Lv {mon.level} · {mon.hp}/{statsAtLevel(mon.species, mon.level)[0]} HP</small>
+            <button type="button" className="prepare-roster-focus" disabled={mon.hp <= 0 || (!deployed && selected.length >= MAX_DEPLOY)} onClick={() => { if (!deployed) onToggle(mon.id); setFocused(mon.id); setPlacementNotice(''); }} aria-pressed={active} aria-label={`${active ? 'Positioning' : deployed ? 'Position' : 'Add and position'} ${species.name}, level ${mon.level}, ${mon.hp} of ${maxHp} HP`}>
+              <span className="prepare-roster-portrait"><Sprite id={mon.species} /></span>
+              <span className="prepare-roster-copy"><strong>{species.name}</strong><small>Lv {mon.level} · {species.types.join(' / ')}</small><span className="prepare-roster-hp"><b>HP</b><b>{mon.hp}/{maxHp}</b></span><span className="prepare-roster-health" role="progressbar" aria-label={`${species.name} HP`} aria-valuemin={0} aria-valuemax={maxHp} aria-valuenow={mon.hp}><i style={{ width: `${Math.max(0, Math.min(100, mon.hp / maxHp * 100))}%` }} /></span></span>
             </button>
-            <label><input type="checkbox" checked={deployed} disabled={mon.hp <= 0 || (!deployed && selected.length >= 6)} onChange={() => { onToggle(mon.id); setFocused(mon.id); }} /> Deploy</label>
+            <div className="prepare-roster-action"><span>{mon.hp <= 0 ? 'FAINTED' : active ? `POSITIONING #${slot}` : deployed ? `DEPLOYED #${slot}` : 'RESERVE'}</span><button type="button" disabled={mon.hp <= 0 || (!deployed && selected.length >= MAX_DEPLOY)} aria-label={`${deployed ? 'Remove' : 'Add'} ${species.name} ${deployed ? 'from' : 'to'} battle team`} onClick={() => { onToggle(mon.id); setFocused(deployed ? '' : mon.id); setPlacementNotice(''); }}>{deployed ? 'Remove' : 'Add'}</button></div>
           </article>;
         })}</div>
       </aside>
       <section className="prepare-map-panel" aria-label="Choose a position on the battle map">
-        <div className="prepare-map-head"><div><b>{map.name}</b><span>Allies deploy at the bottom · Enemies enter at the top</span></div><span>{encounter.enemies.length} opponents · Lv {encounter.enemyLevel}</span></div>
+        <div className="prepare-map-head"><div><small>STEP 02 · PLACE</small><b>{map.name}</b><span>Choose a green tile · tap an ally to swap positions</span></div><div className="prepare-map-opponents"><b>{encounter.enemies.length}</b><span>OPPONENTS<br />LV {encounter.enemyLevel}</span></div></div>
         <DeploymentBoard map={map} selected={selected} focused={focusedMon} placements={placements} onPlace={place} />
-        <div className="prepare-map-footer"><span role="status">{placementNotice || (focusedMon ? `Placing ${SPECIES[focusedMon.species].name}. Choose a green tile.` : 'Select a healthy Pokémon.')}</span><button type="button" className="primary" disabled={!selected.length || selected.some(mon => !placements[mon.id])} onClick={onStart}>Enter battle →</button></div>
+        <div className="prepare-map-footer"><div className="prepare-placement-status"><span>{focusedMon ? 'NOW POSITIONING' : 'SELECT A POKÉMON'}</span><strong role="status">{placementNotice || (focusedMon ? `${SPECIES[focusedMon.species].name} · choose a green tile below` : 'Choose a healthy Pokémon from your party.')}</strong></div><button type="button" className="primary" disabled={!selected.length || selected.some(mon => !placements[mon.id])} onClick={onStart}>Enter battle →</button></div>
       </section>
     </div>
     </div>

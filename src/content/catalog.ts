@@ -31,7 +31,8 @@ export function validateCatalog(): string[] {
       errors.push(`Species ${id}: party cost must be an integer from 1 to ${STARTING_PARTY_POINTS}`);
     if (!ABILITIES[species.ability]) errors.push(`Species ${id}: unknown ability ${species.ability}`);
     for (const type of species.types) if (!TYPES.includes(type)) errors.push(`Species ${id}: unknown type ${type}`);
-    for (const move of [...species.moves, ...Object.values(species.learn)]) if (!MOVES[move]) errors.push(`Species ${id}: unknown move ${move}`);
+    for (const move of [...species.moves, ...Object.values(species.learn), ...(species.tmMoves ?? [])]) if (!MOVES[move]) errors.push(`Species ${id}: unknown move ${move}`);
+    if (species.tmMoves && new Set(species.tmMoves).size !== species.tmMoves.length) errors.push(`Species ${id}: duplicate TM move`);
     if (species.evolves && !SPECIES[species.evolves.into]) errors.push(`Species ${id}: unknown evolution ${species.evolves.into}`);
     if (species.evolves && SPECIES[species.evolves.into]?.form) errors.push(`Species ${id}: ordinary evolution cannot target temporary form ${species.evolves.into}`);
     if (species.stats.length !== 7 || species.stats.some(value => !Number.isInteger(value) || value <= 0)) errors.push(`Species ${id}: expected seven positive integer stats`);
@@ -42,6 +43,10 @@ export function validateCatalog(): string[] {
       if (formLinks.has(link)) errors.push(`Species ${id}: duplicate Mega form for ${from} and ${stone}`);
       formLinks.add(link);
     }
+  }
+  for (const item of ITEMS) {
+    const moveId = itemFor(item)?.teachesMove;
+    if (moveId && !MOVES[moveId]) errors.push(`Item ${item}: unknown TM move ${moveId}`);
   }
   for (const id of [...STARTERS, ...RECRUITS]) {
     if (!SPECIES[id]) errors.push(`Roster: unknown species ${id}`);

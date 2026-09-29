@@ -11,7 +11,7 @@ For every future task that changes code, assets, behavior, or project documentat
 | Subject | Canonical document |
 | --- | --- |
 | Game scope and rules | [Early build plan](PLAN.md) |
-| Route, rewards, recruitment, deployment | [Route overhaul](ROUTE_OVERHAUL.md) |
+| Route, rewards, recruitment, deployment | [Route overhaul](ROUTE_OVERHAUL.md), [node and event authoring](ROUTE_NODE_EVENTS.md) |
 | Party drafting | [Party builder](PARTY_BUILDER.md) |
 | Battle balance | [Balance baseline](BALANCE.md) |
 | Gameplay gaps and decisions | [Mechanics audit](GAMEPLAY_MECHANICS_AUDIT.md) |
@@ -24,6 +24,61 @@ For every future task that changes code, assets, behavior, or project documentat
 | Controlled combat sandbox | [Battle Lab](BATTLE_LAB.md) |
 
 ## Recent changes
+
+### 2026-09-29 — Analyze and trim the Phaser battle bundle
+
+- Added an opt-in production bundle treemap (`npm run analyze`). The report showed Phaser dominated the lazy battle chunk, so the Vite resolver now uses Phaser's supplied build without Matter Physics, which the board does not use. The chunk fell from 1.53 MB / 355 KB gzip to 1.41 MB / 320 KB gzip; the 500 KB uncompressed-size warning remains. Updated the scalability audit with the result and the next tuning boundary.
+- Main files: `vite.config.ts`, `package.json`, `package-lock.json`, and [scalability audit](SCALABILITY_AUDIT.md). `npm run analyze`, `npm run build`, and `git diff --check` passed. No gameplay playthrough was run.
+
+### 2026-09-29 — Route node and event authoring guide
+
+- Added a developer guide for adding route node kinds, weighted event outcomes, recruitment offers, saved event state, graph migrations, and review steps. Linked it from the route overview and clarified current special and recruitment screen behavior.
+- Main documents: `docs/ROUTE_NODE_EVENTS.md`, `docs/ROUTE_OVERHAUL.md`, and this index. Documentation-only change; links and `git diff --check` were reviewed.
+
+### 2026-09-29 — Weighted special encounters and recruitment nodes
+
+- Replaced the fixed special-node choice with a saved 75/25 positive/negative encounter roll. Positive outcomes award 50–100 coins in 10-coin steps, grant a Sitrus Berry, or restore 25% HP; negative outcomes remove half the coins or deal 20% HP damage. Kept recruiting on a separate route node with three choices, including rare non-starter Pokémon, and full-roster replacement handling. Save schema v20 migrates earlier route progress.
+- Main files: `src/game/{route,engine,types}.ts`, `src/ui/{RouteScreen,RouteStopScreen}.tsx`, `src/app/App.tsx`, and `src/persistence/save.ts`. Rules and review targets are in [route overhaul](ROUTE_OVERHAUL.md) and [party builder](PARTY_BUILDER.md). `npm run build` and scoped `git diff --check` passed; no gameplay playthrough was run.
+
+### 2026-09-29 — Route climbs toward the boss
+
+- Reversed the vertical route presentation so the starting tile and column-one battle sit near the bottom and the column-ten boss sits at the highest point. Initial and post-node scrolling keeps the current tile and next higher choice visible. The guide's up button now moves toward the boss and down moves toward the start. Saved node order, connections, and rewards are unchanged.
+- Main file: `src/ui/RouteScreen.tsx`; the current layout and review notes are in [route overhaul](ROUTE_OVERHAUL.md) and [UI progress](UI_OVERHAUL_PLAN.md). The production build and `git diff --check` passed; no visual browser review or gameplay test was run.
+
+### 2026-09-29 — Vertical route layout
+
+- Repositioned the ten progression columns as rows from top to bottom, with branch choices spread across the board width. The route now scrolls vertically; mouse dragging, touch scrolling, wheel scrolling, up/down guide buttons, and current-position alignment use that axis. The saved route graph, node choices, rewards, and battle rules are unchanged.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`; behavior and review notes are in [route overhaul](ROUTE_OVERHAUL.md) and [UI progress](UI_OVERHAUL_PLAN.md). The production build and `git diff --check` passed; no gameplay playthrough or automated test was run.
+
+### 2026-09-29 — Level-up move choices and Technical Machines
+
+- Removed free move swapping from the route Party panel. Newly eligible level moves now create saved choices on the XP screen: replace one active move or keep the current set. Route progression waits until each choice is resolved. Ordinary evolution retains the prior active slots and learned history. Added single-use TM Swift (a TM-only move) and TM Thunderbolt, species compatibility lists, Bag teaching controls, shop stock, and named placeholder TM icons. TMs cannot be held.
+- Main files: `src/game/engine.ts`, `src/game/types.ts`, `src/content/{moves,species,items,shop,catalog}.ts`, `src/ui/{RouteScreen,IntermissionScreen}.tsx`, `src/app/App.tsx`, `src/persistence/save.ts`, `src/styles/{route-party,route-overlays}.css`, and `public/assets/ui/icons/item-tm-*.svg`. Rules and authoring notes are in [early build plan](PLAN.md), [route overhaul](ROUTE_OVERHAUL.md), [scaling guide](SCALING.md), and [asset authoring guide](UNIT_MOVE_ABILITY_ASSETS.md). Save schema v19 migrates v18 and older saves without replaying past offers. The production build and `git diff --check` passed; no gameplay playthrough or automated test was run.
+
+### 2026-09-29 — Position selection UI pass
+
+- Reworked battle preparation around readable full-width roster rows, a six-unit meter, visible active Pokémon, explicit Add/Remove actions, and clearer HP/status details. Framed the isometric map closer, enlarged its deployed sprites, marked ally/enemy sides and the active tile, and strengthened the placement message. Constrained the horizontally scrollable roster so the phone layout stays within the viewport. Battle placement rules are unchanged.
+- Main files: `src/ui/PrepareScreen.tsx`, `src/ui/DeploymentBoard.tsx`, `src/styles/deployment.css`, `src/main.tsx`; behavior and review notes are in [route overhaul](ROUTE_OVERHAUL.md) and [UI progress](UI_OVERHAUL_PLAN.md). Visually reviewed the screen at 1280×720 and 390×844 and checked switching the active Pokémon and choosing a tile. The production build and `git diff --check` passed; no gameplay test was run.
+
+### 2026-09-29 — Compact route HUD and inventory
+
+- Moved the route currency display into a small coin row and aligned smaller Party and Bag buttons beneath it so the route map has more room. Added a route inventory panel showing grouped bag items, their effects, and items held by each Pokémon, with a Manage Team action for equipping. Both panels share the route visual style and keyboard dismissal. Item ownership and use rules are unchanged.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route-party.css`; behavior and layout are in [route overhaul](ROUTE_OVERHAUL.md). Visually reviewed the HUD and Bag panel at desktop and 390×844, including navigation to Party and Escape focus return. The production build and `git diff --check` passed; no gameplay test was run.
+
+### 2026-09-29 — Route tokens and Travelling Team polish
+
+- Reduced the route nodes' stone depth and footprint to make the encounter emblems and route paths clearer. Replaced the route Party control's plain symbol with a pixel emblem and visible roster count. Rebuilt Travelling Team cards around type, HP, ability, held item, and equipped moves, with expandable loadout controls and a fainted state. This makes the route's roster readable before committing to a node without changing team or route rules.
+- Main files: `src/ui/RouteScreen.tsx`, `src/styles/route.css`, `src/styles/route-party.css`, `src/main.tsx`; design and behavior are recorded in [route overhaul](ROUTE_OVERHAUL.md). Visually reviewed route nodes and the Party panel at 1280×720 and 390×844 in a local browser. The production build and `git diff --check` passed; no gameplay test was run.
+
+### 2026-09-29 — Route flow UI and XP award animation
+
+- Added a compact route guide with next-column progress, hovered or focused node details, and pan controls; improved route Party health display, store item cards, and special reward choices. The linked preparation screen now shows each Pokémon's idle battle sprite on the isometric map, adds roster HP bars, and fits its battle action within the viewport at shorter desktop heights. The post-battle screen counts XP into saved totals, wraps its level bar at level-up, and reveals a level-up badge; reduced motion shows final values immediately. These changes make the route, placement, and reward steps easier to read without changing their game rules.
+- Main files: `src/ui/RouteScreen.tsx`, `src/ui/RouteStopScreen.tsx`, `src/ui/PrepareScreen.tsx`, `src/ui/DeploymentBoard.tsx`, `src/ui/IntermissionScreen.tsx`, `src/styles/route.css`, `src/styles/route-overlays.css`; details are in [route overhaul](ROUTE_OVERHAUL.md) and [animation guide](ANIMATION_ASSETS.md). The production build and `git diff --check` passed. Visually reviewed the route guide, horizontal pan, Party panel, and deployment map in a local 1280×720 browser view; the store and XP animation were not visually played through in this pass. The app runs locally at `http://127.0.0.1:5173/`.
+
+### 2026-09-28 — Starting party selection UI pass
+
+- Reworked the new-run draft with a clearer team column, six-point meter, compact roster cards, a larger catalog, type filtering, and a persistent level-10 stat inspector. All eight current choices fit in one desktop row; type-colored accents distinguish the shared placeholder portraits. Unaffordable Pokémon remain inspectable while selection still obeys the existing point budget.
+- Main files: `src/ui/PartyBuilder.tsx`, `src/styles/party-builder.css`, `src/styles/menus.css`, `src/main.tsx`; behavior and layout are in [party builder](PARTY_BUILDER.md) and [UI progress](UI_OVERHAUL_PLAN.md). The local production build and `git diff --check` passed. Visually reviewed the screen and selected three Pokémon in a local 1265×713 browser view; narrow viewport appearance was not visually checked.
 
 ### 2026-09-28 — Scripted gameplay playthrough
 

@@ -1,5 +1,10 @@
 # UI overhaul plan
 
+## Implementation progress (starting party draft)
+
+- The new-run draft uses a clearer header, a six-segment point meter, compact selected-party cards, larger species choices, a type filter, and a persistent stat inspector. Species retain the shared placeholder portrait, with type-color accents to help distinguish them until individual portraits are available. Unaffordable choices remain inspectable but cannot be added.
+- The draft styles now live in `src/styles/party-builder.css`. The selection rules, point costs, and stat calculations are unchanged; see [party builder](PARTY_BUILDER.md) for behavior and replacement details.
+
 ## Shared visual style (implemented)
 
 The title, party draft, route controls, preparation, shop, special encounter, and post-battle screens now use one interface palette. `src/styles/theme.css` defines navy ink (`#17303e`), raspberry borders (`#b6194e`), coral display accents (`#ed6b5d`), gold primary actions (`#ffcb3d`), pale aqua page backgrounds, and paper or gray panels. Pixel lettering is reserved for display headings and short controls; body copy stays in the readable sans-serif face. Primary actions use gold with a raspberry outline, while neutral menu choices use gray.
@@ -15,6 +20,7 @@ The isometric battle map keeps its environmental colors, while route stops use t
 ## Implementation progress (route-linked preparation and growth)
 
 - Deployment and post-battle XP now use the route selector as a noninteractive backdrop. A dark translucent outer frame and pale translucent panels follow the supplied position and XP references. Preparation keeps the live isometric placement board beside the party roster, with a Back control that returns to the route choice before battle. On small screens the roster sits in a scrollable strip above the map.
+- The placement UI now gives each Pokémon a readable roster row with HP, type, deployment status, and an explicit Add/Remove action. A six-slot meter, active-unit status, map zone labels, and stronger current-tile feedback clarify the select-then-place flow. The mobile frame constrains its scrollable roster to the viewport. These are presentation changes; tile and team legality still come from the existing deployment rules.
 - The growth screen replaces the text-only report with scrollable Pokémon cards showing portrait, level, awarded XP, level progress, and HP. Coins, level-ups, and learned-move messages remain visible below the cards. The action control continues the run. Route generation, placement legality, and XP awards are unchanged.
 
 ## Implementation progress (glass battle action menu)
@@ -62,9 +68,9 @@ The isometric battle map keeps its environmental colors, while route stops use t
 
 ## Implementation progress (route and preparation)
 
-- The route is now a saved ten-column graph with a guaranteed boss in column ten. Middle columns contain two to four nodes, with four-node branches guaranteed in columns 4 and 7. React renders the full-screen repeating pale isometric tile board with larger raised and engraved node tiles, blue paths, glowing amber-marked choices, an original explorer marker, coin/Party controls on the left, a compact upper-right title return control, and a translucent responsive party overlay. The start and first battle align on the center row, columns have wider spacing, and the graph can be dragged horizontally through the boss; only the next connected nodes accept input. See [ROUTE_OVERHAUL.md](ROUTE_OVERHAUL.md).
+- The route is a saved ten-column graph with a guaranteed boss in column ten. Middle columns contain two to four nodes, with four-node branches guaranteed in columns 4 and 7. React renders the full-screen repeating pale isometric tile board with raised and engraved node tiles, blue paths, glowing amber-marked choices, an original explorer marker, compact coin/Party/Bag controls on the left, an upper-right title return control, and translucent responsive overlays. Progression columns appear as rows climbing from the bottom start to the top boss, with choices spread across the board. Mouse dragging or touch and wheel scrolling reveals the boss above; the guide pans up toward the boss and down toward the start. Only the next connected nodes accept input. See [ROUTE_OVERHAUL.md](ROUTE_OVERHAUL.md).
 - Battle and elite nodes open preparation, healing fully restores and revives, stores sell held items for coins, and the initial special encounter offers one of two free recruits or a coin cache.
-- The route party overlay now expands each owned Pokémon into four learned-move selectors, a compatible bag-item selector, and an evolution action when eligible. These changes are available while choosing the next route node. The post-battle screen reports growth and points back to the route.
+- The route party overlay displays four active moves as read-only chips and expands each Pokémon for its compatible held-item selector and eligible evolution. The post-battle growth screen offers each new level move for replacement or skip before the route continues. The route Bag has a distinct TM section with compatible recipient and replacement-slot controls.
 - Preparation now places up to six selected Pokémon directly on the authored isometric map. Its scrollable roster and map are for deployment and positioning only. Tile legality and saved positions use the same deployment rules as battle.
 
 ## Goal and current baseline

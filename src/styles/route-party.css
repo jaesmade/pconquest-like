@@ -1,0 +1,241 @@
+/* Compact route status: one coin row above equally sized Party and Bag controls. */
+.route-screen .route-hud {
+  top: max(22px, env(safe-area-inset-top));
+  left: max(22px, env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 184px;
+}
+.route-screen .route-coins {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 58px;
+  gap: 10px;
+  padding: 6px 11px;
+  border-color: #b9d5d4;
+  background: linear-gradient(160deg, #24444eec, #102733ef);
+}
+.route-screen .route-coins i { flex: none; width: 30px; height: 38px; border-width: 3px; }
+.route-screen .route-coins b { font-size: 1.2rem; text-shadow: 2px 2px 0 #061b26; }
+.route-screen .route-coins span { align-self: end; margin: 0 0 4px auto; color: #b8d7d8; font: .43rem/1 'Press Start 2P', monospace; }
+.route-screen .route-party-button,
+.route-screen .route-inventory-button {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  width: 88px;
+  min-height: 92px;
+  padding: 7px 3px 6px;
+  border: 3px solid #b9d5d4;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #24444eec, #102733ef);
+  color: #fff8df;
+  box-shadow: 0 5px 0 #10232c, inset 0 0 0 2px #ffffff22;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease;
+}
+.route-screen .route-party-button:hover,
+.route-screen .route-inventory-button:hover { transform: translateY(-3px); border-color: #f5d278; background: linear-gradient(160deg, #315762f2, #17323dec); }
+.route-screen .route-party-button:active,
+.route-screen .route-inventory-button:active { transform: translateY(2px); }
+.route-screen .route-party-button:focus-visible,
+.route-screen .route-inventory-button:focus-visible { outline: 4px solid #ffcf58; outline-offset: 3px; }
+.route-party-emblem,
+.route-bag-emblem { display: block; width: 51px; height: 51px; image-rendering: pixelated; filter: drop-shadow(0 3px 0 #071820a6); }
+.route-screen .route-party-button b,
+.route-screen .route-inventory-button b { color: #fff8df; font: .63rem/1.2 'Press Start 2P', monospace; text-shadow: 2px 2px 0 #061b26; }
+.route-screen .route-party-button small,
+.route-screen .route-inventory-button small {
+  position: absolute;
+  top: 5px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  min-width: 20px;
+  padding: 4px 3px;
+  border: 2px solid #182e35;
+  border-radius: 5px;
+  background: #ffcf4d;
+  color: #182e35;
+  font: .37rem/1 'Press Start 2P', monospace;
+}
+
+.route-party-overlay { background: #0a1821ba; }
+.route-screen .route-party-panel {
+  width: min(1160px, calc(100vw - 52px));
+  max-height: calc(100dvh - 46px);
+  padding: clamp(16px, 2.2vw, 28px);
+  border: 3px solid #a9c8c7;
+  border-radius: 18px;
+  background: #142c38f2;
+  box-shadow: 0 9px 0 #0b1d26, 0 24px 60px #07151dbb, inset 0 0 0 2px #ffffff16;
+  scrollbar-color: #799ea4 #183440;
+}
+.route-party-head { margin-bottom: 12px; }
+.route-party-heading, .route-party-head-actions { display: flex; align-items: center; gap: 14px; }
+.route-party-heading-icon { display: grid; place-items: center; width: 84px; height: 84px; border: 2px solid #80b5ba; border-radius: 13px; background: #203e49; box-shadow: inset 0 0 0 2px #ffffff21; }
+.route-party-heading-icon .route-party-emblem { width: 65px; height: 65px; }
+.route-party-heading-icon .route-bag-emblem { width: 61px; height: 61px; }
+.route-party-head .route-party-heading small { color: #8ddbe1; font: .55rem/1.4 'Press Start 2P', monospace; }
+.route-party-head .route-party-heading h2 { margin: 6px 0 0; color: #fff7df; font: clamp(1rem, 2vw, 1.65rem)/1.35 'Press Start 2P', monospace; }
+.route-party-owned { display: grid; justify-items: center; min-width: 94px; padding: 9px 10px; border: 2px solid #80a8ab; border-radius: 9px; background: #213d47; }
+.route-party-owned b { color: #ffcf4d; font: 1.35rem/1.2 'Press Start 2P', monospace; }
+.route-party-owned span { margin: 4px 0 0; color: #d7e8e3; font: .47rem/1.25 'Press Start 2P', monospace; }
+.route-party-head button { flex: none; }
+.route-party-intro { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; padding: 9px 12px; border: 1px solid #6e9196; border-radius: 9px; background: #24414b; }
+.route-party-intro p { flex: 1; margin: 0; color: #edf4ed; font-size: .8rem; line-height: 1.35; }
+.route-party-intro > span { flex: none; padding: 6px 9px; border: 1px solid #83aeb1; border-radius: 6px; color: #d8f3ee; font-size: .68rem; font-weight: 800; }
+
+.route-party-grid { align-items: start; gap: 15px; }
+.route-screen .route-party-card {
+  --party-accent: #ad8549;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 15px 16px 12px;
+  border: 2px solid #bacbc8;
+  border-left: 7px solid var(--party-accent);
+  border-radius: 12px;
+  background: #f7f7f1;
+  color: #17303e;
+  box-shadow: 0 4px 0 #091b2555, inset 0 0 0 1px #fff;
+}
+.route-party-card[data-type='grass'] { --party-accent: #4d9e64; }
+.route-party-card[data-type='water'] { --party-accent: #388fc4; }
+.route-party-card[data-type='ice'] { --party-accent: #5aa9c8; }
+.route-party-card[data-type='fire'] { --party-accent: #d4734c; }
+.route-party-card[data-type='electric'] { --party-accent: #cf9e28; }
+.route-party-card[data-type='rock'], .route-party-card[data-type='ground'] { --party-accent: #9c7850; }
+.route-party-card[data-type='normal'] { --party-accent: #8d9299; }
+.route-party-card[data-type='psychic'] { --party-accent: #bb6497; }
+.route-party-card[data-type='flying'] { --party-accent: #789ed0; }
+.route-party-card[data-type='dark'], .route-party-card[data-type='ghost'] { --party-accent: #76648c; }
+.route-party-card[data-type='fairy'] { --party-accent: #d487b4; }
+.route-party-card[data-type='fighting'] { --party-accent: #bb6558; }
+.route-party-card[data-type='poison'] { --party-accent: #a46ba7; }
+.route-party-card[data-type='bug'] { --party-accent: #859e4b; }
+.route-party-card[data-type='dragon'] { --party-accent: #8270bc; }
+.route-party-card[data-type='steel'] { --party-accent: #748f9f; }
+.route-party-card.fainted .route-party-portrait { filter: grayscale(.85); }
+.route-party-card.fainted .route-party-name-row > span { color: #aa3a50; font-size: .54rem; }
+.route-party-card-top { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 14px; }
+.route-screen .route-party-portrait { width: 90px; height: 90px; border: 3px solid #20333c; border-radius: 10px; background: color-mix(in srgb, var(--party-accent) 28%, #fff6d9); box-shadow: inset 0 -5px 0 #16323d22; }
+.route-screen .route-party-portrait .portrait { width: 76px; height: 76px; }
+.route-party-card-main { min-width: 0; }
+.route-party-name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.route-screen .route-party-name-row h3 { margin: 0; overflow-wrap: anywhere; font: clamp(.72rem, 1vw, .9rem)/1.35 'Press Start 2P', monospace; }
+.route-party-name-row > span { flex: none; margin: 0; color: #385663; font: .67rem/1.3 'Press Start 2P', monospace; }
+.route-party-types { display: flex; flex-wrap: wrap; gap: 4px; margin: 5px 0 8px; }
+.route-party-types span { margin: 0; padding: 2px 6px; border: 1px solid var(--party-accent); border-radius: 4px; background: color-mix(in srgb, var(--party-accent) 28%, white); color: #1d3741; font-size: .63rem; font-weight: 800; line-height: 1.2; }
+.route-party-hp-line { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; color: #435e63; font-size: .65rem; font-weight: 900; }
+.route-party-hp-line span { margin: 0; }
+.route-party-hp-line b { color: #1a3f45; }
+.route-screen .route-party-health { width: 100%; height: 9px; margin: 3px 0 0; border-color: #31515a; }
+.route-party-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 12px; }
+.route-party-facts > div { display: grid; grid-template-columns: 21px minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 6px; min-width: 0; padding: 5px 7px; border: 1px solid #b9c9c5; border-radius: 6px; background: #eaf0eb; }
+.route-party-facts > div > span { grid-row: 1 / 3; margin: 0; color: var(--party-accent); font-size: 1.3rem; line-height: 1; }
+.route-party-facts small { color: #567078; font: .48rem/1.25 'Press Start 2P', monospace; }
+.route-party-facts b { min-width: 0; overflow: hidden; color: #18313c; font-size: .73rem; text-overflow: ellipsis; white-space: nowrap; }
+.route-party-moves { margin-top: 10px; }
+.route-party-moves > span { margin: 0; color: #506a6f; font: .49rem/1.3 'Press Start 2P', monospace; }
+.route-party-moves ul { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin: 6px 0 0; padding: 0; list-style: none; }
+.route-party-moves li { min-width: 0; padding: 5px 4px; border: 1px solid #bbc8c5; border-radius: 5px; background: #fffdf7; color: #29434a; font-size: .64rem; font-weight: 800; line-height: 1.25; text-align: center; }
+.route-screen .route-party-manage { margin-top: 11px; padding-top: 9px; border-top: 1px solid #bccac7; }
+.route-party-manage summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; padding: 3px 8px; border: 1px solid #c49742; border-radius: 6px; background: #fff3ca; color: #6e3f27; list-style: none; }
+.route-party-manage summary::-webkit-details-marker { display: none; }
+.route-party-manage summary::before { content: '▸'; color: #a73054; font-size: 1.1rem; }
+.route-party-manage[open] summary::before { content: '▾'; }
+.route-party-manage summary span:first-child { flex: 1; margin: 0; color: #6e3f27; font-size: .76rem; }
+.route-party-manage summary span:last-child { margin: 0; color: #7f6750; font-size: .65rem; font-weight: 700; }
+.route-party-manage[open] summary { border-color: #ad4e68; background: #fff8e7; }
+.route-party-control-title { grid-column: 1 / -1; color: #29454b; font: .55rem/1.3 'Press Start 2P', monospace; }
+.route-party-control-title small { display: block; margin-top: 3px; color: #61777a; font: .7rem/1.25 'DM Sans', sans-serif; }
+.route-party-controls .route-party-item-control { grid-column: 1 / -1; }
+.route-party-controls select { border-color: #9bb8b5; background: #fffef9; }
+.route-party-controls select:focus-visible, .route-party-manage summary:focus-visible { outline: 3px solid #d6a62d; outline-offset: 2px; }
+
+/* The bag mirrors the roster panel but keeps stored and equipped items distinct. */
+.route-screen .route-inventory-panel { width: min(820px, calc(100vw - 52px)); }
+.route-inventory-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 3px 0 20px; }
+.route-inventory-summary > span { padding: 8px 11px; border: 1px solid #82a8a9; border-radius: 7px; background: #274551; color: #e4f0e9; font-size: .77rem; }
+.route-inventory-summary > span b { color: #ffd772; }
+.route-inventory-summary button { min-height: 35px; margin-left: auto; padding: 6px 10px; border: 2px solid #e6bd69; border-radius: 7px; background: #ffe5a3; color: #403428; font-weight: 900; cursor: pointer; }
+.route-inventory-summary button:hover { background: #fff2cd; }
+.route-inventory-summary button:focus-visible { outline: 3px solid #ffcf58; outline-offset: 2px; }
+.route-inventory-panel h3 { margin: 18px 0 10px; color: #c8e9e5; font: .67rem/1.4 'Press Start 2P', monospace; }
+.route-inventory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.route-inventory-item { display: grid; grid-template-columns: 49px minmax(0, 1fr) auto; align-items: start; gap: 10px; min-width: 0; padding: 12px; border: 2px solid #bbcbc8; border-radius: 10px; background: #f8f7ef; color: #18313e; box-shadow: 0 3px 0 #081a2155; }
+.route-inventory-item img { width: 46px; height: 46px; image-rendering: pixelated; }
+.route-inventory-item strong { display: block; margin: 1px 0 5px; font-size: .86rem; }
+.route-inventory-item p { margin: 0; color: #496069; font-size: .72rem; line-height: 1.35; }
+.route-inventory-item > span { padding: 4px 6px; border: 1px solid #a67839; border-radius: 5px; background: #ffdf87; color: #433221; font: .54rem/1.2 'Press Start 2P', monospace; }
+.route-tm-help { margin: 0 0 10px; color: #d6e8e2; font-size: .74rem; line-height: 1.4; }
+.route-tm-teach { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; gap: 7px; padding-top: 9px; border-top: 1px solid #b4c9c5; }
+.route-tm-teach label { display: grid; gap: 4px; flex: 1 1 120px; color: #314e53; font-size: .67rem; font-weight: 800; }
+.route-tm-teach select { width: 100%; min-width: 0; min-height: 34px; padding: 4px; border: 1px solid #7d9c9b; border-radius: 5px; background: #fff; color: #18313e; }
+.route-tm-teach button { min-height: 34px; padding: 5px 9px; border: 2px solid #a92c53; border-radius: 6px; background: #ffe4a3; color: #26383d; font-weight: 900; cursor: pointer; }
+.route-tm-teach button:disabled { opacity: .55; cursor: not-allowed; }
+.route-tm-teach small { width: 100%; color: #6c5551; font-size: .65rem; }
+.route-tm-teach select:focus-visible, .route-tm-teach button:focus-visible { outline: 3px solid #d6a62d; outline-offset: 2px; }
+.route-inventory-empty { margin: 0; padding: 20px; border: 2px dashed #84a6a6; border-radius: 9px; color: #d6e8e2; line-height: 1.45; }
+.route-inventory-equipped { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 7px; }
+.route-inventory-equipped > div { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 7px 9px; border: 1px solid #7ca0a1; border-radius: 8px; background: #274550; color: #fff8dc; }
+.route-inventory-equipped img { flex: none; width: 35px; height: 35px; image-rendering: pixelated; }
+.route-inventory-equipped span { display: grid; gap: 2px; min-width: 0; }
+.route-inventory-equipped b { overflow: hidden; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.route-inventory-equipped small { color: #b9d4d3; font-size: .64rem; }
+
+@media (min-width: 1180px) {
+  .route-party-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .route-party-grid { grid-template-columns: 1fr; }
+  .route-party-intro { flex-wrap: wrap; }
+  .route-party-intro p { flex-basis: 100%; }
+  .route-inventory-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .route-screen .route-hud { top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); width: 152px; gap: 6px; }
+  .route-screen .route-coins { height: 49px; padding: 5px 8px; gap: 8px; }
+  .route-screen .route-coins i { width: 25px; height: 32px; }
+  .route-screen .route-coins b { font-size: 1rem; }
+  .route-screen .route-coins span { font-size: .35rem; }
+  .route-screen .route-party-button,
+  .route-screen .route-inventory-button { width: 73px; min-height: 75px; padding: 5px 2px; }
+  .route-screen .route-party-button .route-party-emblem,
+  .route-screen .route-inventory-button .route-bag-emblem { width: 42px; height: 42px; }
+  .route-screen .route-party-button b,
+  .route-screen .route-inventory-button b { font-size: .52rem; }
+  .route-screen .route-party-button small,
+  .route-screen .route-inventory-button small { top: 2px; right: 1px; padding: 3px 2px; font-size: .31rem; }
+  .route-screen .route-party-panel { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); padding: 13px; }
+  .route-party-heading-icon { width: 55px; height: 55px; }
+  .route-party-heading-icon .route-party-emblem { width: 43px; height: 43px; }
+  .route-party-heading-icon .route-bag-emblem { width: 40px; height: 40px; }
+  .route-party-head .route-party-heading h2 { font-size: .88rem; }
+  .route-party-head .route-party-heading small { font-size: .43rem; }
+  .route-party-owned { display: none; }
+  .route-party-head button { width: 43px; height: 43px; }
+  .route-party-intro > span { font-size: .61rem; }
+  .route-inventory-summary { margin-bottom: 14px; }
+  .route-inventory-summary button { margin-left: 0; }
+}
+@media (max-width: 440px) {
+  .route-party-card-top { grid-template-columns: 72px minmax(0, 1fr); gap: 9px; }
+  .route-screen .route-party-portrait { width: 72px; height: 72px; }
+  .route-screen .route-party-portrait .portrait { width: 62px; height: 62px; }
+  .route-party-moves ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .route-party-facts { grid-template-columns: 1fr; }
+  .route-party-manage summary span:last-child { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-screen .route-party-button,
+  .route-screen .route-inventory-button { transition: none; }
+}

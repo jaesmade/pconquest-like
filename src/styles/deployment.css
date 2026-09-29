@@ -1,0 +1,107 @@
+/* Position selection: compact roster rows and a map-first deployment view. */
+.prepare-screen.route-modal-screen { padding: clamp(14px, 2.3vw, 30px); }
+.prepare-frame { min-width: 0; max-width: 100%; gap: 13px; padding: clamp(14px, 1.8vw, 24px); background: #102630de; }
+.prepare-frame .prepare-title { padding: 0 90px 0 2px; text-align: left; }
+.prepare-frame .prepare-title .eyebrow { color: #f6d889; font: .57rem/1.4 'Press Start 2P', monospace; }
+.prepare-frame .prepare-title h2 { margin: 5px 0 5px; font: clamp(1.15rem, 2vw, 1.75rem)/1.25 'Press Start 2P', monospace; }
+.prepare-frame .prepare-title p { max-width: none; margin: 0; color: #d9e9e5; font-size: .78rem; }
+.prepare-frame .prepare-layout { min-width: 0; grid-template-columns: minmax(270px, 300px) minmax(0, 1fr); gap: 15px; }
+.prepare-frame .prepare-roster { min-width: 0; padding: 13px; border-color: #81b8bc; background: #173743ec; scrollbar-color: #789da2 #1c3c47; }
+.prepare-roster-head { display: flex; justify-content: space-between; align-items: end; gap: 8px; }
+.prepare-roster-head span { color: #80d7dd; font: .48rem/1.35 'Press Start 2P', monospace; }
+.prepare-frame .prepare-roster-head h3 { margin: 4px 0 0; color: #fff8df; font: .87rem/1.3 'Press Start 2P', monospace; text-align: left; }
+.prepare-roster-head > b { flex: none; color: #ffd46d; font: .68rem/1.3 'Press Start 2P', monospace; }
+.prepare-roster-meter { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin: 9px 0 12px; }
+.prepare-roster-meter i { height: 6px; border: 1px solid #7a9ba1; border-radius: 2px; background: #395761; }
+.prepare-roster-meter i.filled { border-color: #f1cc68; background: #ffcf50; }
+.prepare-frame .prepare-roster-grid { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.prepare-frame .prepare-roster-card { overflow: hidden; padding: 0; border: 2px solid #a7c1c0; border-radius: 9px; background: #e9edeb; color: #16303c; box-shadow: 0 3px 0 #0b2027; }
+.prepare-frame .prepare-roster-card.selected { border-color: #79c5cd; background: #f7f7ef; }
+.prepare-frame .prepare-roster-card.focused { outline: none; border-color: #ffcd57; box-shadow: 0 0 0 2px #a82a55, 0 4px 0 #0a2028; }
+.prepare-frame .prepare-roster-card.fainted { opacity: .62; }
+.prepare-frame .prepare-roster-focus { display: flex; align-items: center; justify-items: initial; width: 100%; min-height: 80px; gap: 10px; padding: 8px 9px 5px; text-align: left; }
+.prepare-frame .prepare-roster-focus:disabled { cursor: not-allowed; }
+.prepare-roster-portrait { display: grid; flex: none; place-items: center; width: 61px; height: 61px; border: 2px solid #436e78; border-radius: 7px; background: #bfd5ca; }
+.prepare-frame .prepare-roster-focus .portrait { width: 55px; height: 55px; }
+.prepare-roster-copy { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.prepare-frame .prepare-roster-copy strong { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.prepare-frame .prepare-roster-copy small { overflow: hidden; color: #587078; font-size: .67rem; text-overflow: ellipsis; white-space: nowrap; }
+.prepare-roster-hp { display: flex; justify-content: space-between; gap: 6px; color: #466269; font-size: .58rem; }
+.prepare-roster-hp b:last-child { color: #213f47; }
+.prepare-frame .prepare-roster-health { display: block; width: 100%; height: 8px; margin: 0; border-width: 1px; }
+.prepare-roster-action { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 8px 6px; border-top: 1px solid #bfceca; }
+.prepare-roster-action span { color: #487078; font: .48rem/1.3 'Press Start 2P', monospace; }
+.prepare-roster-card.focused .prepare-roster-action span { color: #a62550; }
+.prepare-roster-action button { min-height: 24px; padding: 2px 7px; border: 1px solid #658f95; border-radius: 4px; background: #eaf5f1; color: #194150; font-size: .62rem; font-weight: 900; cursor: pointer; }
+.prepare-roster-action button:hover:not(:disabled) { border-color: #b51c50; background: #fff1cc; }
+.prepare-roster-action button:disabled { opacity: .5; cursor: not-allowed; }
+
+.prepare-frame .prepare-map-panel { border-color: #8dbbbd; background: #e5eee8df; }
+.prepare-frame .prepare-map-head { min-height: 69px; padding: 10px 14px; background: #f5f7f0eb; }
+.prepare-frame .prepare-map-head > div:first-child { display: grid; gap: 3px; }
+.prepare-frame .prepare-map-head small { color: #a42c53; font: .46rem/1.3 'Press Start 2P', monospace; }
+.prepare-frame .prepare-map-head b { font: .9rem/1.25 'Press Start 2P', monospace; }
+.prepare-frame .prepare-map-head span { font-size: .71rem; }
+.prepare-map-opponents { display: flex; align-items: center; gap: 7px; flex: none; padding: 5px 8px; border: 1px solid #b8cac7; border-radius: 7px; background: #e6eeea; }
+.prepare-frame .prepare-map-opponents b { color: #a32950; font: .95rem/1 'Press Start 2P', monospace; }
+.prepare-frame .prepare-map-opponents span { color: #3e5b63; font-size: .58rem; font-weight: 900; line-height: 1.1; }
+.prepare-frame .deploy-map-wrap { position: relative; background: radial-gradient(ellipse at center, #f4f6e9 0%, #d7e6df 75%, #b6d0ca 100%); }
+.deploy-zone-tag { position: absolute; z-index: 2; padding: 5px 7px; border: 1px solid #fff9; border-radius: 5px; background: #17313bd9; color: #fff; font: .5rem/1.3 'Press Start 2P', monospace; pointer-events: none; }
+.deploy-zone-tag-enemy { top: 12px; right: 12px; border-color: #e59393; color: #ffdddd; }
+.deploy-zone-tag-ally { bottom: 12px; left: 12px; border-color: #8cdabb; color: #d9ffe7; }
+.prepare-frame .deploy-cell.zone-ally { fill: #39d6761c; stroke: #1fb56c7d; stroke-width: 3; }
+.prepare-frame .deploy-cell.zone-enemy { fill: #e5574120; stroke: #cd5d4d66; stroke-width: 3; }
+.prepare-frame .deploy-cell.legal:hover,
+.prepare-frame .deploy-cell.legal:focus-visible { fill: #ffe27b8c; stroke: #af2553; stroke-width: 5; }
+.prepare-frame .deploy-cell.occupied { stroke: #ffe072; stroke-width: 4; }
+.prepare-frame .deploy-cell.current { fill: #fff0a33d; stroke: #ffcb46; stroke-width: 5; }
+.prepare-frame .deploy-cell.current:hover,
+.prepare-frame .deploy-cell.current:focus-visible { stroke: #ae2452; }
+.prepare-frame .prepare-map-footer { min-height: 68px; padding: 9px 14px; background: #f8f8f0f2; }
+.prepare-placement-status { display: grid; gap: 4px; min-width: 0; }
+.prepare-placement-status > span { color: #a42c53; font: .48rem/1.2 'Press Start 2P', monospace; }
+.prepare-placement-status > strong { color: #25434d; font-size: .73rem; font-weight: 800; }
+.prepare-frame .prepare-map-footer .primary { min-width: 154px; font-size: .78rem; }
+
+@media (max-width: 900px) {
+  .prepare-frame .prepare-layout { grid-template-columns: minmax(225px, 29%) minmax(0, 1fr); gap: 11px; }
+  .prepare-frame .prepare-roster-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .prepare-screen.route-modal-screen { padding: 8px; }
+  .prepare-frame { gap: 8px; padding: 10px; }
+  .prepare-frame .prepare-title { padding: 0 45px 0 0; }
+  .prepare-frame .prepare-title .eyebrow { font-size: .42rem; }
+  .prepare-frame .prepare-title h2 { font-size: .96rem; }
+  .prepare-frame .prepare-title p { font-size: .66rem; }
+  .prepare-frame .prepare-layout { display: flex; flex-direction: column; gap: 8px; }
+  .prepare-frame .prepare-roster { height: 194px; overflow-x: auto; overflow-y: hidden; padding: 8px; scrollbar-width: thin; scrollbar-color: #9dbbbc transparent; }
+  .prepare-frame .prepare-roster-head h3 { font-size: .64rem; }
+  .prepare-roster-head span { font-size: .4rem; }
+  .prepare-roster-head > b { font-size: .58rem; }
+  .prepare-roster-meter { margin: 5px 0 8px; }
+  .prepare-frame .prepare-roster-grid { display: flex; gap: 7px; }
+  .prepare-frame .prepare-roster-card { flex: 0 0 178px; }
+  .prepare-frame .prepare-roster-focus { min-height: 72px; gap: 6px; padding: 5px; }
+  .prepare-roster-portrait { width: 49px; height: 49px; }
+  .prepare-frame .prepare-roster-focus .portrait { width: 45px; height: 45px; }
+  .prepare-frame .prepare-roster-copy strong { font-size: .74rem; }
+  .prepare-frame .prepare-roster-copy small { font-size: .57rem; }
+  .prepare-roster-action span { font-size: .36rem; }
+  .prepare-roster-action button { font-size: .55rem; }
+  .prepare-frame .prepare-map-head { min-height: 53px; padding: 6px 8px; }
+  .prepare-frame .prepare-map-head small { font-size: .38rem; }
+  .prepare-frame .prepare-map-head b { font-size: .68rem; }
+  .prepare-frame .prepare-map-head span { font-size: .57rem; }
+  .prepare-frame .prepare-map-head .prepare-map-opponents { display: none; }
+  .deploy-zone-tag { padding: 3px 5px; font-size: .37rem; }
+  .prepare-frame .prepare-map-footer { gap: 7px; min-height: 64px; padding: 7px; }
+  .prepare-placement-status > span { font-size: .38rem; }
+  .prepare-placement-status > strong { font-size: .6rem; }
+  .prepare-frame .prepare-map-footer .primary { min-width: 116px; padding: 6px; font-size: .57rem; }
+}
+@media (max-height: 690px) and (min-width: 681px) {
+  .prepare-frame .prepare-title p { display: none; }
+  .prepare-frame .prepare-map-head { min-height: 55px; }
+  .prepare-frame .prepare-map-footer { min-height: 56px; }
+}

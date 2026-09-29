@@ -5,5 +5,7 @@ export const SHOP_STOCK: { item: ItemId; price: number }[] = [
   { item: 'X Attack', price: 14 },
   { item: 'Leftovers', price: 20 },
   { item: 'Assault Vest', price: 26 },
+  { item: 'TM Swift', price: 16 },
+  { item: 'TM Thunderbolt', price: 28 },
   { item: 'Charizardite X', price: 40 },
 ];

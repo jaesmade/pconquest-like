@@ -1,17 +1,17 @@
 import { random } from './rng';
 
 export const ROUTE_COLUMNS = 10;
-export type RouteNodeKind = 'battle' | 'elite' | 'heal' | 'store' | 'special' | 'boss';
+export type RouteNodeKind = 'battle' | 'elite' | 'heal' | 'store' | 'special' | 'recruit' | 'boss';
 export type RouteNode = { id: string; column: number; lane: number; kind: RouteNodeKind };
 export type RouteLink = { from: string; to: string };
 export type RoutePlan = { nodes: RouteNode[]; links: RouteLink[]; visited: string[] };
 
 const middleLanes: Record<number, number[]> = { 2: [0, 3], 3: [0, 1.5, 3], 4: [0, 1, 2, 3] };
 const guaranteedKinds: Partial<Record<number, RouteNodeKind[]>> = {
-  2: ['heal', 'store'], 3: ['special', 'elite'], 5: ['battle', 'special'],
+  2: ['heal', 'store'], 3: ['special', 'elite'], 5: ['battle', 'recruit'],
   7: ['special', 'store'], 9: ['elite', 'battle'],
 };
-const routeKinds: RouteNodeKind[] = ['battle', 'elite', 'heal', 'store', 'special'];
+const routeKinds: RouteNodeKind[] = ['battle', 'elite', 'heal', 'store', 'special', 'recruit'];
 
 function shuffled<T>(values: T[], state: { rngState: number }): T[] {
   const copy = [...values];

@@ -1,17 +1,17 @@
 import type { Species } from '../game/types';
 
 export const SPECIES: Record<string, Species> = {
-  bulbasaur: { name: 'Bulbasaur', types: ['Grass'], ability: 'Chlorophyll', stats: [60, 49, 49, 65, 65, 4, 3], moves: ['vineWhip', 'tackle', 'razorLeaf', 'tailWhip'], learn: { 11: 'harden' }, evolves: { level: 12, into: 'ivysaur' } },
-  ivysaur: { name: 'Ivysaur', types: ['Grass'], ability: 'Chlorophyll', stats: [76, 62, 63, 80, 80, 5, 3], moves: ['vineWhip', 'tackle', 'razorLeaf', 'tailWhip'], learn: { 11: 'harden' } },
-  squirtle: { name: 'Squirtle', types: ['Water'], mobility: { swim: true }, ability: 'Torrent', stats: [62, 48, 65, 50, 64, 4, 3], moves: ['waterPulse', 'tackle', 'bubble', 'tailWhip'], learn: { 11: 'harden' }, evolves: { level: 12, into: 'wartortle' } },
-  wartortle: { name: 'Wartortle', types: ['Water'], mobility: { swim: true }, ability: 'Torrent', stats: [78, 63, 80, 65, 80, 5, 3], moves: ['waterPulse', 'tackle', 'bubble', 'tailWhip'], learn: { 11: 'harden' } },
-  lapras: { name: 'Lapras', types: ['Ice', 'Water'], mobility: { swim: true }, ability: 'Water Absorb', stats: [78, 62, 65, 68, 80, 3, 2], moves: ['iceShard', 'waterPulse', 'bubble', 'tackle'], learn: { 12: 'harden' } },
-  geodude: { name: 'Geodude', types: ['Ground', 'Rock'], ability: 'Sand Veil', stats: [62, 76, 90, 36, 35, 2, 2], moves: ['rockThrow', 'mudSlap', 'rockSmash', 'tackle'], learn: { 11: 'harden', 12: 'stealthRock', 13: 'sandstorm' } },
-  pikachu: { name: 'Pikachu', types: ['Electric'], ability: 'Static', stats: [52, 55, 40, 60, 50, 7, 4], moves: ['thunderShock', 'tackle', 'quickAttack', 'tailWhip'], learn: { 11: 'thunderbolt' } },
-  meowth: { name: 'Meowth', types: ['Normal'], ability: 'Technician', stats: [58, 45, 40, 40, 40, 6, 4], moves: ['tackle', 'tailWhip', 'scratch', 'quickAttack'], learn: { 11: 'howl' } },
-  vulpix: { name: 'Vulpix', types: ['Fire'], ability: 'Flash Fire', stats: [56, 41, 40, 57, 65, 5, 3], moves: ['ember', 'tackle', 'quickAttack', 'tailWhip'], learn: { 12: 'sunnyDay' } },
-  charmander: { name: 'Charmander', types: ['Fire'], ability: 'Blaze', stats: [58, 52, 43, 60, 50, 5, 3], moves: ['ember', 'tackle', 'scratch', 'quickAttack'], learn: { 12: 'sunnyDay' } },
-  'charizard-mega-x': { name: 'Mega Charizard', types: ['Fire'], mobility: { fly: true }, ability: 'Tough Claws', stats: [90, 96, 78, 86, 75, 7, 4], moves: ['ember', 'tackle', 'scratch', 'quickAttack'], learn: { 12: 'sunnyDay' }, form: { kind: 'mega', from: 'charmander', stone: 'Charizardite X' } },
+  bulbasaur: { name: 'Bulbasaur', types: ['Grass'], ability: 'Chlorophyll', stats: [60, 49, 49, 65, 65, 4, 3], moves: ['vineWhip', 'tackle', 'razorLeaf', 'tailWhip'], learn: { 11: 'harden' }, tmMoves: ['swift'], evolves: { level: 12, into: 'ivysaur' } },
+  ivysaur: { name: 'Ivysaur', types: ['Grass'], ability: 'Chlorophyll', stats: [76, 62, 63, 80, 80, 5, 3], moves: ['vineWhip', 'tackle', 'razorLeaf', 'tailWhip'], learn: { 11: 'harden' }, tmMoves: ['swift'] },
+  squirtle: { name: 'Squirtle', types: ['Water'], mobility: { swim: true }, ability: 'Torrent', stats: [62, 48, 65, 50, 64, 4, 3], moves: ['waterPulse', 'tackle', 'bubble', 'tailWhip'], learn: { 11: 'harden' }, tmMoves: ['swift'], evolves: { level: 12, into: 'wartortle' } },
+  wartortle: { name: 'Wartortle', types: ['Water'], mobility: { swim: true }, ability: 'Torrent', stats: [78, 63, 80, 65, 80, 5, 3], moves: ['waterPulse', 'tackle', 'bubble', 'tailWhip'], learn: { 11: 'harden' }, tmMoves: ['swift'] },
+  lapras: { name: 'Lapras', types: ['Ice', 'Water'], mobility: { swim: true }, ability: 'Water Absorb', stats: [78, 62, 65, 68, 80, 3, 2], moves: ['iceShard', 'waterPulse', 'bubble', 'tackle'], learn: { 12: 'harden' }, tmMoves: ['swift', 'thunderbolt'] },
+  geodude: { name: 'Geodude', types: ['Ground', 'Rock'], ability: 'Sand Veil', stats: [62, 76, 90, 36, 35, 2, 2], moves: ['rockThrow', 'mudSlap', 'rockSmash', 'tackle'], learn: { 11: 'harden', 12: 'stealthRock', 13: 'sandstorm' }, tmMoves: ['swift'] },
+  pikachu: { name: 'Pikachu', types: ['Electric'], ability: 'Static', stats: [52, 55, 40, 60, 50, 7, 4], moves: ['thunderShock', 'tackle', 'quickAttack', 'tailWhip'], learn: { 11: 'thunderbolt' }, tmMoves: ['swift', 'thunderbolt'] },
+  meowth: { name: 'Meowth', types: ['Normal'], ability: 'Technician', stats: [58, 45, 40, 40, 40, 6, 4], moves: ['tackle', 'tailWhip', 'scratch', 'quickAttack'], learn: { 11: 'howl' }, tmMoves: ['swift'] },
+  vulpix: { name: 'Vulpix', types: ['Fire'], ability: 'Flash Fire', stats: [56, 41, 40, 57, 65, 5, 3], moves: ['ember', 'tackle', 'quickAttack', 'tailWhip'], learn: { 12: 'sunnyDay' }, tmMoves: ['swift'] },
+  charmander: { name: 'Charmander', types: ['Fire'], ability: 'Blaze', stats: [58, 52, 43, 60, 50, 5, 3], moves: ['ember', 'tackle', 'scratch', 'quickAttack'], learn: { 12: 'sunnyDay' }, tmMoves: ['swift'] },
+  'charizard-mega-x': { name: 'Mega Charizard', types: ['Fire'], mobility: { fly: true }, ability: 'Tough Claws', stats: [90, 96, 78, 86, 75, 7, 4], moves: ['ember', 'tackle', 'scratch', 'quickAttack'], learn: { 12: 'sunnyDay' }, tmMoves: ['swift'], form: { kind: 'mega', from: 'charmander', stone: 'Charizardite X' } },
 };
 
 const megaForms = new Map<string, string>();

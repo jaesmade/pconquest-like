@@ -1,4 +1,4 @@
-import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MAX_EQUIPPED_MOVES, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS } from '../content/data';
+import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MAX_EQUIPPED_MOVES, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS, tmMoveFor } from '../content/data';
 import { MAX_RUN_POKEMON, STARTING_PARTY_POINTS, partyDraftCost } from '../content/roster';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
@@ -62,7 +62,7 @@ export function newRun(selectedSpecies: string[], unlocks = 0): Run {
     || partyDraftCost(draft) > STARTING_PARTY_POINTS) throw new Error('Choose a valid starting party within the available points.');
   const seed = newSeed(), rng = { rngState: seed };
   const party = draft.map((id, i) => makePartyMon(id, RUN_START_LEVEL, STARTING_HELD_ITEMS[i] ?? 'None'));
-  return { phase: 'route', party, selected: party.slice(0, 6).map(p => p.id), deployment: {}, bag: [...STARTING_BAG], coins: 20, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
+  return { phase: 'route', party, selected: party.slice(0, 6).map(p => p.id), deployment: {}, bag: [...STARTING_BAG], pendingMoves: [], coins: 20, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
 }
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
@@ -382,7 +382,7 @@ export function upcoming(battle: Battle) {
 export function completeBattle(run: Run): Run {
   if (!run.battle?.result) return run;
   const battle = run.battle;
-  const next: Run = { ...run, party: run.party.map(mon => ({ ...mon, learned: [...mon.learned], equipped: [...mon.equipped] })) };
+  const next: Run = { ...run, party: run.party.map(mon => ({ ...mon, learned: [...mon.learned], equipped: [...mon.equipped] })), pendingMoves: [] };
   next.rngState = battle.rngState;
   for (const mon of next.party) { const unit = battle.units.find(u => u.partyId === mon.id); if (unit) { mon.hp = Math.min(unit.hp, statsAtLevel(mon.species, mon.level)[0]); mon.item = unit.item; } }
   if (battle.result === 'loss') { next.phase = 'result'; next.result = 'loss'; next.battle = undefined; return next; }
@@ -392,6 +392,7 @@ export function completeBattle(run: Run): Run {
   next.coins += node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 12;
   report.push(`Earned ${node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 12} coins.`);
   for (const mon of next.party) {
+    const previousLevel = mon.level;
     mon.xp += earnedXp; report.push(`${SPECIES[mon.species].name} gained ${earnedXp} XP.`);
     while (mon.level < MAX_LEVEL && mon.xp >= xpForLevel(mon.level + 1)) {
       const oldMax = statsAtLevel(mon.species, mon.level)[0]; mon.level++;
@@ -399,8 +400,10 @@ export function completeBattle(run: Run): Run {
       report.push(`${SPECIES[mon.species].name} reached level ${mon.level}.`);
     }
     mon.xp = Math.min(mon.xp, xpForLevel(MAX_LEVEL));
-    for (const [level, move] of Object.entries(SPECIES[mon.species].learn)) if (mon.level >= Number(level) && !mon.learned.includes(move)) {
-      mon.learned.push(move); report.push(`${SPECIES[mon.species].name} learned ${MOVES[move].name}.`);
+    for (const [level, move] of Object.entries(SPECIES[mon.species].learn)) if (Number(level) > previousLevel && mon.level >= Number(level) && !mon.learned.includes(move)) {
+      mon.learned.push(move);
+      next.pendingMoves.push({ monId: mon.id, moveId: move });
+      report.push(`${SPECIES[mon.species].name} can learn ${MOVES[move].name}.`);
     }
   }
   next.report = report; next.phase = 'intermission'; next.battle = undefined;
@@ -419,13 +422,50 @@ export function evolve(run: Run, id: string) {
   next.report.push(`Evolved into ${SPECIES[mon.species].name}!`);
   return next;
 }
+/** Resolve only the next saved level-up offer. Passing no slot keeps the current four moves. */
+export function resolveLevelMove(run: Run, monId: string, moveId: string, replaceSlot?: number): Run {
+  if (run.phase !== 'intermission' || run.pendingMoves[0]?.monId !== monId || run.pendingMoves[0]?.moveId !== moveId) return run;
+  const mon = run.party.find(candidate => candidate.id === monId);
+  if (!mon || !mon.learned.includes(moveId)) return run;
+  if (replaceSlot !== undefined && (!Number.isInteger(replaceSlot) || replaceSlot < 0 || replaceSlot >= Math.min(MAX_EQUIPPED_MOVES, mon.equipped.length + 1))) return run;
+  const next = structuredClone(run);
+  const recipient = next.party.find(candidate => candidate.id === monId)!;
+  if (replaceSlot !== undefined && !recipient.equipped.includes(moveId)) recipient.equipped[replaceSlot] = moveId;
+  next.pendingMoves.shift();
+  next.report.push(replaceSlot === undefined ? `${SPECIES[recipient.species].name} kept its current moves.` : `${SPECIES[recipient.species].name} equipped ${MOVES[moveId].name}.`);
+  return next;
+}
+/** TMs are single-use Bag items; their compatible species and replacement slot are validated here. */
+export function teachTm(run: Run, item: ItemId, monId: string, replaceSlot?: number): Run {
+  if (run.phase !== 'route' || !run.bag.includes(item)) return run;
+  const moveId = tmMoveFor(item);
+  const mon = run.party.find(candidate => candidate.id === monId);
+  if (!moveId || !MOVES[moveId] || !mon || !SPECIES[mon.species].tmMoves?.includes(moveId) || mon.equipped.includes(moveId)) return run;
+  if (mon.equipped.length >= MAX_EQUIPPED_MOVES) {
+    if (replaceSlot === undefined || !Number.isInteger(replaceSlot) || replaceSlot < 0 || replaceSlot >= MAX_EQUIPPED_MOVES) return run;
+  } else if (replaceSlot !== undefined) return run;
+  const next = structuredClone(run);
+  const recipient = next.party.find(candidate => candidate.id === monId)!;
+  if (!recipient.learned.includes(moveId)) recipient.learned.push(moveId);
+  if (replaceSlot === undefined) recipient.equipped.push(moveId);
+  else recipient.equipped[replaceSlot] = moveId;
+  next.bag.splice(next.bag.indexOf(item), 1);
+  next.report.push(`${SPECIES[recipient.species].name} learned ${MOVES[moveId].name} from ${item}.`);
+  return next;
+}
 export function recruit(run: Run, species: string) {
   const next = structuredClone(run); if (next.party.length >= MAX_RUN_POKEMON || !SPECIES[species] || SPECIES[species].form?.kind === 'mega') return next;
   next.party.push(makePartyMon(species, recruitLevel(next)));
   return next;
 }
-export function offerRecruits(run: Run) { return [RECRUITS[run.encounter % RECRUITS.length], RECRUITS[(run.encounter + 1) % RECRUITS.length]]; }
+export function offerRecruits(run: Run) {
+  const roster = RECRUITS;
+  const rotated = roster.map((_, offset) => roster[(run.encounter + offset) % roster.length]);
+  const unowned = rotated.filter(id => !run.party.some(mon => mon.species === id));
+  return [...unowned, ...rotated.filter(id => !unowned.includes(id))].slice(0, 3);
+}
 export function advanceRoute(run: Run): Run {
+  if (run.phase === 'intermission' && run.pendingMoves.length) return run;
   const next = structuredClone(run);
   const node = routeNode(next.route, next.currentNodeId);
   if (!node) return next;
@@ -453,7 +493,16 @@ export function selectRouteNode(run: Run, id: string): Run {
     return advanceRoute(next);
   }
   if (node.kind === 'store') { next.phase = 'shop'; return next; }
-  if (node.kind === 'special') { next.phase = 'event'; return next; }
+  if (node.kind === 'special') {
+    const positive = random(next) < .75;
+    if (positive) {
+      const reward = Math.floor(random(next) * 3);
+      next.pendingRouteEvent = reward === 0 ? { kind: 'coins', amount: 50 + Math.floor(random(next) * 6) * 10 }
+        : reward === 1 ? { kind: 'heal' } : { kind: 'item', item: 'Sitrus Berry' };
+    } else next.pendingRouteEvent = random(next) < .5 ? { kind: 'loss-coins' } : { kind: 'ambush' };
+    next.phase = 'event'; return next;
+  }
+  if (node.kind === 'recruit') { next.phase = 'event'; return next; }
   next.encounterId = node.kind === 'boss' ? ENCOUNTERS.at(-1)!.id : ENCOUNTERS[(node.column - 1) % (ENCOUNTERS.length - 1)].id;
   next.phase = 'prepare';
   next.deployment = {};
@@ -479,10 +528,11 @@ export function buyShopItem(run: Run, item: ItemId): Run {
   return next;
 }
 
-export function resolveSpecial(run: Run, choice: { kind: 'recruit'; species: string; replaceId?: string } | { kind: 'coins' }): Run {
+export function resolveSpecial(run: Run, choice: { kind: 'recruit'; species: string; replaceId?: string } | { kind: 'claim' }): Run {
   if (run.phase !== 'event') return run;
   if (choice.kind === 'recruit') {
-    if (!offerRecruits(run).includes(choice.species) || run.party.length > MAX_RUN_POKEMON) return run;
+    const offers = routeNode(run.route, run.currentNodeId)?.kind === 'recruit' ? offerRecruits(run) : [];
+    if (!offers.includes(choice.species) || run.party.length > MAX_RUN_POKEMON) return run;
     const full = run.party.length === MAX_RUN_POKEMON;
     if (full !== (choice.replaceId !== undefined)) return run;
     if (full && !run.party.some(mon => mon.id === choice.replaceId)) return run;
@@ -502,7 +552,16 @@ export function resolveSpecial(run: Run, choice: { kind: 'recruit'; species: str
       next.party.push(newcomer);
       next.report = [`${SPECIES[choice.species].name} joined your party.`];
     }
-  } else { next.coins += 18; next.report = ['You found 18 coins in a forgotten cache.']; }
+  } else {
+    const event = next.pendingRouteEvent;
+    if (event?.kind === 'coins') { next.coins += event.amount; next.report = [`You found ${event.amount} coins.`]; }
+    else if (event?.kind === 'loss-coins') { const lost = Math.floor(next.coins / 2); next.coins -= lost; next.report = [`A trap took ${lost} coins.`]; }
+    else if (event?.kind === 'item') { next.bag.push(event.item); next.report = [`You found a ${event.item}.`]; }
+    else if (event?.kind === 'heal') { for (const mon of next.party) mon.hp = Math.min(statsAtLevel(mon.species, mon.level)[0], mon.hp + Math.ceil(statsAtLevel(mon.species, mon.level)[0] * .25)); next.report = ['A warm spring restored 25% HP to your whole roster.']; }
+    else if (event?.kind === 'ambush') { for (const mon of next.party) mon.hp = Math.max(1, mon.hp - Math.ceil(statsAtLevel(mon.species, mon.level)[0] * .2)); next.report = ['A cave ambush hurt your roster for 20% HP.']; }
+    else return run;
+  }
+  delete next.pendingRouteEvent;
   return advanceRoute(next);
 }
 export function setWeather(battle: Battle, weather: Weather) { battle.weather = weather; battle.weatherUntil = battle.time + 300; }

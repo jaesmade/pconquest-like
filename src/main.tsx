@@ -12,8 +12,11 @@ import './styles/menus.css';
 import './styles/route.css';
 import './styles/battle-actions.css';
 import './styles/theme.css';
+import './styles/party-builder.css';
 import './styles/battle-menu.css';
 import './styles/route-overlays.css';
+import './styles/route-party.css';
+import './styles/deployment.css';
 
 const contentErrors = [...validateCatalog(), ...validateMoveVisuals(), ...validateMoveSounds()];
 function AppLoader() {

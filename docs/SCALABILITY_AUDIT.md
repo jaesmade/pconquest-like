@@ -6,7 +6,7 @@ Review date: 2026-09-26. This is a code and architecture review of the early bui
 
 ## 2026-09-28 follow-up: current optimization check
 
-The production build still lazy-loads battle code. Its battle chunk is about 1.53 MB before compression (355 KB gzip); Vite reports the 500 KB chunk-size warning. This is a loading-budget signal, not evidence of an in-battle frame bottleneck. The prior [32×32 browser profile](RENDER_PROFILE.md) measured target-preview and attack-range work and supports keeping the current Phaser renderer until a full-match profile on a declared device identifies a slower path.
+The production build lazy-loads battle code. A bundle treemap (`npm run analyze`) showed Phaser was the main contributor because the default package entry bundled its full runtime. The board does not use Matter Physics, so Vite now aliases Phaser to its supplied arcade-physics build. On 2026-09-29 this reduced the battle chunk from 1.53 MB to 1.41 MB minified, and from 355 KB to 320 KB gzip (about 8%); the 500 KB chunk-size warning remains because Vite measures the uncompressed JavaScript. This is a loading-budget signal, not evidence of an in-battle frame bottleneck. The prior [32×32 browser profile](RENDER_PROFILE.md) measured target-preview and attack-range work and supports keeping the current Phaser renderer until a full-match profile on a declared device identifies a slower path.
 
 The deployment preview rebuilt static SVG terrain and searched the selected roster for every tile on each placement update. `src/ui/DeploymentBoard.tsx` now memoizes map-derived cell coordinates, depth order, and static terrain elements by authored map reference; it builds a coordinate lookup for occupants and renders actor groups only for occupied or object tiles. Legal ally cells are recalculated when the focused species or map changes. Placement rules, art order, and the rendered hit cells remain the same. This is a source-level optimization, not a measured FPS improvement; the current authored battle maps are 8×8.
 
@@ -50,7 +50,7 @@ Content IDs are stable, but `src/content/catalog.ts` does not cover every semant
 
 ### Lower: bundle and asset budgets
 
-Phaser remains a large lazy-loaded battle chunk, and all shared effect sheets are still preloaded. This is acceptable for the small prototype. Set target devices and loading-time/memory budgets before splitting chunks or atlasing sprites; compare a production build on those devices before and after optimization.
+Phaser remains a large lazy-loaded battle chunk even after excluding Matter Physics; all shared effect sheets are still preloaded. The analyzer is available with `npm run analyze`. Set target devices and loading-time/memory budgets before building a custom Phaser runtime or atlasing sprites; compare a production build on those devices before and after optimization.
 
 ## Review boundary
 

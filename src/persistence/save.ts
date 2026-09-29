@@ -1,4 +1,4 @@
-import { abilityFor, ENCOUNTERS, itemFor, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES, TYPES } from '../content/data';
+import { abilityFor, ENCOUNTERS, itemCanEquip, itemFor, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES, TYPES } from '../content/data';
 import { defaultLoadoutAtLevel, MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
@@ -20,8 +20,8 @@ type MapSnapshot = { id: string; signature: string; objectSignature?: string; ch
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents' | 'hpEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV18 = { schemaVersion: 18; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV18 | { schemaVersion: 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
+type SaveV20 = { schemaVersion: 20; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV20 | { schemaVersion: 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
 // Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
 const LEGACY_HP_BASE: Record<string, number> = {
   bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
@@ -31,7 +31,7 @@ const phases = new Set<Run['phase']>(['starter', 'route', 'prepare', 'battle', '
 
 export function freshRun(unlocks = 0): Run {
   const seed = newSeed();
-  return { phase: 'starter', party: [], selected: [], deployment: {}, bag: [], coins: 20, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: seed, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
+  return { phase: 'starter', party: [], selected: [], deployment: {}, bag: [], pendingMoves: [], coins: 20, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: seed, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
 }
 
 function isRun(value: unknown): value is Run {
@@ -59,6 +59,12 @@ function migrateRun(run: Run, version: number): Run {
     next.route = migrateRoutePlan(next.route, next.seed);
     next.currentNodeId = currentIndex >= 0 ? next.route.visited[currentIndex] : undefined;
   }
+  if (version < 20 && next.route) {
+    const currentIndex = next.currentNodeId ? next.route.visited.indexOf(next.currentNodeId) : -1;
+    next.route = migrateRoutePlan(next.route, next.seed);
+    next.currentNodeId = currentIndex >= 0 ? next.route.visited[currentIndex] : undefined;
+    if (next.phase === 'event' && !next.pendingRouteEvent) next.pendingRouteEvent = { kind: 'coins', amount: 50 };
+  }
   if (!routeIsValid(next.route, next.seed) || !Number.isSafeInteger(next.coins) || next.coins < 0) return freshRun(next.unlocks);
   if (next.currentNodeId && next.route.visited.at(-1) !== next.currentNodeId) return freshRun(next.unlocks);
   if (next.party.length > MAX_RUN_POKEMON || next.party.some(mon => !mon || typeof mon.id !== 'string' || !mon.id || !SPECIES[mon.species])
@@ -82,12 +88,15 @@ function migrateRun(run: Run, version: number): Run {
     mon.xp = Number.isFinite(mon.xp) ? Math.max(xpForLevel(mon.level), Math.min(xpForLevel(MAX_LEVEL), Math.floor(mon.xp))) : xpForLevel(mon.level);
     const maxHp = statsAtLevel(mon.species, mon.level)[0];
     mon.hp = Number.isFinite(mon.hp) ? Math.max(0, Math.min(maxHp, Math.floor(mon.hp))) : maxHp;
-    if (!itemFor(mon.item)) mon.item = 'None';
+    if (!itemCanEquip(mon.item, mon.species)) mon.item = 'None';
     mon.learned = [...new Set([...(Array.isArray(mon.learned) ? mon.learned : []), ...SPECIES[mon.species].moves].filter(id => !!MOVES[id]))];
     mon.equipped = [...new Set((Array.isArray(mon.equipped) ? mon.equipped : []).filter(id => mon.learned.includes(id)))].slice(0, MAX_EQUIPPED_MOVES);
     const defaults = [...SPECIES[mon.species].moves, ...mon.learned];
     while (mon.equipped.length < Math.min(MAX_EQUIPPED_MOVES, mon.learned.length)) mon.equipped.push(defaults.find(id => !mon.equipped.includes(id))!);
   }
+  next.pendingMoves = version < 19 || next.phase !== 'intermission' || !Array.isArray(next.pendingMoves) ? []
+    : next.pendingMoves.filter(choice => choice && typeof choice.monId === 'string' && typeof choice.moveId === 'string'
+      && !!MOVES[choice.moveId] && next.party.some(mon => mon.id === choice.monId && mon.learned.includes(choice.moveId)));
   if (version < 17 && next.battle && Array.isArray(next.battle.units)) for (const unit of next.battle.units) {
     if (!unit || !SPECIES[unit.species]) continue;
     if (unit.side === 'player') {
@@ -269,20 +278,20 @@ function snapshotMap(battle: Battle): MapSnapshot {
   return { id: map.id, signature: mapSignature(authored, true), objectSignature: objectSignature(authored), changes };
 }
 
-export function snapshotRun(run: Run): SaveV18 {
+export function snapshotRun(run: Run): SaveV20 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, hpEvents: _hpEvents, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 18, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 20, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18 && envelope.schemaVersion !== 19 && envelope.schemaVersion !== 20) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;

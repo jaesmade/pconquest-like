@@ -39,3 +39,22 @@ The fixture now sizes the canvas to the browser viewport and includes 30 battle 
 The Attack layer now keeps its range graphics and line-of-sight results while the source unit and position, move, map reference, weather, and active cover remain compatible. It rebuilt once across each 30-change Attack pass; weather changes forced rebuilds. A per-redraw array lookup also replaced 1,024 linear scans of the 16-unit roster for matchup labels. Attack targeting held one label. Target preview p95 remained around 0.1 ms. The extra range Graphics object raises scene object count by one.
 
 Frame interval p95 remained 16.7–16.8 ms in the measured scenarios, including camera navigation. Camera panning invoked no `renderBattle` calls. No main-thread tasks at least 50 ms were observed. The warm-pass Attack redraw improvement is modest, and frame intervals did not improve measurably. The full-map terrain render texture is 3264×1772 pixels at this cap, about 22 MiB of raw RGBA data; the canvas itself follows the viewport. Headless draw-call counts, JavaScript heap, and frame intervals do not measure GPU texture allocation or GPU time. Visible-cell culling remains contingent on a full-match profile on the release device.
+
+## 2026-10-02 object reuse follow-up
+
+Updated the isolated fixture to use the current split CSS, battle fields, and the production arcade-physics Phaser alias. The benchmark now counts matchup Text creations and HP Graphics `clear` calls. Before/after builds ran in the visible Codex in-app browser on Windows, Chrome 154, WebGL, 8 logical CPUs, at a 579×672 viewport/canvas and DPR 1. These are local synthetic 32×32, 16-unit measurements, separate from the earlier browser profiles above.
+
+`Board.tsx` now reuses the active ordered matchup labels, updating their text and position and destroying excess slots. HP bars retain their local Graphics commands unless displayed HP/max HP fraction or side changes; position changes use the Graphics transform. Unit retirement removes the appearance cache. The active scene stayed at 85 objects in Inspect and 86 in Attack, with 16 HP bars and one matchup label in this fixture.
+
+| Scenario, three passes | Before HP redraws | After HP redraws | Before label creations | After label creations |
+| --- | --- | --- | --- | --- |
+| 30 Inspect state updates | 480 / 480 / 480 | 30 / 30 / 30 | 0 / 0 / 0 | 0 / 0 / 0 |
+| 30 Attack state updates | 496 / 480 / 480 | 30 / 30 / 30 | 31 / 30 / 30 | 1 / 0 / 0 |
+| Weather changes in Attack | 176 / 176 / 192 | 0 / 0 / 0 | 11 / 11 / 12 | 0 / 0 / 0 |
+| Animation window | 67 / 67 / 67 | 0 / 0 / 0 | 4 / 4 / 4 | 0 / 0 / 0 |
+
+The state-update fixture changes one unit's HP per update; its 30 redraws after the change are required. The animation scenario does not generate HP-impact events, so zero redraws there is expected. Eleven runtime assertions run after the timing scenarios and passed: expected effectiveness text, unchanged label identity and count bounds, type changes, HP buffer reuse, impact HP changes, movement positioning, max-HP and side invalidation, excess-label disposal, and retirement-cache eviction.
+
+Attack-state `renderBattle` p95 changed from 2.5 / 1.5 / 1.7 ms to 1.3 / 0.9 / 1.1 ms. Inspect-state p95 was 2.0 / 1.0 / 0.9 ms before and 1.5 / 0.8 / 1.0 ms after. Targeting setup p95 was noisier and increased from 1.0 / 1.1 / 0.8 to 1.5 / 1.8 / 1.7 ms; allocation counts establish the reduced work more reliably than these small timing differences. Observed active-scenario frame p95 stayed around 16.7–17.2 ms, with no main-thread tasks at least 50 ms. The first baseline idle pass had no frame samples while the page became visible and is excluded from comparison. No FPS increase, GPU-time reduction, or texture-memory improvement is established. Full-map terrain and dynamic overlay scans remain.
+
+Reproduce with the isolated build/preview commands above; `Profiling complete` now requires the renderer assertions to pass. The result JSON includes `rendererChecks`, `matchupLabelsCreated`, and `hpBarRedraws` alongside the existing timings. Keep the page visible and compare the same viewport and production runtime when measuring later changes.

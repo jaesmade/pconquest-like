@@ -1,5 +1,27 @@
 # UI overhaul plan
 
+## Implementation progress (conditional battle field indicators - 2026-10-01)
+
+- Clear weather and inactive Trick Room no longer occupy space in the battle HUD. Each active condition appears in parentheses with its remaining cycle count; the weather details control is available only while weather is active and closes when that weather expires.
+- Weather and Trick Room indicators share the same font size, line height, and chip padding at desktop and narrow breakpoints.
+- Checked the production preview with no active conditions, Sandstorm active, and Sun plus Trick Room active. The preview showed only the applicable indicators and their remaining cycle counts. `npm run build` and scoped `git diff --check` passed.
+
+## Implementation progress (battle UI matched to route selection - 2026-09-30)
+
+- Battle HUD panels, field readouts, camera controls, and the contextual action buttons now share route selection's navy surfaces, cool pale frames, inset highlights, and raised shadows. Pixel headings, gold turn and focus cues, and cyan weather accents carry the route screen's visual hierarchy into battle; map art and team/weather semantics remain clear.
+- On narrow screens the four main battle commands use a 2×2 touch tray. The action menu moves clear of the weather details card and lower HUD panels, and the active Pokémon card leaves room for the camera controls.
+- Checked the production preview at 1142×910 and 390×844. The narrow preview showed the Rain cycle count and effects card, turn levels, compact action tray, and separated actor/camera panels. `npm run build` and `git diff --check` passed.
+
+## Implementation progress (battle field and unit readouts - 2026-09-30)
+
+- The battle HUD shows active weather and remaining cycles, and its weather control opens the current weather effects plus the next Sandstorm tick. Hovering or focusing a weather move previews its field change and resulting modifiers; Trick Room previews explain activation or recasting, while the HUD keeps its remaining cycles visible.
+- Turn portraits show each Pokémon's level. The active and inspected unit readouts show level, HP, AP, action readiness, and status. Timed stat stages use compact stat abbreviations with Roman-numeral ranks; green marks boosts and red marks drops. Their accessible labels retain the signed stage count and remaining cycles without displaying a damage multiplier. Tile inspection includes grid coordinates, terrain, elevation, and an active hazard marker.
+- The production browser preview was visually checked at 1142×910 for the weather details card, Sunny Day forecast, Trick Room countdown, level labels, and timed stage readout. A 390×844 review also confirmed the weather cycle count, effects card, level labels, and responsive action tray.
+
+## Implementation progress (battle XP participants - 2026-09-30)
+
+- Battle wins award XP only to the deployed Pokémon recorded for that battle; deployed battlers still receive XP if they faint. The growth screen shows each Pokémon's individual award and marks reserves at +0 XP. The party-wide XP summary has been removed.
+
 ## Implementation progress (starting party draft)
 
 - The new-run draft uses a clearer header, a six-segment point meter, compact selected-party cards, larger species choices, a type filter, and a persistent stat inspector. Species retain the shared placeholder portrait, with type-color accents to help distinguish them until individual portraits are available. Unaffordable choices remain inspectable but cannot be added.
@@ -9,7 +31,7 @@
 
 The title, party draft, route controls, preparation, shop, special encounter, and post-battle screens now use one interface palette. `src/styles/theme.css` defines navy ink (`#17303e`), raspberry borders (`#b6194e`), coral display accents (`#ed6b5d`), gold primary actions (`#ffcb3d`), pale aqua page backgrounds, and paper or gray panels. Pixel lettering is reserved for display headings and short controls; body copy stays in the readable sans-serif face. Primary actions use gold with a raspberry outline, while neutral menu choices use gray.
 
-The isometric battle map keeps its environmental colors, while route stops use the same tiled floor as route selection. Battle HUD panels use dark navy surfaces for contrast with the map, with the same raspberry outline and gold focus/current-turn cue. Health, teams, terrain, and targeting colors continue to communicate gameplay state and should not be recolored solely to match menu decoration. Shared styling loads after the screen styles so new screens can use the tokens without copying older green panel rules. Review at desktop and narrow widths; keep critical controls inside safe-area insets and give keyboard focus a visible gold outline.
+The isometric battle map keeps its environmental colors, while route stops use the same tiled floor as route selection. Battle HUD panels and action controls use the route HUD's dark navy surfaces, cool pale frames, inset highlights, and raised edge shadows. Gold marks focus and the current turn; cyan highlights field information. Health, teams, terrain, weather, and targeting colors continue to communicate gameplay state and should not be recolored solely to match menu decoration. Shared styling loads after the screen styles so new screens can use the tokens without copying older green panel rules. Review at desktop and narrow widths; keep critical controls inside safe-area insets and give keyboard focus a visible gold outline.
 
 ## Implementation progress (palette and XP reward pass)
 
@@ -28,7 +50,7 @@ The isometric battle map keeps its environmental colors, while route stops use t
 - The active Pokémon's contextual popup now follows the supplied action-state sketch. Its main state has four compact buttons: **Attack**, **Move**, **Special**, and **End**. The actor HUD retains HP, AP, and status information so those values do not crowd the command list.
 - **Attack** opens four equipped moves in the supplied cross layout: one above, one left, one right, and one below a central Back button. Hovering or focusing a move opens a separate compact description tooltip with power, range, type, category, and AP cost. The tooltip does not resize or move the action buttons. Choosing a move replaces the list with only Back; the board shows range, area, and effectiveness, and clicking a valid tile commits the attack. Back returns to move choice without spending AP.
 - **Move** shows only Back in the popup. Reachable tiles remain highlighted, and the bottom hint reports the fixed 1 AP cost and AP left; clicking a tile commits movement. Move becomes unavailable after one command in the turn. **Special** opens Back and Use Item; its tooltip shows the held item's AP cost. **End** asks Yes or No before passing and banking AP.
-- `src/styles/battle-menu.css` loads after the shared theme. Only the individual buttons and temporary descriptions have translucent pale glass surfaces; the menu wrapper has no fill, outline, or shadow. The popup follows the acting unit on wide and narrow screens, preferring a position above it and clamping to the top HUD boundary when necessary. Keyboard focus is visible; Escape walks back through menu states. Battle rules and seeded outcomes are unchanged.
+- `src/styles/battle-menu.css` loads after the shared theme. Individual controls use the route-matched raised navy frames; the menu wrapper has no fill or outline. The popup follows the acting unit, avoids HUD and weather-detail panels, and uses a compact two-column command tray on narrow screens. Keyboard focus is visible; Escape walks back through menu states. Battle rules and seeded outcomes are unchanged.
 
 ## Implementation progress (first slice)
 

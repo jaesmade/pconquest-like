@@ -5,6 +5,7 @@ import type { AttackVisualEvent } from '../game/types';
 export const MAX_PENDING_ATTACKS = 3;
 
 const isWeather = (event: AttackVisualEvent) => MOVES[event.moveId]?.tags.includes('weather') ?? false;
+const isField = (event: AttackVisualEvent) => MOVES[event.moveId]?.tags.includes('field') ?? false;
 const isCosmetic = (event: AttackVisualEvent) => event.targetIds.length === 0;
 
 export function enqueueAttackCues(pending: AttackVisualEvent[], incoming: AttackVisualEvent[]) {
@@ -15,6 +16,10 @@ export function enqueueAttackCues(pending: AttackVisualEvent[], incoming: Attack
     if (isWeather(event)) {
       for (let index = queue.length - 1; index >= 0; index--) {
         if (isWeather(queue[index])) { queue.splice(index, 1); skipped++; }
+      }
+    } else if (isField(event)) {
+      for (let index = queue.length - 1; index >= 0; index--) {
+        if (isField(queue[index])) { queue.splice(index, 1); skipped++; }
       }
     } else if (isCosmetic(event)) {
       for (let index = queue.length - 1; index >= 0; index--) {

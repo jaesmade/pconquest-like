@@ -7,6 +7,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 
 export default defineConfig({
   root,
+  resolve: { alias: { phaser: 'phaser/dist/phaser-arcade-physics.js' } },
   plugins: [react()],
   build: {
     outDir: resolve(root, 'dist-profile'),

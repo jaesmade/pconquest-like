@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { itemCanEquip, itemFor, ITEMS, MOVES, SPECIES, tmMoveFor } from '../content/data';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { unitSet } from '../battle/unitAnimations';
+import { itemCanEquip, itemEvolutionFor, itemFor, ITEMS, MOVES, SPECIES, tmMoveFor } from '../content/data';
 import type { ItemId } from '../content/items';
 import { MAX_RUN_POKEMON } from '../content/roster';
 import { statsAtLevel } from '../game/engine';
 import { availableRouteNodes, routeNode, ROUTE_COLUMNS, type RouteNode, type RouteNodeKind } from '../game/route';
 import type { PartyMon, Run } from '../game/types';
 import Sprite from './Sprite';
+import SpeciesPortrait from './SpeciesPortrait';
 
 function RoutePyramid({ x, y }: { x: number; y: number }) {
   return <g className="route-player" transform={`translate(${x} ${y})`} role="img" aria-label="Current route position">
@@ -40,6 +42,52 @@ const xOf = (node: RouteNode) => 180 + node.lane * 230;
 const yOf = (node: RouteNode) => 3510 - (node.column - 1) * 340;
 
 type DragGesture = { pointerId: number; startY: number; scrollTop: number; active: boolean };
+type EvolutionStage = 'charging' | 'transforming' | 'complete';
+type EvolutionSceneState = { monId: string; fromSpecies: string; intoSpecies: string; stage: EvolutionStage };
+
+function EvolutionSprite({ id }: { id: string }) {
+  const set = unitSet(id), idle = set.clips.idle;
+  const frontRow = idle.rows === 1 ? 0 : set.facingRows[0] ?? 0;
+  const idleStyle = {
+    backgroundImage: `url(${idle.url})`,
+    backgroundSize: `${idle.frames * 100}% ${idle.rows * 100}%`,
+    backgroundPosition: `0 ${idle.rows > 1 ? frontRow / (idle.rows - 1) * 100 : 0}%`,
+    animation: idle.frames > 1 ? `evolution-idle-loop ${idle.frames / idle.fps}s steps(${idle.frames}) infinite` : 'none',
+    '--evolution-idle-end-position': `${idle.frames > 1 ? idle.frames / (idle.frames - 1) * 100 : 0}%`,
+  } as CSSProperties;
+  return <span className="evolution-idle-sprite" style={idleStyle} aria-hidden="true" />;
+}
+
+function EvolutionScene({ scene, onClose, onSkip }: { scene: EvolutionSceneState; onClose: () => void; onSkip: () => void }) {
+  const fromName = SPECIES[scene.fromSpecies].name;
+  const intoName = SPECIES[scene.intoSpecies].name;
+  return <div className="evolution-overlay" onMouseDown={event => { if (event.target === event.currentTarget && scene.stage === 'complete') onClose(); }}>
+    <section className={`evolution-dialog evolution-${scene.stage}`} role="dialog" aria-modal="true" aria-labelledby="evolution-title" aria-describedby="evolution-message" onKeyDown={event => {
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        event.currentTarget.querySelector<HTMLButtonElement>('button')?.focus();
+      }
+    }}>
+      <span className="evolution-kicker">A NEW FORM IS REVEALING</span>
+      <h2 id="evolution-title">Evolution</h2>
+      <div className={`evolution-stage evolution-stage-${scene.stage}`} aria-hidden="true">
+        <i className="evolution-orbit evolution-orbit-one" /><i className="evolution-orbit evolution-orbit-two" />
+        <div className="evolution-sprite evolution-sprite-old"><EvolutionSprite id={scene.fromSpecies} /></div>
+        {scene.stage !== 'charging' && <div className="evolution-sprite evolution-sprite-new"><EvolutionSprite id={scene.intoSpecies} /></div>}
+        <div className="evolution-flash" />
+        <div className="evolution-sparkles">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</div>
+      </div>
+      <p id="evolution-message" aria-live="polite">
+        {scene.stage === 'charging' && `What? ${fromName} is evolving!`}
+        {scene.stage === 'transforming' && `${fromName} is changing into ${intoName}…`}
+        {scene.stage === 'complete' && `${fromName} evolved into ${intoName}!`}
+      </p>
+      {scene.stage === 'complete'
+        ? <button type="button" className="evolution-continue" autoFocus onClick={onClose}>Continue</button>
+        : <button type="button" className="evolution-skip" autoFocus onClick={onSkip}>Skip animation</button>}
+    </section>
+  </div>;
+}
 
 function Glyph({ kind }: { kind: RouteNodeKind }) {
   if (kind === 'heal') return <path d="M-9-29h18v20h20V9H9v20H-9V9h-20V-9h20z" />;
@@ -95,34 +143,132 @@ function BagEmblem() {
   </svg>;
 }
 
+function ArtifactEmblem() {
+  return <svg className="route-artifact-emblem" viewBox="0 0 64 64" shapeRendering="crispEdges" aria-hidden="true" focusable="false">
+    <path d="M18 7h28v6h7v9h5v31h-5v6H11v-6H6V22h5v-9h7Z" fill="#102631" />
+    <path d="M20 13h24v8H20Z" fill="#d9b65f" />
+    <path d="M13 25h38v27H13Z" fill="#68549a" />
+    <path d="M32 26 44 36 32 48 20 36Z" fill="#f1d37d" />
+    <path d="M32 30 39 36 32 43 25 36Z" fill="#66d4d0" />
+    <path d="M13 25h38v6H13Z" fill="#967cc5" />
+  </svg>;
+}
+
 const itemIcon = (item: string) => `/assets/ui/icons/item-${item.toLowerCase().replaceAll(' ', '-')}.svg`;
 
-function BagItemCard({ item, count, party, onTeachTm }: { item: ItemId; count: number; party: PartyMon[]; onTeachTm: (item: ItemId, monId: string, replaceSlot?: number) => void }) {
-  const [monId, setMonId] = useState('');
-  const [slot, setSlot] = useState('');
+type TmFlowState = { item: ItemId; step: 'party' | 'moves'; monId?: string };
+type EvolutionItemFlowState = { item: ItemId };
+function BagItemCard({ item, count, party, onStartTm, onStartEvolutionItem }: { item: ItemId; count: number; party: PartyMon[]; onStartTm: (item: ItemId, trigger: HTMLButtonElement) => void; onStartEvolutionItem: (item: ItemId, trigger: HTMLButtonElement) => void }) {
   const moveId = tmMoveFor(item);
   const eligible = moveId ? party.filter(mon => SPECIES[mon.species].tmMoves?.includes(moveId) && !mon.equipped.includes(moveId)) : [];
-  const chosen = eligible.find(mon => mon.id === monId);
+  const evolution = itemEvolutionFor(item);
+  const evolutionEligible = evolution ? party.filter(mon => mon.species === evolution.from) : [];
   return <article className="route-inventory-item" key={item}>
     <img src={itemIcon(item)} alt="" /><div><strong>{item}</strong><p>{itemFor(item)?.description}</p></div><span aria-label={`${count} available`}>×{count}</span>
     {moveId && <div className="route-tm-teach">
-      <label>Teach to
-        <select value={monId} onChange={event => { setMonId(event.target.value); setSlot(''); }} aria-label={`${item} recipient`}>
-          <option value="">Choose Pokémon</option>
-          {eligible.map(mon => <option key={mon.id} value={mon.id}>{SPECIES[mon.species].name} · Lv {mon.level}</option>)}
-        </select>
-      </label>
-      {chosen && chosen.equipped.length >= 4 && <label>Replace move
-        <select value={slot} onChange={event => setSlot(event.target.value)} aria-label={`${item} move to replace`}>
-          <option value="">Choose move</option>
-          {chosen.equipped.map((id, index) => <option key={`${index}-${id}`} value={index}>{MOVES[id]?.name ?? id}</option>)}
-        </select>
-      </label>}
-      <button type="button" disabled={!chosen || (chosen.equipped.length >= 4 && slot === '')}
-        onClick={() => { if (chosen) onTeachTm(item, chosen.id, slot === '' ? undefined : Number(slot)); }}>Use TM</button>
+      <button type="button" disabled={!eligible.length} onClick={event => onStartTm(item, event.currentTarget)}>Use TM</button>
       {!eligible.length && <small>No compatible Pokémon needs this move.</small>}
     </div>}
+    {evolution && <div className="route-tm-teach">
+      <button type="button" disabled={!evolutionEligible.length} onClick={event => onStartEvolutionItem(item, event.currentTarget)}>Use item</button>
+      {!evolutionEligible.length && <small>No compatible Pokémon.</small>}
+    </div>}
   </article>;
+}
+
+function TmTeachingDialog({ flow, moveId, eligible, recipient, onChooseParty, onChooseMove, onBack, onClose }: {
+  flow: TmFlowState;
+  moveId: string;
+  eligible: PartyMon[];
+  recipient?: PartyMon;
+  onChooseParty: (monId: string) => void;
+  onChooseMove: (slot?: number) => void;
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  const taughtMove = MOVES[moveId];
+  return <div className="tm-flow-overlay" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section key={`${flow.item}-${flow.step}-${flow.monId ?? ''}`} className="tm-flow-dialog" role="dialog" aria-modal="true" aria-labelledby="tm-flow-title" aria-describedby="tm-flow-description" onKeyDown={event => {
+      if (event.key !== 'Tab') return;
+      const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+      if (!buttons.length) return;
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }}>
+      <header className="tm-flow-heading">
+        <div><small>{flow.step === 'party' ? 'STEP 1 OF 2 · CHOOSE A RECIPIENT' : 'STEP 2 OF 2 · CHOOSE A MOVE SLOT'}</small><h2 id="tm-flow-title">{flow.step === 'party' ? 'Use Technical Machine' : 'Choose a move to replace'}</h2></div>
+        <button type="button" className="tm-flow-close" aria-label="Close TM use" onClick={onClose}>×</button>
+      </header>
+      <p id="tm-flow-description" className="tm-flow-description">{flow.step === 'party'
+        ? `Choose a compatible party Pokémon to learn ${taughtMove?.name ?? moveId}.`
+        : `${SPECIES[recipient?.species ?? '']?.name ?? 'This Pokémon'} will learn ${taughtMove?.name ?? moveId}. Choose an active move to replace, or use an open slot.`}</p>
+      {flow.step === 'party' && <div className="tm-party-choices">
+        {eligible.map((mon, index) => {
+          const species = SPECIES[mon.species];
+          return <button key={mon.id} type="button" className="tm-party-choice" autoFocus={mon.id === flow.monId || (!flow.monId && index === 0)} onClick={() => onChooseParty(mon.id)}>
+            <span className="tm-party-choice-portrait"><Sprite id={mon.species} /></span>
+            <span className="tm-party-choice-details"><strong>{species.name}</strong><small>Lv {mon.level} · {species.types.join(' / ')}</small></span>
+            <span className="tm-party-choice-count">{mon.equipped.length}/4 moves</span>
+          </button>;
+        })}
+      </div>}
+      {flow.step === 'moves' && recipient && <>
+        <div className="tm-selected-recipient"><span className="tm-party-choice-portrait"><Sprite id={recipient.species} /></span><span><strong>{SPECIES[recipient.species].name}</strong><small>Lv {recipient.level} · {recipient.equipped.length} active moves</small></span></div>
+        <div className="tm-move-choices">
+          {recipient.equipped.length < 4 && <button type="button" className="tm-move-choice tm-open-slot-choice" autoFocus onClick={() => onChooseMove()}>
+            <span className="tm-move-slot-number">＋</span><span className="tm-move-choice-copy"><strong>Open move slot</strong><small>Add {taughtMove?.name ?? moveId} without replacing a move.</small></span><span className="tm-move-action-label">ADD</span>
+          </button>}
+          {recipient.equipped.length >= 4 && recipient.equipped.map((id, index) => {
+            const move = MOVES[id];
+            return <button key={`${recipient.id}-${index}-${id}`} type="button" className="tm-move-choice" autoFocus={index === 0} onClick={() => onChooseMove(index)}>
+              <span className="tm-move-slot-number">{index + 1}</span><span className="tm-move-choice-copy"><strong>{move?.name ?? id}</strong><small>{move ? `${move.type} · ${move.category} · ${move.detail}` : 'Current active move'}</small></span><span className="tm-move-action-label">REPLACE</span>
+            </button>;
+          })}
+        </div>
+        <div className="tm-flow-actions"><button type="button" className="tm-flow-back" onClick={onBack}>← Choose another Pokémon</button><small>Using this TM consumes one copy.</small></div>
+      </>}
+      {flow.step === 'party' && <div className="tm-flow-actions"><button type="button" className="tm-flow-cancel" onClick={onClose}>Cancel</button><small>The TM is used only after you confirm a move.</small></div>}
+    </section>
+  </div>;
+}
+
+function EvolutionItemDialog({ item, evolution, eligible, onChooseParty, onClose }: {
+  item: ItemId;
+  evolution: { from: string; into: string };
+  eligible: PartyMon[];
+  onChooseParty: (monId: string) => void;
+  onClose: () => void;
+}) {
+  const fromName = SPECIES[evolution.from]?.name ?? evolution.from;
+  const intoName = SPECIES[evolution.into]?.name ?? evolution.into;
+  return <div className="tm-flow-overlay" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="tm-flow-dialog" role="dialog" aria-modal="true" aria-labelledby="evolution-item-title" aria-describedby="evolution-item-description" onKeyDown={event => {
+      if (event.key !== 'Tab') return;
+      const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+      if (!buttons.length) return;
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }}>
+      <header className="tm-flow-heading">
+        <div><small>CHOOSE A RECIPIENT</small><h2 id="evolution-item-title">Use {item}</h2></div>
+        <button type="button" className="tm-flow-close" aria-label={`Close ${item} use`} onClick={onClose}>×</button>
+      </header>
+      <p id="evolution-item-description" className="tm-flow-description">Choose a {fromName} to evolve into {intoName}. Using the stone consumes one copy.</p>
+      <div className="tm-party-choices">
+        {eligible.map((mon, index) => {
+          const species = SPECIES[mon.species];
+          return <button key={mon.id} type="button" className="tm-party-choice" autoFocus={index === 0} onClick={() => onChooseParty(mon.id)}>
+            <span className="tm-party-choice-portrait"><Sprite id={mon.species} /></span>
+            <span className="tm-party-choice-details"><strong>{species.name}</strong><small>Lv {mon.level} · {species.types.join(' / ')}</small></span>
+            <span className="tm-party-choice-count">EVOLVE</span>
+          </button>;
+        })}
+      </div>
+      <div className="tm-flow-actions"><button type="button" className="tm-flow-cancel" onClick={onClose}>Cancel</button><small>The stone is used after you choose a Pokémon.</small></div>
+    </section>
+  </div>;
 }
 
 type Props = {
@@ -132,34 +278,107 @@ type Props = {
   onEquipItem: (monId: string, item: string) => void;
   onEvolve: (id: string) => void;
   onTeachTm: (item: ItemId, monId: string, replaceSlot?: number) => void;
+  onUseEvolutionItem: (item: ItemId, monId: string) => void;
   backdropOnly?: boolean;
 };
 
-export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvolve, onTeachTm, backdropOnly = false }: Props) {
+export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvolve, onTeachTm, onUseEvolutionItem, backdropOnly = false }: Props) {
   const scroll = useRef<HTMLDivElement>(null);
   const partyButton = useRef<HTMLButtonElement>(null);
   const inventoryButton = useRef<HTMLButtonElement>(null);
+  const inventoryModalCloseButton = useRef<HTMLButtonElement>(null);
+  const artifactButton = useRef<HTMLButtonElement>(null);
+  const evolutionCardTargets = useRef(new Map<string, HTMLElement>());
+  const tmTriggerTargets = useRef(new Map<ItemId, HTMLButtonElement>());
+  const evolutionItemTriggerTargets = useRef(new Map<ItemId, HTMLButtonElement>());
   const drag = useRef<DragGesture | null>(null);
   const suppressClickUntil = useRef(0);
-  const [openPanel, setOpenPanel] = useState<'party' | 'inventory' | null>(null);
+  const [openPanel, setOpenPanel] = useState<'party' | 'inventory' | 'artifacts' | null>(null);
+  const [evolutionScene, setEvolutionScene] = useState<EvolutionSceneState | null>(null);
+  const [tmFlow, setTmFlow] = useState<TmFlowState | null>(null);
+  const [evolutionItemFlow, setEvolutionItemFlow] = useState<EvolutionItemFlowState | null>(null);
   const [inspectedNodeId, setInspectedNodeId] = useState<string>();
-  const available = new Set(availableRouteNodes(run.route).map(node => node.id));
-  const visited = new Set(run.route.visited);
+  const availableNodes = useMemo(() => availableRouteNodes(run.route), [run.route]);
+  const available = useMemo(() => new Set(availableNodes.map(node => node.id)), [availableNodes]);
+  const visited = useMemo(() => new Set(run.route.visited), [run.route.visited]);
   const currentNode = routeNode(run.route, run.route.visited.at(-1));
   const markerX = currentNode ? xOf(currentNode) : START_X;
   const markerY = (currentNode ? yOf(currentNode) : START_Y) - 72;
-  const inspectedNode = routeNode(run.route, inspectedNodeId) ?? availableRouteNodes(run.route)[0];
+  const inspectedNode = routeNode(run.route, inspectedNodeId) ?? availableNodes[0];
   const inspectedStatus = inspectedNode && (available.has(inspectedNode.id) ? 'AVAILABLE' : visited.has(inspectedNode.id) ? 'CLEARED' : 'AHEAD');
   const nextColumn = Math.min(ROUTE_COLUMNS, run.route.visited.length + 1);
-  const bagItems = ITEMS.filter(item => item !== 'None' && run.bag.includes(item)).map(item => ({ item, count: run.bag.filter(owned => owned === item).length }));
-  const tmBagItems = bagItems.filter(({ item }) => !!tmMoveFor(item));
-  const heldBagItems = bagItems.filter(({ item }) => !tmMoveFor(item));
+  const bagCounts = useMemo(() => {
+    const counts = new Map<ItemId, number>();
+    for (const item of run.bag) counts.set(item, (counts.get(item) ?? 0) + 1);
+    return counts;
+  }, [run.bag]);
+  const { bagItems, tmBagItems, evolutionBagItems, heldBagItems } = useMemo(() => {
+    const bagItems = ITEMS.filter(item => item !== 'None' && bagCounts.has(item)).map(item => ({ item, count: bagCounts.get(item)! }));
+    return {
+      bagItems,
+      tmBagItems: bagItems.filter(({ item }) => !!tmMoveFor(item)),
+      evolutionBagItems: bagItems.filter(({ item }) => !!itemEvolutionFor(item)),
+      heldBagItems: bagItems.filter(({ item }) => !tmMoveFor(item) && !itemEvolutionFor(item)),
+    };
+  }, [bagCounts]);
   const equippedItems = run.party.filter(mon => mon.item !== 'None');
+  const tmFlowMove = tmFlow ? tmMoveFor(tmFlow.item) : undefined;
+  const tmFlowEligible = tmFlowMove ? run.party.filter(mon => SPECIES[mon.species].tmMoves?.includes(tmFlowMove) && !mon.equipped.includes(tmFlowMove)) : [];
+  const tmFlowRecipient = tmFlow?.monId ? run.party.find(mon => mon.id === tmFlow.monId) : undefined;
   const pan = (direction: -1 | 1) => scroll.current?.scrollBy({ top: direction * Math.max(300, scroll.current.clientHeight * .72), behavior: 'smooth' });
   const closePanel = () => {
-    const returnFocus = openPanel === 'party' ? partyButton : inventoryButton;
+    const returnFocus = openPanel === 'party' ? partyButton : openPanel === 'artifacts' ? artifactButton : inventoryButton;
     setOpenPanel(null);
     requestAnimationFrame(() => returnFocus.current?.focus());
+  };
+  const closeEvolution = () => {
+    const monId = evolutionScene?.monId;
+    setEvolutionScene(null);
+    requestAnimationFrame(() => { if (monId) evolutionCardTargets.current.get(monId)?.focus(); });
+  };
+  const skipEvolution = () => setEvolutionScene(current => current ? { ...current, stage: 'complete' } : current);
+  const startTmFlow = (item: ItemId, trigger: HTMLButtonElement) => {
+    tmTriggerTargets.current.set(item, trigger);
+    setTmFlow({ item, step: 'party' });
+  };
+  const closeTmFlow = () => {
+    const item = tmFlow?.item;
+    setTmFlow(null);
+    requestAnimationFrame(() => {
+      const trigger = item ? tmTriggerTargets.current.get(item) : undefined;
+      if (trigger?.isConnected) trigger.focus();
+      else inventoryModalCloseButton.current?.focus();
+    });
+  };
+  const startEvolutionItemFlow = (item: ItemId, trigger: HTMLButtonElement) => {
+    evolutionItemTriggerTargets.current.set(item, trigger);
+    setEvolutionItemFlow({ item });
+  };
+  const closeEvolutionItemFlow = () => {
+    const item = evolutionItemFlow?.item;
+    setEvolutionItemFlow(null);
+    requestAnimationFrame(() => {
+      const trigger = item ? evolutionItemTriggerTargets.current.get(item) : undefined;
+      if (trigger?.isConnected) trigger.focus();
+      else inventoryModalCloseButton.current?.focus();
+    });
+  };
+  const chooseTmRecipient = (monId: string) => setTmFlow(current => current ? { ...current, step: 'moves', monId } : current);
+  const returnToTmRecipients = () => setTmFlow(current => current ? { ...current, step: 'party' } : current);
+  const teachSelectedTm = (slot?: number) => {
+    if (!tmFlow || !tmFlowRecipient) return;
+    onTeachTm(tmFlow.item, tmFlowRecipient.id, slot);
+    closeTmFlow();
+  };
+  const useSelectedEvolutionItem = (monId: string) => {
+    if (!evolutionItemFlow) return;
+    const evolution = itemEvolutionFor(evolutionItemFlow.item);
+    const mon = run.party.find(candidate => candidate.id === monId);
+    if (!evolution || !mon || mon.species !== evolution.from || !run.bag.includes(evolutionItemFlow.item)) return;
+    onUseEvolutionItem(evolutionItemFlow.item, mon.id);
+    setEvolutionItemFlow(null);
+    setOpenPanel('party');
+    setEvolutionScene({ monId: mon.id, fromSpecies: mon.species, intoSpecies: evolution.into, stage: 'charging' });
   };
 
   useEffect(() => {
@@ -180,10 +399,38 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
   }, [run.route.visited.length, currentNode]);
   useEffect(() => {
     if (!openPanel) return;
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') closePanel(); };
+    const close = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (tmFlow) {
+        if (tmFlow.step === 'moves') returnToTmRecipients();
+        else closeTmFlow();
+        return;
+      }
+      if (evolutionItemFlow) {
+        closeEvolutionItemFlow();
+        return;
+      }
+      if (evolutionScene) {
+        if (evolutionScene.stage === 'complete') closeEvolution();
+        return;
+      }
+      closePanel();
+    };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
-  }, [openPanel]);
+  }, [openPanel, evolutionScene, tmFlow, evolutionItemFlow]);
+  useEffect(() => {
+    if (!evolutionScene || evolutionScene.stage === 'complete') return;
+    const currentStage = evolutionScene.stage;
+    const nextStage = currentStage === 'charging' ? 'transforming' : 'complete';
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timeout = window.setTimeout(() => {
+      setEvolutionScene(current => current?.monId === evolutionScene.monId && current.stage === currentStage
+        ? { ...current, stage: nextStage }
+        : current);
+    }, reducedMotion ? 0 : currentStage === 'charging' ? 1700 : 850);
+    return () => window.clearTimeout(timeout);
+  }, [evolutionScene]);
 
   const onMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -233,6 +480,9 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       </button>
       <button className="route-inventory-button" ref={inventoryButton} type="button" aria-label={`Open inventory, ${run.bag.length} items in bag`} aria-expanded={openPanel === 'inventory'} onClick={() => setOpenPanel('inventory')}>
         <BagEmblem /><b>Bag</b><small>{run.bag.length}</small>
+      </button>
+      <button className="route-artifact-button" ref={artifactButton} type="button" aria-label="Open Artifact Bag" aria-expanded={openPanel === 'artifacts'} onClick={() => setOpenPanel('artifacts')}>
+        <ArtifactEmblem /><b>Artifact Bag</b><small>SOON</small>
       </button>
     </aside>}
     {!backdropOnly && <button className="route-back-button" type="button" aria-label="Return to title screen" onClick={onBack}>&lt;</button>}
@@ -287,15 +537,26 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     </div>
     {!backdropOnly && <p className="route-instruction"><span>◆</span> Select a glowing connected node <b>·</b> paths can branch into up to four choices</p>}
 
+    {!backdropOnly && openPanel === 'artifacts' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-artifact-title" onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
+      <div className="route-party-panel route-artifact-panel">
+        <div className="route-party-head">
+          <div className="route-party-heading"><span className="route-party-heading-icon"><ArtifactEmblem /></span><div><small>ROUTE · ARTIFACTS</small><h2 id="route-artifact-title">Artifact Bag</h2></div></div>
+          <div className="route-party-head-actions"><button type="button" autoFocus aria-label="Close Artifact Bag" onClick={closePanel}>×</button></div>
+        </div>
+        <p className="route-artifact-message">coming soon</p>
+      </div>
+    </section>}
+
     {!backdropOnly && openPanel === 'inventory' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-inventory-title" onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
       <div className="route-party-panel route-inventory-panel">
         <div className="route-party-head">
           <div className="route-party-heading"><span className="route-party-heading-icon"><BagEmblem /></span><div><small>ROUTE · ITEMS</small><h2 id="route-inventory-title">Inventory</h2></div></div>
-          <div className="route-party-head-actions"><button type="button" autoFocus aria-label="Close inventory" onClick={closePanel}>×</button></div>
+          <div className="route-party-head-actions"><button ref={inventoryModalCloseButton} type="button" autoFocus aria-label="Close inventory" onClick={closePanel}>×</button></div>
         </div>
         <div className="route-inventory-summary"><span><b>{run.bag.length}</b> in bag</span><span><b>{equippedItems.length}</b> held by team</span><button type="button" onClick={() => setOpenPanel('party')}>Manage team →</button></div>
-        {heldBagItems.length > 0 && <><h3>Held items</h3><div className="route-inventory-grid">{heldBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onTeachTm={onTeachTm} />)}</div></>}
-        {tmBagItems.length > 0 && <><h3>Technical Machines</h3><p className="route-tm-help">Use a TM here to teach a compatible Pokémon. Choose which active move to replace; each TM is used once.</p><div className="route-inventory-grid">{tmBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onTeachTm={onTeachTm} />)}</div></>}
+        {heldBagItems.length > 0 && <><h3>Held items</h3><div className="route-inventory-grid">{heldBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
+        {evolutionBagItems.length > 0 && <><h3>Evolution items</h3><p className="route-tm-help">Use an evolution item to choose a compatible Pokémon. Each item is single-use.</p><div className="route-inventory-grid">{evolutionBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
+        {tmBagItems.length > 0 && <><h3>Technical Machines</h3><p className="route-tm-help">Use a TM to choose a compatible Pokémon, then select a move to replace. Each TM is single-use.</p><div className="route-inventory-grid">{tmBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
         {!bagItems.length && <p className="route-inventory-empty">Your bag is empty. Visit a Store node to buy items or TMs, or change a held item in Party to return it here.</p>}
         {equippedItems.length > 0 && <><h3>Held by team</h3><div className="route-inventory-equipped">{equippedItems.map(mon => <div key={mon.id}><img src={itemIcon(mon.item)} alt="" /><span><b>{mon.item}</b><small>{SPECIES[mon.species].name}</small></span></div>)}</div></>}
       </div>
@@ -311,10 +572,10 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
         <div className="route-party-grid">{run.party.map(mon => {
           const species = SPECIES[mon.species], maxHp = statsAtLevel(mon.species, mon.level)[0];
           const evolution = species.evolves && mon.level >= species.evolves.level ? species.evolves : undefined;
-          const availableItems = [mon.item, ...ITEMS.filter(item => (item === 'None' || run.bag.includes(item)) && itemCanEquip(item, mon.species))]
+          const availableItems = [mon.item, ...ITEMS.filter(item => (item === 'None' || bagCounts.has(item)) && itemCanEquip(item, mon.species))]
             .filter((item, index, all) => all.indexOf(item) === index);
-          return <article className={`route-party-card${mon.hp <= 0 ? ' fainted' : ''}`} data-type={species.types[0].toLowerCase()} key={mon.id}>
-            <div className="route-party-card-top"><div className="route-party-portrait"><Sprite id={mon.species} /></div>
+          return <article ref={element => { if (element) evolutionCardTargets.current.set(mon.id, element); else evolutionCardTargets.current.delete(mon.id); }} tabIndex={-1} className={`route-party-card${mon.hp <= 0 ? ' fainted' : ''}`} data-type={species.types[0].toLowerCase()} key={mon.id}>
+            <div className="route-party-card-top"><div className="route-party-portrait"><SpeciesPortrait id={mon.species} /></div>
               <div className="route-party-card-main">
                 <div className="route-party-name-row"><h3>{species.name}</h3><span>{mon.hp <= 0 ? 'FAINTED' : `Lv ${mon.level}`}</span></div>
                 <div className="route-party-types">{species.types.map(type => <span key={type}>{type}</span>)}</div>
@@ -331,12 +592,20 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
                     {availableItems.map(item => <option value={item} key={item}>{item}</option>)}
                   </select>
                 </label>
-                {evolution && <button type="button" className="route-evolve-button" onClick={() => onEvolve(mon.id)}>Evolve into {SPECIES[evolution.into].name}</button>}
+                {evolution && <button type="button" className="route-evolve-button" onClick={event => {
+                  event.currentTarget.blur();
+                  onEvolve(mon.id);
+                  setEvolutionScene({ monId: mon.id, fromSpecies: mon.species, intoSpecies: evolution.into, stage: 'charging' });
+                }}>Evolve into {SPECIES[evolution.into].name}</button>}
               </div>
             </details>
           </article>;
         })}</div>
       </div>
     </section>}
+    {!backdropOnly && tmFlow && openPanel === 'inventory' && tmFlowMove && <TmTeachingDialog flow={tmFlow} moveId={tmFlowMove} eligible={tmFlowEligible} recipient={tmFlowRecipient}
+      onChooseParty={chooseTmRecipient} onChooseMove={teachSelectedTm} onBack={returnToTmRecipients} onClose={closeTmFlow} />}
+    {!backdropOnly && evolutionItemFlow && openPanel === 'inventory' && itemEvolutionFor(evolutionItemFlow.item) && <EvolutionItemDialog item={evolutionItemFlow.item} evolution={itemEvolutionFor(evolutionItemFlow.item)!} eligible={run.party.filter(mon => mon.species === itemEvolutionFor(evolutionItemFlow.item)!.from)} onChooseParty={useSelectedEvolutionItem} onClose={closeEvolutionItemFlow} />}
+    {!backdropOnly && evolutionScene && <EvolutionScene scene={evolutionScene} onClose={closeEvolution} onSkip={skipEvolution} />}
   </main>;
 }

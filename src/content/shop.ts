@@ -8,4 +8,5 @@ export const SHOP_STOCK: { item: ItemId; price: number }[] = [
   { item: 'TM Swift', price: 16 },
   { item: 'TM Thunderbolt', price: 28 },
   { item: 'Charizardite X', price: 40 },
+  { item: 'Fire Stone', price: 20 },
 ];

@@ -5,7 +5,8 @@ import { createMap } from '../../src/content/maps';
 import { SPECIES } from '../../src/content/species';
 import { statsAtLevel } from '../../src/game/engine';
 import { mobilityFor } from '../../src/game/mobility';
-import '../../src/style.css';
+import '../../src/styles/base.css';
+import '../../src/styles/battle.css';
 import { runBrowserBench } from './browserBench';
 
 const width = 32;
@@ -40,14 +41,16 @@ function makeUnit(speciesId, side, index) {
     types: species.types, mobility: mobilityFor(species, map.tiles[y][x]), ability: species.ability,
     stats, moves: [...new Set([...species.moves, 'thunderbolt', 'sunnyDay', 'sandstorm'])],
     hp: stats[0], maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1,
-    ap: 8, maxAp: 8, attackedThisTurn: false, status: {},
+    ap: 8, maxAp: 8, movedThisTurn: false, attackedThisTurn: false,
+    nextAction: 0, nextActionShift: 0, scheduledSpeed: stats[5], status: {},
     stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 },
-    item: 'None', itemAttackMultiplier: 1, mega: false,
+    stageUntil: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 },
+    item: 'None', itemAttackMultiplier: 1,
   };
 }
 const units = [...allies.map((id, i) => makeUnit(id, 'player', i)), ...enemies.map((id, i) => makeUnit(id, 'enemy', i))];
 const initialBattle = {
-  map, tileChanges: {}, objective: 'defeat-and-capture', units, weather: 'snow', weatherUntil: 300,
+  map, tileChanges: {}, hazardZones: [], objective: 'defeat-and-capture', units, weather: 'snow', weatherUntil: 300, trickRoomUntil: 0,
   time: 0, round: 1, turnOrder: units.map(unit => unit.id), turnIndex: 0,
   current: units[0].id, rngState: 12345, log: [], visualEvents: [], captureHeld: false,
   encounterId: 'profile-32',
@@ -106,8 +109,9 @@ function Fixture() {
   }, []);
   useEffect(() => { void runBrowserBench().catch(error => {
     document.getElementById('profile-status').textContent = `Profiling failed: ${error.message}`;
+    document.getElementById('renderer-checks').textContent = 'Renderer checks did not pass.';
   }); }, []);
-  return <main><div id="profile-status">Loading battle</div><pre id="profile-results" hidden />
+  return <main><div id="profile-status">Loading battle</div><div id="renderer-checks">Renderer checks run after profiling.</div><pre id="profile-results" hidden />
     <Board battle={battle} mode={mode} chosenMove="thunderbolt" target={target}
       onTile={() => {}} onAnimationState={playing => { if (window.__profile) { window.__profile.playing = playing; window.__profile.ready = true; } }} /></main>;
 }

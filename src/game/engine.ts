@@ -1,4 +1,4 @@
-import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MAX_EQUIPPED_MOVES, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS, tmMoveFor } from '../content/data';
+import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ELITE_MAP_ID, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemEvolutionFor, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MAX_EQUIPPED_MOVES, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS, tmMoveFor } from '../content/data';
 import { MAX_RUN_POKEMON, STARTING_PARTY_POINTS, partyDraftCost } from '../content/roster';
 import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
 import type { ItemId } from '../content/items';
@@ -11,11 +11,11 @@ import { emptyStageExpiry, expireStages } from './stages';
 import { hasMoveTag } from '../content/moves';
 import { resolveMoveEffects } from './moveEffects';
 import { canDeploy, chooseEnemyDeployment, resolvePlayerDeployment } from './deployment';
-import { createMap } from '../content/maps';
+import { createMap, NORMAL_MAP_IDS } from '../content/maps';
 import { SHOP_STOCK } from '../content/shop';
 import { availableRouteNodes, createRoute, routeNode, ROUTE_COLUMNS } from './route';
 import type { Encounter } from './types';
-import { ACTION_VALUE_PER_CYCLE, actionInterval, toActionValueDuration } from './actionValue';
+import { ACTION_VALUE_PER_CYCLE, actionInterval, timelineSpeed, toActionValueDuration } from './actionValue';
 
 export { reachable, reachableTiles } from './grid';
 
@@ -38,15 +38,17 @@ export function encounterDefinition(run: Run): Encounter {
   if (!node) return template;
   if (node.kind === 'boss') return { ...template, enemies: ['lapras', 'geodude', 'pikachu', 'charmander'], enemyLevel: 21, xp: 100 };
   const level = 9 + Math.floor((node.column - 1) * 0.8) + (node.kind === 'elite' ? 3 : 0);
-  return { ...template, enemies: node.kind === 'elite' ? [...template.enemies, RECRUITS[node.column % RECRUITS.length]] : template.enemies,
+  return { ...template, mapId: node.kind === 'elite' ? ELITE_MAP_ID : NORMAL_MAP_IDS[(node.column - 1) % NORMAL_MAP_IDS.length], enemies: node.kind === 'elite' ? [...template.enemies, RECRUITS[node.column % RECRUITS.length]] : template.enemies,
     enemyLevel: level, xp: node.kind === 'elite' ? 85 : 65, objective: 'defeat' };
 }
 export const unitAt = (battle: Battle, x: number, y: number) => battle.units.find(unit => alive(unit) && unit.x === x && unit.y === y);
 export const active = (battle: Battle) => battle.units.find(unit => unit.id === battle.current)!;
 export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
+const scheduledTimelineSpeed = (unit: Unit, battle: Battle) => timelineSpeed(effectiveSpeed(unit, battle), battle.trickRoomUntil > battle.time);
 export const apGain = (_unit: Unit, _battle: Battle) => 3;
 const scaleStats = (stats: Unit['stats'], level: number) => stats.map((base, index) =>
-  index === 6 ? base : Math.floor(2 * base * level / 100) + (index === 0 ? level + 10 : 5)) as Unit['stats'];
+  index === 5 || index === 6 ? base
+    : Math.floor(2 * base * level / 100) + (index === 0 ? level + 10 : 5)) as Unit['stats'];
 export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
 export const xpForLevel = (level: number) => (level - 1) * 65;
 export const learnedAtLevel = (species: string, level: number) => [...new Set([...SPECIES[species].moves, ...Object.entries(SPECIES[species].learn).filter(([required]) => Number(required) <= level).map(([, move]) => move)])];
@@ -63,7 +65,7 @@ export function newRun(selectedSpecies: string[], unlocks = 0): Run {
     || partyDraftCost(draft) > STARTING_PARTY_POINTS) throw new Error('Choose a valid starting party within the available points.');
   const seed = newSeed(), rng = { rngState: seed };
   const party = draft.map((id, i) => makePartyMon(id, RUN_START_LEVEL, STARTING_HELD_ITEMS[i] ?? 'None'));
-  return { phase: 'route', party, selected: party.slice(0, 6).map(p => p.id), deployment: {}, bag: [...STARTING_BAG], pendingMoves: [], coins: 20, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
+  return { phase: 'route', party, selected: party.slice(0, 6).map(p => p.id), deployment: {}, bag: [...STARTING_BAG], pendingMoves: [], coins: 0, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
 }
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
   const species = SPECIES[mon.species];
@@ -80,7 +82,7 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   if (selected.some(mon => !deployment[mon.id])) throw new Error(`Map ${map.id}: no legal ally deployment for the selected team.`);
   next.deployment = deployment;
   const players = selected.map(mon => { const [x, y] = deployment[mon.id]; return makeUnit(mon, 'player', x, y, map.tiles[y][x]); });
-  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: definition.id };
+  const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, trickRoomUntil: 0, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: definition.id };
   const occupied = new Set(players.map(unit => `${unit.x},${unit.y}`));
   if (enemyDeployment && enemyDeployment.length !== definition.enemies.length) throw new Error(`Map ${map.id}: enemy deployment count does not match the team.`);
   for (const [index, id] of definition.enemies.entries()) {
@@ -95,13 +97,14 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   }
   next.battle = battle;
   next.phase = 'battle';
-  for (const unit of battle.units) unit.scheduledSpeed = effectiveSpeed(unit, battle);
+  for (const unit of battle.units) unit.scheduledSpeed = scheduledTimelineSpeed(unit, battle);
   activateNext(battle, true);
   return next;
 }
 function nextSpeedExpiry(battle: Battle) {
   const expiries = battle.units.filter(alive).map(unit => unit.status.paralyzed).filter(until => until > battle.time);
   if (battle.weather !== 'clear' && battle.weatherUntil > battle.time) expiries.push(battle.weatherUntil);
+  if (battle.trickRoomUntil > battle.time) expiries.push(battle.trickRoomUntil);
   return expiries.length ? Math.min(...expiries) : Number.POSITIVE_INFINITY;
 }
 function refreshTurnOrder(battle: Battle) {
@@ -118,7 +121,7 @@ function refreshTurnOrder(battle: Battle) {
 function rescheduleForSpeedChanges(battle: Battle) {
   for (const unit of battle.units.filter(alive)) {
     const oldSpeed = unit.scheduledSpeed;
-    const newSpeed = effectiveSpeed(unit, battle);
+    const newSpeed = scheduledTimelineSpeed(unit, battle);
     if (oldSpeed > 0 && Math.abs(oldSpeed - newSpeed) > 1e-9 && unit.id !== battle.current && unit.nextAction > battle.time) {
       const remaining = unit.nextAction - battle.time;
       unit.nextAction = battle.time + remaining * oldSpeed / newSpeed;
@@ -143,6 +146,7 @@ function processTimedEventsAtCurrentTime(battle: Battle) {
   expireHazardZones(battle);
   for (const unit of battle.units) expireStages(unit, battle.time);
   if (battle.weather !== 'clear' && battle.weatherUntil <= battle.time) { battle.weather = 'clear'; log(battle, 'The weather cleared.'); }
+  if (battle.trickRoomUntil > 0 && battle.trickRoomUntil <= battle.time) { battle.trickRoomUntil = 0; log(battle, 'Trick Room wore off.'); }
   rescheduleForSpeedChanges(battle);
 }
 
@@ -160,10 +164,10 @@ export function createLabBattle(config: LabConfig): Battle {
   const enemy = makeUnit(makePartyMon(config.enemySpecies, config.enemyLevel, config.enemyItem), 'enemy', 2, 1, map.tiles[1][2]);
   // The lab uses each level's default four-move loadout, including newly learned moves.
   const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: 'defeat', units: [ally, enemy], weather: config.weather,
-    weatherUntil: config.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, time: 0, round: 1, turnOrder: [], turnIndex: 0,
+    weatherUntil: config.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, trickRoomUntil: 0, time: 0, round: 1, turnOrder: [], turnIndex: 0,
     current: '', rngState: config.seed >>> 0 || 1, log: [`Battle Lab · seed ${config.seed >>> 0 || 1}. Control both Pokémon.`],
     visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: 'battle-lab' };
-  for (const unit of battle.units) unit.scheduledSpeed = effectiveSpeed(unit, battle);
+  for (const unit of battle.units) unit.scheduledSpeed = scheduledTimelineSpeed(unit, battle);
   activateNext(battle, true);
   return battle;
 }
@@ -218,7 +222,7 @@ function endCurrentTurn(battle: Battle) {
   rescheduleForSpeedChanges(battle);
   const unit = battle.units.find(candidate => candidate.id === battle.current);
   if (unit && alive(unit)) {
-    unit.scheduledSpeed = effectiveSpeed(unit, battle);
+    unit.scheduledSpeed = scheduledTimelineSpeed(unit, battle);
     unit.nextAction = Math.max(battle.time, battle.time + actionInterval(unit.scheduledSpeed) + unit.nextActionShift);
     unit.nextActionShift = 0;
   }
@@ -323,14 +327,27 @@ export function canHitAtTarget(battle: Battle, unit: Unit, moveId: string, x: nu
     && affectedTiles(battle.map, moveId, x, y).some(([tx, ty]) => tx === target.x && ty === target.y)
     && hasLineOfSight(battle, [unit.x, unit.y], [target.x, target.y]);
 }
+/** Invert the area footprint to skip aim tiles that cannot include this target. */
+export function aimBoundsForTarget(map: BattleMap, moveId: string, target: Pick<Unit, 'x' | 'y'>) {
+  const move = MOVES[moveId];
+  if (!move || move.target === 'self') return;
+  const width = move.target === 'tile' ? move.area?.width ?? 1 : 1;
+  const height = move.target === 'tile' ? move.area?.height ?? 1 : 1;
+  const offsetX = move.target === 'tile' && move.area?.anchor === 'center' ? Math.floor(width / 2) : 0;
+  const offsetY = move.target === 'tile' && move.area?.anchor === 'center' ? Math.floor(height / 2) : 0;
+  return {
+    minX: Math.max(0, target.x + offsetX - width + 1), maxX: Math.min(mapWidth(map) - 1, target.x + offsetX),
+    minY: Math.max(0, target.y + offsetY - height + 1), maxY: Math.min(mapHeight(map) - 1, target.y + offsetY),
+  };
+}
 export function canHitWithMove(battle: Battle, unit: Unit, moveId: string, target: Unit) {
   const move = MOVES[moveId];
   if (!move || !move.power || target.side === unit.side || !alive(target)) return false;
   if (move.target === 'unit') return canHitAtTarget(battle, unit, moveId, target.x, target.y, target);
   if (move.target !== 'tile') return false;
-  const radiusX = move.area?.width ?? 1, radiusY = move.area?.height ?? 1;
-  for (let y = Math.max(0, target.y - radiusY); y <= Math.min(mapHeight(battle.map) - 1, target.y + radiusY); y++)
-    for (let x = Math.max(0, target.x - radiusX); x <= Math.min(mapWidth(battle.map) - 1, target.x + radiusX); x++) {
+  const bounds = aimBoundsForTarget(battle.map, moveId, target)!;
+  for (let y = bounds.minY; y <= bounds.maxY; y++)
+    for (let x = bounds.minX; x <= bounds.maxX; x++) {
     if (canHitAtTarget(battle, unit, moveId, x, y, target)) return true;
   }
   return false;
@@ -459,9 +476,13 @@ export function completeBattle(run: Run): Run {
   const report: string[] = [];
   const node = routeNode(next.route, next.currentNodeId);
   const earnedXp = encounterDefinition(next).xp;
-  next.coins += node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 12;
-  report.push(`Earned ${node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 12} coins.`);
+  const participantIds = new Set(battle.units
+    .filter(unit => unit.side === 'player' && unit.partyId)
+    .map(unit => unit.partyId!));
+  next.coins += node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 10;
+  report.push(`Earned ${node?.kind === 'boss' ? 30 : node?.kind === 'elite' ? 20 : 10} coins.`);
   for (const mon of next.party) {
+    if (!participantIds.has(mon.id)) continue;
     const previousLevel = mon.level;
     mon.xp += earnedXp; report.push(`${SPECIES[mon.species].name} gained ${earnedXp} XP.`);
     while (mon.level < MAX_LEVEL && mon.xp >= xpForLevel(mon.level + 1)) {
@@ -490,6 +511,22 @@ export function evolve(run: Run, id: string) {
   for (const move of SPECIES[mon.species].moves) if (!mon.learned.includes(move)) mon.learned.push(move);
   for (const [level, move] of Object.entries(SPECIES[mon.species].learn)) if (mon.level >= Number(level) && !mon.learned.includes(move)) mon.learned.push(move);
   next.report.push(`Evolved into ${SPECIES[mon.species].name}!`);
+  return next;
+}
+/** Evolution stones are single-use Bag items and only work on their authored source species. */
+export function useEvolutionItem(run: Run, item: ItemId, monId: string): Run {
+  if (run.phase !== 'route' || !run.bag.includes(item)) return run;
+  const evolution = itemEvolutionFor(item);
+  const mon = run.party.find(candidate => candidate.id === monId);
+  if (!evolution || !mon || mon.species !== evolution.from || !SPECIES[evolution.into]) return run;
+  const next = structuredClone(run), recipient = next.party.find(candidate => candidate.id === monId)!;
+  const hpGain = statsAtLevel(evolution.into, recipient.level)[0] - statsAtLevel(recipient.species, recipient.level)[0];
+  recipient.species = evolution.into;
+  if (recipient.hp > 0) recipient.hp += hpGain;
+  for (const move of SPECIES[recipient.species].moves) if (!recipient.learned.includes(move)) recipient.learned.push(move);
+  for (const [level, move] of Object.entries(SPECIES[recipient.species].learn)) if (recipient.level >= Number(level) && !recipient.learned.includes(move)) recipient.learned.push(move);
+  next.bag.splice(next.bag.indexOf(item), 1);
+  next.report.push(`Used ${item}: ${SPECIES[mon.species].name} evolved into ${SPECIES[recipient.species].name}!`);
   return next;
 }
 /** Resolve only the next saved level-up offer. Passing no slot keeps the current four moves. */

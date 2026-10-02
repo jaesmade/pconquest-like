@@ -1,19 +1,27 @@
 # Pokémon Tactics Roguelike — Early Build Plan
 
+For a player-facing description of the game design through the planned artifact system, see the [detailed game description](GAME_DESCRIPTION.md).
+
 ## Goal
 
 Build a playable browser prototype of a Pokémon fan game inspired by the tactical battles of Pokémon Conquest and the replayable routes of a roguelike. The player commands several Pokémon on a tile grid, wins short battles, chooses a route, recruits teammates, and faces a final battle. The early build should establish whether positioning, type matchups, and team composition are fun before adding a large roster.
 
 For the current level, HP, move-power, and encounter tuning, see [the early-run balance baseline](BALANCE.md).
 
+For the staged import of Pokémon, moves, abilities, and items from `pokefiles/`, see the [Pokefile content implementation plan](POKEFILE_CONTENT_IMPLEMENTATION_PLAN.md).
+
+For the planned run-wide artifact catalog, rarity tiers, example effects, and implementation decisions, see the [artifacts plan](ARTIFACTS_PLAN.md).
+
+For the proposed conditional starter unlocks, achievement requirements, and persistence plan, see the [party builder guide](PARTY_BUILDER.md). These unlock rules are not implemented yet.
+
 ## First playable run
 
 1. Build a starting roster from the available starter and recruit species using six party points. Most Pokémon cost two points, so the default budget buys three. A run can own up to 20 Pokémon total; choose up to six to deploy before each battle.
 2. Choose a path through a branching route with ten columns; the boss is always in column ten. See the [route and deployment overhaul](ROUTE_OVERHAUL.md).
 3. Before each battle, choose up to six available Pokémon from the run roster and place them on the isometric map. Normal battles, elite battles, full-party healing, stores, and simple special encounters appear along the route.
-4. After each encounter, give XP to every Pokémon in the run party, offer any eligible evolutions, and teach moves unlocked by their new levels before the next encounter.
+4. After each battle victory, award XP only to Pokémon deployed in that battle, including deployed battlers that faint. Reserves do not gain battle XP. Offer moves unlocked by participant level gains before the next encounter.
 5. Fight the column-ten boss encounter with a distinct map and capture objective.
-6. See a win or loss screen. Save an unlock that changes a future run.
+6. See a win or loss screen. A successful run is intended to save a permanent unlock that changes a future run.
 
 Target run length for the ten-column route needs play-session measurement.
 
@@ -27,8 +35,9 @@ Target run length for the ten-column route needs play-session measurement.
 | Roster               | Six named starting Pokémon and at least two recruitable Pokémon, including a Fire user and a Mega-compatible species                |
 | Types in encounters  | Normal, Fire, Water, Grass, Electric, Ground, Rock, and Ice                                                                         |
 | Moves                | A growing pool of learned moves, with four equipped for battle, one passive ability, and a 1-in-24 critical chance on damaging moves |
-| Growth               | Shared encounter XP for the whole run party, level-based move learning, and at least one evolution available during a run           |
+| Growth               | Encounter XP for deployed participants, level-based move learning, and at least one evolution available during a run                |
 | Held items           | One slot per Pokémon; Leftovers, Sitrus Berry, Assault Vest, X Attack, and one compatible Mega Stone                                |
+| Artifacts            | Planned run-wide collection, separate from held items and the Bag; up to 20 definitions (10 standard and 10 cursed), five rarity tiers, legendary artifacts only from question-mark event nodes; see [artifact plan](ARTIFACTS_PLAN.md) |
 | Battle animation     | Replaceable four-direction pixel sheets for idle, move, attack, hurt, buff, debuff, special, and faint states                         |
 | Terrain              | Elevation, deep water, and lava hazards                                                                                             |
 | Weather              | Sun, rain, snow, and sandstorm                                                                                                      |
@@ -44,8 +53,9 @@ For future implementation, use stable content IDs, authored encounter definition
 ## Battle rules
 
 - Battles use a continuous Action Value (AV) timeline. Every deployed unit starts with `nextAction = 0`; the living unit with the smallest `nextAction` acts next, with equal values broken by the run's seeded random stream. The battle clock advances to that value before the unit acts. Fainted Pokémon leave future orders.
-- Effective Speed is the unit's current Speed after abilities and timed effects. Its next turn is scheduled at `current time + 10,000 / effective Speed`. If Speed changes while a unit waits, the remaining AV is rescaled in proportion to the new interval, preserving the progress it already made. Action-advance effects lower the next-action time of a waiting target or reduce the current actor's next scheduled AV; delay effects raise it.
-- A battle cycle is 2,000 AV, matching one turn interval at Speed 5, near the current roster's typical level-10 Speed. Faster units may act more than once in a cycle, with breakpoints based on how many intervals fit. Weather, burn, lava, and periodic healing resolve at cycle boundaries. Existing effect durations remain authored in the old 100-time-unit scale, where 100 means one cycle, and are converted to AV by the engine.
+- Effective Speed is the unit's current Speed after abilities and timed effects. Its next turn is scheduled at `current time + 650,000 / effective Speed`; Speed 65 therefore acts once per 10,000-AV cycle. If Speed changes while a unit waits, the remaining AV is rescaled in proportion to the new interval, preserving the progress it already made. Action-advance effects lower the next-action time of a waiting target or reduce the current actor's next scheduled AV; delay effects raise it.
+- A battle cycle is 10,000 AV, matching one turn interval at reference Speed 65. The level-independent base Speeds in the current 11-form catalog average 63.27, close to that reference. Faster units may act more than once in a cycle, while slower units may take more than one cycle between turns. Weather, Burn, lava, and periodic healing resolve at cycle boundaries. Existing effect durations remain authored in the old 100-time-unit scale, where 100 means one cycle, and are converted to AV by the engine.
+- Trick Room is a global five-cycle field (50,000 AV). While active, timeline Speed is `4,225 / effective Speed`, keeping Speed 65 unchanged and reversing both action order and action frequency around that reference. Slow Pokémon therefore gain more turns over time; ending or expiring the field proportionally reschedules every waiting unit.
 - At the start of its turn a Pokémon gains exactly 3 Action Points (AP), added to any AP banked from earlier turns in that battle. Speed controls how soon the next turn arrives; Movement controls the maximum number of tiles in a Move command.
 - **Move** costs exactly 1 AP per command, regardless of the route's length, terrain, or elevation, and can be used once per turn. **Attack** can be used once per turn; a chosen move, including a Status move, is that attack and spends its listed AP cost. **Special** remains available while enough AP remains. **Pass** ends the turn and banks all unused AP for that Pokémon's next turn in the same battle. The next turn adds 3 AP to the bank. Banking does not grant extra Move or Attack commands in a turn, and AP resets between encounters. The turn also ends when AP reaches zero or the Pokémon faints.
 - A Move command can cover up to the Pokémon's Movement stat in tiles. Hazards resolve on every entered tile, but path length and terrain do not change its 1 AP cost.
@@ -72,10 +82,10 @@ Current HP, fainted state, level, XP, evolution stage, learned and equipped move
 | Defense         | Defensive stat used to calculate damage received from Physical moves.                                             |
 | Special Attack  | Offensive stat used to calculate Special move damage.                                                             |
 | Special Defense | Defensive stat used to calculate damage received from Special moves.                                              |
-| Speed           | Sets turn interval: `AV = 10,000 / effective Speed`. Lower AV acts sooner; equal-time ties are randomized. |
+| Speed           | Sets turn interval: `AV = 650,000 / effective Speed`. Lower AV acts sooner; equal-time ties are randomized. At reference Speed 65, the interval is one 10,000-AV cycle. |
 | Movement        | Determines the maximum number of tiles the Pokémon can move in one Move command. Each Move command costs 1 AP regardless of route length.                              |
 
-At level `L`, calculate integer combat stats from the species' base values using `HP = floor(2 × base HP × L / 100) + L + 10` and `Attack, Defense, Special Attack, Special Defense, and Speed = floor(2 × base stat × L / 100) + 5`. Movement is a fixed tile-range value taken directly from the species record; it does not scale with level. This build does not apply IVs, EVs, or Natures. For example, level-10 Bulbasaur's base `[60, 49, 49, 65, 65, 4, 3]` becomes `[32, 14, 14, 18, 18, 5, 3]`.
+At level `L`, calculate integer combat stats from the species' base values using `HP = floor(2 × base HP × L / 100) + L + 10`; Attack, Defense, Special Attack, and Special Defense use `floor(2 × base stat × L / 100) + 5`. Speed is copied directly from the species' base Speed and does not change with level; Movement is also copied directly as a fixed tile range. This build does not apply IVs, EVs, or Natures. For example, level-10 Bulbasaur's base [60, 49, 49, 65, 65, 45, 3] becomes [32, 14, 14, 18, 18, 45, 3].
 
 Speed and Movement have distinct roles: Speed sets each unit's next-action time, while Movement sets the tile limit for each Move command. Every Pokémon gains 3 AP at each turn start. Show the current cycle and AV, the upcoming units' remaining AV, and the fixed AP gain.
 
@@ -89,7 +99,7 @@ Each map tile has an elevation level of 0, 1, or 2 and a terrain kind. Show heig
 | High ground  | A ranged attack from a higher tile gains one tile of range. Obstacles and taller intervening terrain still block line of sight.                                                                                                                               |
 | Deep water   | A species or form with swim or fly mobility may enter. Swimmers enter the swimming state while on water and show a ripple. Flyers remain airborne and show a shadow. Others treat deep water as impassable.                                                     |
 | Lava         | A nonflying Pokémon takes 10% of its maximum HP, rounded up, when it enters lava, including when pushed onto it. It takes the same damage at each cycle boundary while there. Flyers pass over lava; Stealth Rock still affects them.                            |
-| Objects      | Trees and rocks occupy plain tiles and block movement for all Pokémon, including flyers. They also block shots through their tile. Bushes, flowers, and grass tufts are passable details. Object placement is authored separately from ground kind and elevation. |
+| Objects      | Broadleaf/pine trees and rocks occupy plain tiles and block movement for all Pokémon, including flyers, and obstruct shots through their tile. Fallen logs and stumps block movement but leave shots clear. Bushes, ferns, mushrooms, flowers, and grass tufts are passable. Object placement is authored separately from ground kind and elevation; dirt and moss surfaces change art only. |
 
 The unit's saved mobility state updates on each tile entry and forced displacement. Mega forms may change flight or swim capability immediately. Terrain damage and timed effects resolve on tile entry or at the next cycle boundary. Display reachable tiles, the fixed 1 AP Move cost, height, and expected hazard damage during movement preview.
 
@@ -151,7 +161,7 @@ Defensive immunities take priority over strengths and resistances:
 
 Use 2× for a super effective interaction, 0.5× for a resisted interaction, 1× for neutral, and 0× for an immunity. For a dual-type defender, multiply the two interactions: two weaknesses give **4×**, one weakness gives **2×**, one weakness plus one resistance gives **1×**, two resistances give **0.25×**, and either type's immunity gives **0×**. Do not cap the 4× result. The attack preview should show the combined type multiplier before the player confirms a move.
 
-A Pokémon using a damaging move that matches either of its own types gains a separate 1.2× same-type bonus. Store the chart as data rather than hard-coding matchups into moves so it can be reviewed and adjusted in one place.
+A Pokémon using a damaging move that matches either of its own types gains a separate 1.5× same-type bonus. Store the chart as data rather than hard-coding matchups into moves so it can be reviewed and adjusted in one place.
 
 Launch types should also have a tactical character: Fire creates damage and Burn, Water pushes and controls hazards, Grass heals and roots, Electric reaches or chains to nearby targets, Ground disrupts areas, Rock provides cover and durability, Ice slows enemies and uses snow, and Normal offers flexible utility. These are design tendencies, not restrictions on every move.
 
@@ -178,13 +188,25 @@ The former cooldown tiers are AP costs in the early build: standard moves cost 1
 
 Each hit from a damaging Physical or Special move has a **1-in-24 critical chance** (about 4.17%). On a critical hit, multiply the final nonzero move damage by **1.5**, after stats, type effectiveness, same-type bonus, and weather are applied. Roll separately for each target of an area move. Type immunity still results in 0 damage. Status moves and damage from weather, terrain, or ongoing conditions cannot critically hit in the early build. Mark critical hits in the battle animation and action log.
 
-Target shapes for the early build are single unit, small area, and self. The current effect vocabulary includes damage, Burn, paralysis, push and pull, stat stages, chain damage, weather, temporary terrain effects, action advance, and action delay. Action effects alter a unit's next scheduled AV directly; Speed changes rescale its remaining wait. Paralysis halves effective Speed while it lasts and can change the order; AP gain remains fixed at 3. Timed effects use the AV clock, and damage over time resolves at cycle boundaries.
+Target shapes for the early build are single unit, small area, and self. The current effect vocabulary includes damage, Burn, paralysis, push and pull, stat stages, chain damage, weather, Trick Room, temporary terrain effects, action advance, and action delay. Action effects alter a unit's next scheduled AV directly; Speed changes rescale its remaining wait. Paralysis halves effective Speed while it lasts and can change the order; AP gain remains fixed at 3. Timed effects use the AV clock, and damage over time resolves at cycle boundaries.
 
 Thunder Shock's chain selects one adjacent enemy of the first target after a successful, non-fainting hit and a 30% effect roll. The chained target receives a separate damage-only hit with its own evasion check, absorption and type immunity check, critical roll, damage variance, defensive stats, held-item modifiers, and weather modifiers. Its calculated damage is halved and rounded up. A chained hit does not apply the move's other on-hit effects, contact reactions, or another chain. An immune or missed chain still uses that one chain opportunity.
 
-Tail Whip, Harden, and Howl each change the relevant stat by one stage. The standard Pokémon stage ratios apply, capped between −3 and +3. A stat's current net stage lasts two cycles from its latest change, then returns to zero at the next cycle boundary after expiry. Reapplying a change, including at the cap, refreshes that stat's full timer; an opposing change can reduce or cancel the net stage. Show the stage and cycles remaining on its buff or debuff icon, and show the affected allies and enemies before confirming an area Status move.
+Tail Whip, Harden, and Howl each change the relevant stat by one stage. Stat stages are capped between −6 and +6 and multiply the affected stat as follows (negative values are rounded to two decimals):
 
-Each Pokémon should begin with a reliable low-cost move and a stronger or more tactical move. It can learn more moves as it levels, but equips only two for a battle in the early build. An off-type move gives useful coverage, while the same-type bonus rewards the Pokémon's main identity.
+| Stage | Multiplier | Stage | Multiplier |
+| ---: | ---: | ---: | ---: |
+| +6 | 4× | −1 | 0.67× |
+| +5 | 3.5× | −2 | 0.5× |
+| +4 | 3× | −3 | 0.4× |
+| +3 | 2.5× | −4 | 0.33× |
+| +2 | 2× | −5 | 0.29× |
+| +1 | 1.5× | −6 | 0.25× |
+| 0 | 1× |  |  |
+
+A stage change lasts five cycles on the AV clock, equal to five turns at reference Speed 65. Reapplying a change adds its delta to the current net stage and refreshes that stat's full five-cycle timer, including at the cap; an opposing change can reduce or cancel the net stage. For example, Harden gives Defense +1 for five turns; using it again on the fourth turn raises Defense to +2 and restarts the five-turn duration. A stat returns to zero at the first cycle boundary after expiry. Show the stage and cycles remaining on its buff or debuff icon, and show the affected allies and enemies before confirming an area Status move.
+
+Each Pokémon should begin with a reliable low-cost move and a stronger or more tactical move. It can learn more moves as it levels and equips four for a battle. An off-type move gives useful coverage, while the same-type bonus rewards the Pokémon's main identity.
 
 The initial move list is grouped by AP cost and intended power. Exact damage power and secondary-effect chances remain balance values in the move data.
 
@@ -242,17 +264,21 @@ A Mega Stone can be equipped only by its compatible Pokémon. Each Mega form is 
 
 ## Roguelike progression
 
-The AV timeline gives turns according to Speed rather than waiting for every deployed Pokémon to take one turn. After every encounter, award the same encounter XP to every Pokémon currently in the run party, including reserves and fainted Pokémon. Each Pokémon tracks its own level and accumulated XP. Level gains update its stats, and a newly recruited Pokémon starts near the current party level so it is useful in the next battle.
+The AV timeline gives turns according to Speed rather than waiting for every deployed Pokémon to take one turn. After a battle victory, award the encounter XP to each Pokémon deployed in that battle, including deployed Pokémon that faint. Reserves do not gain XP from that battle. Each Pokémon tracks its own level and accumulated XP. Level gains update its stats, and a newly recruited Pokémon starts near the current party level so it is useful in the next battle.
 
 Resolve XP and level gains after the battle, then show the growth report. At the following route choice, an eligible Pokémon can evolve from the party panel or defer until another route choice. Evolution changes its species form, stats, and any defined type or ability; it remains evolved for the rest of that run. The current route control names the next form; a before-and-after stat preview is still planned. Evolution keeps its held item and preserves its battle damage: an unfainted Pokémon gains only the increase in maximum HP, while a fainted Pokémon stays at 0 HP. Mega Evolution remains a separate temporary battle form. Include at least one ordinary evolution line with a threshold reachable during the early run.
 
-After XP gains, check every party Pokémon's current form and level against its level-based learnset, including deployed Pokémon, reserves, and fainted Pokémon. Newly eligible moves create saved choices on the XP screen: replace one of the four active moves or keep the current set. Resolve every choice before leaving that screen. The Party panel displays active moves but cannot rearrange or replace them. A skipped move remains in the learned history to prevent the same level offer repeating after every battle; a later TM may teach it if that species is compatible. Recruits arrive knowing all moves available to their form at their starting level and equip four by default, favoring their first two signature moves and recent level unlocks. Ordinary evolution preserves the exact active move slots and learned history; the new form's base and eligible level moves join the history without replacing slots. For the early build, arrange XP thresholds and learnsets so at least one party member receives a move choice after each regular encounter.
+After XP gains, check deployed participants that gained a level against their current form's level-based learnset. Newly eligible moves create saved choices on the XP screen: replace one of the four active moves or keep the current set. Resolve every choice before leaving that screen. The Party panel displays active moves but cannot rearrange or replace them. A skipped move remains in the learned history to prevent the same level offer repeating after every battle; a later TM may teach it if that species is compatible. Recruits arrive knowing all moves available to their form at their starting level and equip four by default, favoring their first two signature moves and recent level unlocks. Ordinary evolution preserves the exact active move slots and learned history; the new form's base and eligible level moves join the history without replacing slots. For the early build, arrange XP thresholds and learnsets so at least one deployed participant receives a move choice after a regular encounter.
 
 Technical Machines are a separate **acquisition category**, independent of Physical, Special, and Status battle move categories. A species lists compatible TM move IDs in `tmMoves`; the item identifies the move it teaches. From the route Bag, select a compatible Pokémon and the active move to replace. TMs are single-use and cannot be held. The initial TM-only move is Swift; TM Swift starts in the bag and is also sold in stores, alongside TM Thunderbolt. A TM does not change active moves until the player confirms its recipient and slot.
 
-Generate a ten-column route from seeded node templates so each run offers different choices while every branch reaches the column-ten boss. Normal battles award shared XP and coins; elites have stronger teams and larger rewards. Healing nodes fully restore and revive the whole owned party. Stores sell held items for coins. The initial special encounter offers one of two free recruits while under the 20-owned cap or a coin cache. The boss rewards completion and a permanent unlock. See [route behavior and prices](ROUTE_OVERHAUL.md).
+## Run artifacts
 
-Permanent unlocks should add variety, such as a new starter, recruit, map, or item. The first release needs only a few unlocks and one region. Store the current run and unlocks locally so a browser refresh does not erase progress.
+Artifacts are planned as powerful, global run modifiers collected in a dedicated artifact collection, separate from Pokémon-held items and the Bag. The catalog is capped at 20 unique definitions: 10 standard and 10 cursed. Every artifact has a common, uncommon, rare, epic, or legendary rarity; legendary artifacts are only obtainable from question-mark event nodes. Acquired artifacts are intended to remain active for that run and may affect progression, the roster, battle rules, or resources. The sample concepts and open effect decisions are documented in the [artifacts plan](ARTIFACTS_PLAN.md). Exp Share could extend XP to reserves and apply its proposed bonus to that shared XP.
+
+Generate a ten-column route from seeded node templates so each run offers different choices while every branch reaches the column-ten boss. Normal battles award XP to deployed participants and coins; elites have stronger teams and larger rewards. Healing nodes fully restore and revive the whole owned party. Stores sell held items for coins. The initial special encounter offers one of two free recruits while under the 20-owned cap or a coin cache. The boss rewards completion and a permanent unlock. See [route behavior and prices](ROUTE_OVERHAUL.md).
+
+Permanent unlocks should add variety, such as a new starter, recruit, map, or item. The proposed conditional starter requirements, catalog behavior, and migration plan are in the [party builder guide](PARTY_BUILDER.md); runtime currently records a numeric victory count without changing available content. The first release needs only a few unlocks and one region. Store the current run and unlocks locally so a browser refresh does not erase progress.
 
 ## Screens and interaction
 
@@ -260,10 +286,10 @@ Permanent unlocks should add variety, such as a new starter, recruit, map, or it
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Start                    | New run, continue run, settings                                                                                                                                             |
 | Starter choice           | Searchable, six-point party draft, selected roster, point costs, and hovered/focused species stats                                                                           |
-| Route map                | Ten connected columns, visible node types, current path, coins, the column-ten boss, read-only active moves, held items, and eligible evolution                    |
+| Route map                | Ten connected columns, visible node types, current path, coins, the column-ten boss, read-only active moves, held items, active run artifacts, and eligible evolution |
 | Battle preparation       | Full party, HP and status, six deployment slots on the rendered isometric map, terrain, and weather                                                                            |
-| Battle                   | Grid, terrain height and hazards, weather, upcoming AV queue, current cycle and AV, objective, selected Pokémon, Attack / Move / Special commands, range preview, effectiveness, and action log |
-| XP and moves             | XP gained by every party member, level increases, saved choices for each eligible level-up move, and an evolution prompt at the next route choice                                  |
+| Battle                   | Grid, terrain height and hazards, weather effects and remaining cycles, next Sandstorm tick, Trick Room cycles, level and status-stage details, upcoming AV queue, current cycle and AV, objective, selected Pokémon and action readiness, Attack / Move / Special commands, range preview, effectiveness, and action log |
+| XP and moves             | XP gained by deployed battle participants, level increases, saved choices for each eligible level-up move, and an evolution prompt at the next route choice                                  |
 | Reward / recruit         | Clear comparison of available choices                                                                                                                                       |
 | Result                   | Run outcome and newly unlocked content                                                                                                                                      |
 
@@ -277,7 +303,7 @@ On the grid, face a Pokémon toward its next movement tile or attack target. Pla
 - **Phaser** for the tile board, sprites, selection, and battle animation.
 - **React** for menus, route choices, move panels, and other interface elements.
 - **Pure TypeScript combat rules** that receive an action and return the next game state. Rendering should read that state rather than own the rules.
-- **JSON or TypeScript data files** for Pokémon, ordinary evolution and Mega forms, abilities, moves and level-based learnsets, held items, XP thresholds, type matchups, encounters, and maps.
+- **JSON or TypeScript data files** for Pokémon, ordinary evolution and Mega forms, abilities, moves and level-based learnsets, held items, run artifacts, XP thresholds, type matchups, encounters, and maps.
 - **Browser storage** for run progress, settings, and unlocks. A server is unnecessary for this first build.
 
 Suggested source layout:
@@ -310,11 +336,11 @@ The core rules and named content are covered above. These data choices remain be
 - [ ] **2. Complete battle:** add three units per side, the continuous Speed scheduler with random equal-Speed tie breakers, enemy decisions, HP, fainting, and win/loss handling.
 - [ ] **3. Initial roster, moves, and items:** add the six named starters and abilities, listed move set and AP costs, type table, hit and critical rolls, status effects, held items, Mega Evolution, and clear action previews.
 - [ ] **4. Weather:** add sun, rain, snow, and sandstorm with battle-time duration and damage ticks.
-- [ ] **5. One complete run:** add the 20-Pokémon owned-run roster, six-point starting draft, six-Pokémon battle selection, shared XP, level gains, between-encounter evolution and move learning, move loadouts, ten-column route choices, rewards, recruitment, healing, stores, boss objective, and result screens.
+- [ ] **5. One complete run:** add the 20-Pokémon owned-run roster, six-point starting draft, six-Pokémon battle selection, participant-only XP, level gains, between-encounter evolution and move learning, move loadouts, ten-column route choices, rewards, recruitment, healing, stores, a separate run-wide artifact collection and effects, boss objective, and result screens.
 - [ ] **6. Presentation and persistence:** load the named placeholder animation sheets and manifest, animate directional grid actions and effects, add terrain and UI placeholders, sound, readable UI, browser saving, and a small set of unlocks.
 
 ## Early build completion criteria
 
-The build is ready for broader content work when a player can draft a starting roster within six points, grow to a maximum of 20 owned Pokémon, choose up to six for each battle, and finish a ten-column run in the browser. Award XP to the entire roster, evolve an eligible Pokémon without losing its moves, choose replacements for level-up moves, teach compatible TM moves from the Bag, equip and use held items including one Mega Stone, command the deployed Pokémon through Attack / Move / Special without confusing turn rules, read terrain and weather effects before choosing an action, understand why a move will help or hurt, make meaningful route choices, and return after a refresh with the roster and unlocks intact.
+The build is ready for broader content work when a player can draft a starting roster within six points, grow to a maximum of 20 owned Pokémon, choose up to six for each battle, and finish a ten-column run in the browser. Award XP only to battle participants, evolve an eligible Pokémon without losing its moves, choose replacements for level-up moves, teach compatible TM moves from the Bag, equip and use held items including one Mega Stone, collect and review separate run-wide artifacts, command the deployed Pokémon through Attack / Move / Special without confusing turn rules, read terrain and weather effects before choosing an action, understand why a move will help or hurt, make meaningful route choices, and return after a refresh with the roster, artifacts, and unlocks intact.
 
 After that milestone, expand the roster and maps, introduce the remaining types, and tune encounter difficulty from actual play sessions.

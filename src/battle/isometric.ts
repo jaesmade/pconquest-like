@@ -20,6 +20,11 @@ export function isoTileCenter(map: BattleMap, x: number, y: number) {
   };
 }
 
+/** Sort by the grid footprint; lifting the drawing point must not move an actor in front of a cliff. */
+export function isoTileDepth(map: BattleMap, x: number, y: number) {
+  return isoTileCenter(map, x, y).y + map.tiles[y][x].height * ISO_ELEVATION;
+}
+
 /** Match the last painted top diamond, then use the closest tile for cliff-face clicks. */
 export function isoGridAtWorld(map: BattleMap, worldX: number, worldY: number): GridPoint | undefined {
   let top: { point: GridPoint; order: number } | undefined;

@@ -1,6 +1,6 @@
 import type { Move, MoveTag } from '../game/types';
 
-export const MOVE_TAGS: MoveTag[] = ['contact', 'punch', 'bomb', 'projectile', 'pulse', 'sound', 'weather', 'hazard'];
+export const MOVE_TAGS: MoveTag[] = ['contact', 'punch', 'bomb', 'projectile', 'pulse', 'sound', 'weather', 'hazard', 'field'];
 export const MAX_EQUIPPED_MOVES = 4;
 export const hasMoveTag = (move: Move, tag: MoveTag) => move.tags.includes(tag);
 
@@ -19,11 +19,12 @@ export const MOVES: Record<string, Move> = {
   rockSmash: { name: 'Rock Smash', type: 'Fighting', category: 'Physical', delivery: 'melee', power: 45, range: 1, apCost: 1, target: 'unit', tags: ['contact'], detail: 'An adjacent Fighting-type hit.' },
   mudSlap: { name: 'Mud Slap', type: 'Ground', category: 'Special', delivery: 'ranged', power: 42, range: 3, apCost: 1, target: 'unit', tags: ['projectile'], detail: 'Leaves slowing ground.', effects: [{ kind: 'tile', on: 'hit', field: 'mudUntil', duration: 150 }] },
   iceShard: { name: 'Ice Shard', type: 'Ice', category: 'Physical', delivery: 'ranged', power: 48, range: 6, apCost: 1, target: 'unit', tags: ['projectile'], detail: 'Long range.' },
-  tailWhip: { name: 'Tail Whip', type: 'Normal', category: 'Status', power: 0, range: 0, apCost: 1, target: 'self', tags: [], area: { width: 3, height: 3, anchor: 'center' }, detail: 'Defense −1 for every Pokémon within a 3×3 area for 2 rounds.', effects: [{ kind: 'stage', on: 'cast', stat: 'defense', delta: -1, duration: 200, recipients: 'all' }] },
-  harden: { name: 'Harden', type: 'Normal', category: 'Status', power: 0, range: 0, apCost: 1, target: 'self', tags: [], detail: 'Defense +1 for 2 rounds.', effects: [{ kind: 'stage', on: 'cast', stat: 'defense', delta: 1, duration: 200, recipients: 'self' }] },
-  howl: { name: 'Howl', type: 'Normal', category: 'Status', power: 0, range: 0, apCost: 1, target: 'self', tags: ['sound'], area: { width: 3, height: 3, anchor: 'center' }, detail: 'Allied Attack +1 within a 3×3 area for 2 rounds.', effects: [{ kind: 'stage', on: 'cast', stat: 'attack', delta: 1, duration: 200, recipients: 'allies' }] },
+  tailWhip: { name: 'Tail Whip', type: 'Normal', category: 'Status', power: 0, range: 0, apCost: 1, target: 'self', tags: [], area: { width: 3, height: 3, anchor: 'center' }, detail: 'Defense −1 for every Pokémon within a 3×3 area for 5 turns.', effects: [{ kind: 'stage', on: 'cast', stat: 'defense', delta: -1, duration: 500, recipients: 'all' }] },
+  harden: { name: 'Harden', type: 'Normal', category: 'Status', power: 0, range: 0, apCost: 1, target: 'self', tags: [], detail: 'Defense +1 for 5 turns. Reusing Harden adds another stage and refreshes the duration.', effects: [{ kind: 'stage', on: 'cast', stat: 'defense', delta: 1, duration: 500, recipients: 'self' }] },
+  howl: { name: 'Howl', type: 'Normal', category: 'Status', power: 0, range: 0, apCost: 1, target: 'self', tags: ['sound'], area: { width: 3, height: 3, anchor: 'center' }, detail: 'Allied Attack +1 within a 3×3 area for 5 turns.', effects: [{ kind: 'stage', on: 'cast', stat: 'attack', delta: 1, duration: 500, recipients: 'allies' }] },
   stealthRock: { name: 'Stealth Rock', type: 'Rock', category: 'Status', power: 0, range: 3, apCost: 2, target: 'tile', tags: ['hazard'], area: { width: 3, height: 3, anchor: 'center' }, detail: '3×3 hazard; entry costs ⅛ max HP.', effects: [{ kind: 'tile', on: 'cast', field: 'hazardUntil', duration: 200 }] },
   thunderbolt: { name: 'Thunderbolt', type: 'Electric', category: 'Special', delivery: 'ranged', power: 75, range: 4, apCost: 4, target: 'tile', tags: [], area: { width: 2, height: 2, anchor: 'corner' }, detail: '2×2 blast; 25% Paralysis.', effects: [{ kind: 'status', on: 'hit', status: 'paralyzed', chance: 0.25, duration: 200 }] },
   sandstorm: { name: 'Sandstorm', type: 'Rock', category: 'Status', power: 0, range: 0, apCost: 4, target: 'self', tags: ['weather'], detail: 'Sets sandstorm for 300 battle time.', effects: [{ kind: 'weather', on: 'cast', weather: 'sandstorm', duration: 300 }] },
   sunnyDay: { name: 'Sunny Day', type: 'Fire', category: 'Status', power: 0, range: 0, apCost: 4, target: 'self', tags: ['weather'], detail: 'Sets sun for 300 battle time.', effects: [{ kind: 'weather', on: 'cast', weather: 'sun', duration: 300 }] },
+  trickRoom: { name: 'Trick Room', type: 'Psychic', category: 'Status', power: 0, range: 0, apCost: 4, target: 'self', tags: ['field'], detail: 'Reverses turn frequency for 5 cycles; lower effective Speed acts sooner.', effects: [{ kind: 'trick-room', on: 'cast', duration: 500 }] },
 };

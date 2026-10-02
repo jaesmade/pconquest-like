@@ -1,22 +1,46 @@
 {
   "schemaVersion": 1,
   "projection": "square-grid-isometric",
-  "tileTopPixels": [96, 48],
+  "tileTopPixels": [
+    96,
+    48
+  ],
   "heightStepPixels": 20,
   "source": "Original deterministic SVGs from scripts/generate_isometric_assets.mjs",
   "license": "Project original; replaceable",
   "tiles": {
-    "plain": ["/assets/environment/isometric/iso-plain-h0-96px.svg", "/assets/environment/isometric/iso-plain-h1-96px.svg", "/assets/environment/isometric/iso-plain-h2-96px.svg"],
-    "water": ["/assets/environment/isometric/iso-water-h0-96px.svg", "/assets/environment/isometric/iso-water-h1-96px.svg", "/assets/environment/isometric/iso-water-h2-96px.svg"],
-    "lava": ["/assets/environment/isometric/iso-lava-h0-96px.svg", "/assets/environment/isometric/iso-lava-h1-96px.svg", "/assets/environment/isometric/iso-lava-h2-96px.svg"],
-    "wall": ["/assets/environment/isometric/iso-wall-h0-96px.svg", "/assets/environment/isometric/iso-wall-h1-96px.svg", "/assets/environment/isometric/iso-wall-h2-96px.svg"]
+    "plain": [
+      "/assets/environment/isometric/iso-plain-h0-96px.svg",
+      "/assets/environment/isometric/iso-plain-h1-96px.svg",
+      "/assets/environment/isometric/iso-plain-h2-96px.svg"
+    ],
+    "water": [
+      "/assets/environment/isometric/iso-water-h0-96px.svg",
+      "/assets/environment/isometric/iso-water-h1-96px.svg",
+      "/assets/environment/isometric/iso-water-h2-96px.svg"
+    ],
+    "lava": [
+      "/assets/environment/isometric/iso-lava-h0-96px.svg",
+      "/assets/environment/isometric/iso-lava-h1-96px.svg",
+      "/assets/environment/isometric/iso-lava-h2-96px.svg"
+    ],
+    "wall": [
+      "/assets/environment/isometric/iso-wall-h0-96px.svg",
+      "/assets/environment/isometric/iso-wall-h1-96px.svg",
+      "/assets/environment/isometric/iso-wall-h2-96px.svg"
+    ]
   },
   "decorations": {
     "tree": "/assets/environment/isometric/iso-tree-96px.svg",
     "rock": "/assets/environment/isometric/iso-rock-48px.svg",
     "flower": "/assets/environment/isometric/iso-flower-32px.svg",
     "bush": "/assets/environment/isometric/iso-bush-48px.svg",
-    "grass-tuft": "/assets/environment/isometric/iso-grass-tuft-24px.svg"
+    "fallen-log": "/assets/environment/isometric/iso-fallen-log-80px.svg",
+    "grass-tuft": "/assets/environment/isometric/iso-grass-tuft-24px.svg",
+    "tree-stump": "/assets/environment/isometric/iso-tree-stump-56px.svg",
+    "fern": "/assets/environment/isometric/iso-fern-40px.svg",
+    "mushrooms": "/assets/environment/isometric/iso-mushrooms-32px.svg",
+    "pine-tree": "/assets/environment/isometric/iso-pine-tree-80px.svg"
   },
   "slopes": {
     "north": "/assets/environment/isometric/iso-slope-north-96px.svg",
@@ -24,5 +48,32 @@
     "east": "/assets/environment/isometric/iso-slope-east-96px.svg",
     "west": "/assets/environment/isometric/iso-slope-west-96px.svg"
   },
-  "backdrop": "/assets/backgrounds/title-island-reference-inspired.png"
+  "backdrop": "/assets/backgrounds/title-island-reference-inspired.png",
+  "forestTiles": {
+    "grass": [
+      "/assets/environment/isometric/iso-plain-h0-96px.svg",
+      "/assets/environment/isometric/iso-plain-h1-96px.svg",
+      "/assets/environment/isometric/iso-plain-h2-96px.svg"
+    ],
+    "speckled": [
+      "/assets/environment/isometric/iso-grass-speckled-h0-96px.svg",
+      "/assets/environment/isometric/iso-grass-speckled-h1-96px.svg",
+      "/assets/environment/isometric/iso-grass-speckled-h2-96px.svg"
+    ],
+    "moss": [
+      "/assets/environment/isometric/iso-grass-moss-h0-96px.svg",
+      "/assets/environment/isometric/iso-grass-moss-h1-96px.svg",
+      "/assets/environment/isometric/iso-grass-moss-h2-96px.svg"
+    ],
+    "path": [
+      "/assets/environment/isometric/iso-woodland-path-h0-96px.svg",
+      "/assets/environment/isometric/iso-woodland-path-h1-96px.svg",
+      "/assets/environment/isometric/iso-woodland-path-h2-96px.svg"
+    ]
+  },
+  "forestCliffs": [
+    "/assets/environment/isometric/iso-forest-cliff-h0-96px.svg",
+    "/assets/environment/isometric/iso-forest-cliff-h1-96px.svg",
+    "/assets/environment/isometric/iso-forest-cliff-h2-96px.svg"
+  ]
 }

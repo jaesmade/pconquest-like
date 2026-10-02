@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { unitSet } from '../battle/unitAnimations';
-import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoTileCenter, isoWorldSize } from '../battle/isometric';
+import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoTileCenter, isoTileDepth, isoWorldSize } from '../battle/isometric';
+import { forestCliffArt, forestCliffFaces, terrainArt, TILE_TOP_POLYGON } from '../battle/terrainArt';
 import { canDeploy } from '../game/deployment';
 import { mobilityFor } from '../game/mobility';
 import { TERRAIN_OBJECTS } from '../content/terrainObjects';
@@ -14,13 +15,17 @@ const UNIT_SCALE = 1.95;
 const ALLY_FACING_NORTH = 3;
 
 export default function DeploymentBoard({ map, selected, focused, placements, onPlace }: Props) {
+  const artId = useId();
   const world = useMemo(() => isoWorldSize(map), [map]);
   const cells = useMemo(() => map.tiles.flatMap((row, y) => row.map((tile, x) => ({ tile, x, y, center: isoTileCenter(map, x, y) }))), [map]);
   const depth = useMemo(() => [...cells].sort((a, b) => a.center.y - b.center.y || a.x + a.y - b.x - b.y), [cells]);
-  const terrain = useMemo(() => depth.map(({ tile, x, y, center }) => <g key={`ground-${x}-${y}`}>
-    <image href={asset(`${tile.kind}-h${tile.height}-96px`)} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height="72" />
-    {tile.slope && <image href={asset(`slope-${tile.slope}-96px`)} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height="72" />}
-  </g>), [depth]);
+  const terrain = useMemo(() => [...cells].sort((a, b) => a.x + a.y - b.x - b.y).map(({ tile, x, y, center }) => {
+    const art = terrainArt(tile, x, y);
+    return <g key={`ground-${x}-${y}`}>
+      <image href={art.url} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height={art.height} />
+      {tile.slope && <image href={asset(`slope-${tile.slope}-96px`)} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height="48" />}
+    </g>;
+  }), [cells]);
   const occupants = useMemo(() => {
     const byCell = new Map<string, { mon: PartyMon; index: number }>();
     selected.forEach((mon, index) => {
@@ -33,14 +38,30 @@ export default function DeploymentBoard({ map, selected, focused, placements, on
     if (!focused) return new Set<string>();
     return new Set(cells.filter(({ x, y }) => canDeploy(map, focused.species, [x, y], 'ally')).map(({ x, y }) => cellKey(x, y)));
   }, [cells, focused?.species, map]);
-  const actorCells = depth.filter(({ tile, x, y }) => !!tile.object || occupants.has(cellKey(x, y)));
+  const actorLayers = depth.flatMap(cell => [
+    ...(cell.tile.kind === 'plain' && cell.tile.height > 0 ? [
+      { ...cell, layer: 'terrace' as const, depth: isoTileDepth(map, cell.x, cell.y) },
+      ...(forestCliffFaces(map, cell.x, cell.y).polygons.length ? [{ ...cell, layer: 'cliff' as const, depth: isoTileDepth(map, cell.x, cell.y) + ISO_HALF_HEIGHT }] : []),
+    ] : []),
+    ...(cell.tile.object || occupants.has(cellKey(cell.x, cell.y)) ? [{ ...cell, layer: 'actor' as const, depth: isoTileDepth(map, cell.x, cell.y) + 5 }] : []),
+  ]).sort((a, b) => a.depth - b.depth || a.x + a.y - b.x - b.y);
 
   return <div className="deploy-map-wrap">
     <span className="deploy-zone-tag deploy-zone-tag-enemy" aria-hidden="true">ENEMY ENTRY ↑</span>
     <span className="deploy-zone-tag deploy-zone-tag-ally" aria-hidden="true">YOUR ZONE ↓</span>
     <svg className="deploy-map" viewBox={`76 68 ${world.width - 152} ${world.height - 140}`} aria-label={`${map.name} isometric deployment map`}>
       <g className="deploy-terrain">{terrain}</g>
-      <g className="deploy-actors">{actorCells.map(({ tile, x, y, center }) => {
+      <g className="deploy-actors">{actorLayers.map(({ tile, x, y, center, layer }) => {
+        if (layer !== 'actor') {
+          const art = layer === 'cliff' ? forestCliffArt(tile) : terrainArt(tile, x, y);
+          const polygons = layer === 'cliff' ? forestCliffFaces(map, x, y).polygons : [TILE_TOP_POLYGON];
+          const clipId = `${artId}-${layer}-${x}-${y}`;
+          return <g key={`${layer}-${x}-${y}`}>
+            <defs><clipPath id={clipId}>{polygons.map((points, index) => <polygon key={index} points={points.map(point => `${point.x + center.x - ISO_HALF_WIDTH},${point.y + center.y - ISO_HALF_HEIGHT}`).join(' ')} />)}</clipPath></defs>
+            <image href={art.url} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height={art.height} clipPath={`url(#${clipId})`} />
+            {layer === 'terrace' && tile.slope && <image href={asset(`slope-${tile.slope}-96px`)} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height="48" />}
+          </g>;
+        }
         const occupant = occupants.get(cellKey(x, y));
         const object = tile.object && TERRAIN_OBJECTS[tile.object];
         const set = occupant && unitSet(occupant.mon.species);
@@ -51,6 +72,7 @@ export default function DeploymentBoard({ map, selected, focused, placements, on
         const state = occupant && mobilityFor(SPECIES[occupant.mon.species], tile).state;
         const lift = state === 'flying' ? -10 : state === 'swimming' ? 4 : 0;
         return <g key={`actor-${x}-${y}`}>
+          {object && <image href={asset(`${object.asset}-${object.width}px`)} x={center.x - object.width / 2} y={center.y + 5 - object.height} width={object.width} height={object.height} />}
           {occupant && idle && <g className={`deploy-unit${occupant.mon.id === focused?.id ? ' focused' : ''}`}>
             <ellipse cx={center.x} cy={center.y + 5} rx="21" ry="7" fill="#092432" opacity={state === 'flying' ? '.4' : '.52'} />
             {state === 'swimming' && <ellipse cx={center.x} cy={center.y + 5} rx="25" ry="9" fill="none" stroke="#c5f0ff" strokeWidth="3" opacity=".8" />}
@@ -61,7 +83,6 @@ export default function DeploymentBoard({ map, selected, focused, placements, on
             <circle cx={center.x + 31} cy={center.y - 34 + lift} r="10" fill="#ffd13c" stroke="#132c36" strokeWidth="2" />
             <text x={center.x + 31} y={center.y - 30 + lift} textAnchor="middle" fontSize="11" fontWeight="900" fill="#132c36">{occupant.index + 1}</text>
           </g>}
-          {object && <image href={asset(`${object.asset}-${object.width}px`)} x={center.x - object.width / 2} y={center.y + 5 - object.height} width={object.width} height={object.height} />}
         </g>;
       })}</g>
       <g className="deploy-hit-area">{cells.map(({ x, y, center }) => {

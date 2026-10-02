@@ -4,7 +4,8 @@ import { placeHazardZone } from './hazards';
 import { syncMobility } from './mobility';
 import { random } from './rng';
 import { changeStage, MAX_STAGE } from './stages';
-import { changeNextAction, formatCycleDuration, toActionValueDuration } from './actionValue';
+import { changeNextAction, formatCycleDuration, timelineSpeed, toActionValueDuration } from './actionValue';
+import { abilitySpeedMultiplier } from '../content/abilities';
 import type { AttackVisualEvent, Battle, GridPoint, Move, MoveEffect, Unit } from './types';
 
 type Kind = MoveEffect['kind'];
@@ -35,6 +36,8 @@ const actionTargets = (effect: OfKind<'action'>, context: EffectView) => effect.
     && (effect.recipients === 'self' ? unit.id === context.source.id
       : effect.recipients === 'allies' ? unit.side === context.source.side
         : effect.recipients === 'enemies' ? unit.side !== context.source.side : true));
+const planningSpeed = (unit: Unit, battle: Battle) => Math.max(0.5,
+  unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
 
 /** The authored effect array is the order within each phase. This table owns all effect-family rules. */
 const handlers: { [K in Kind]: Handler<OfKind<K>> } = {
@@ -105,6 +108,34 @@ const handlers: { [K in Kind]: Handler<OfKind<K>> } = {
     resolve: (effect, { battle }) => { battle.weather = effect.weather; battle.weatherUntil = battle.time + toActionValueDuration(effect.duration); },
     preview: effect => `Sets ${effect.weather} for ${formatCycleDuration(effect.duration)}`,
     score: (effect, { battle }) => battle.weather === effect.weather ? 0 : 1,
+  },
+  'trick-room': {
+    validate: effect => durationError(effect.duration),
+    resolve: (effect, { battle, source, log }) => {
+      if (battle.trickRoomUntil > battle.time) {
+        battle.trickRoomUntil = 0;
+        log('Trick Room ended.');
+      } else {
+        battle.trickRoomUntil = battle.time + toActionValueDuration(effect.duration);
+        log(`${source.name} twisted the action timeline with Trick Room.`);
+      }
+    },
+    preview: effect => `Reverses turn frequency for ${formatCycleDuration(effect.duration)}; slower Speed acts sooner`,
+    score: (_effect, { battle, source }) => {
+      if (battle.trickRoomUntil > battle.time) return 0;
+      const rates = battle.units.filter(unit => unit.hp > 0);
+      if (!rates.length) return 0;
+      let benefit = 0, roomRate = 0;
+      for (const unit of rates) {
+        const speed = planningSpeed(unit, battle);
+        const normalRate = timelineSpeed(speed, false);
+        const roomTimelineSpeed = timelineSpeed(speed, true);
+        const sideSign = unit.side === source.side ? 1 : -1;
+        benefit += sideSign * (roomTimelineSpeed - normalRate);
+        roomRate += roomTimelineSpeed;
+      }
+      return benefit > 0 ? Math.min(1, benefit / Math.max(1, roomRate)) : 0;
+    },
   },
   action: {
     validate: effect => Number.isInteger(effect.amount) && effect.amount > 0 ? [] : ['action value change must be a positive integer'],

@@ -3,12 +3,13 @@ import Board from '../battle/Board';
 import type { BoardView, CameraCommand } from '../battle/Board';
 import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoWorldSize } from '../battle/isometric';
 import { abilityAbsorption, itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES, SPECIES } from '../content/data';
+import { TERRAIN_OBJECTS } from '../content/terrainObjects';
 import { active, apGain, effectiveSpeed, upcoming, unitAt } from '../game/engine';
 import { reachable } from '../game/grid';
 import { damageRange } from '../game/damage';
 import { previewMoveEffects } from '../game/moveEffects';
 import { ACTION_VALUE_PER_CYCLE } from '../game/actionValue';
-import type { Battle, Run, StatStages, Unit } from '../game/types';
+import type { Battle, Run, StatStages, Unit, Weather } from '../game/types';
 import Sprite from './Sprite';
 
 type Mode = 'inspect' | 'move' | 'attack';
@@ -20,17 +21,54 @@ type Props = {
   onSpecial: () => void; onPass: () => void; onComplete: () => void; onPause: () => void;
 };
 
-const statLabels: Record<string, string> = { attack: 'Attack', defense: 'Defense', specialAttack: 'Sp. Atk', specialDefense: 'Sp. Def' };
+const statLabels: Record<keyof StatStages, string> = { attack: 'Attack', defense: 'Defense', specialAttack: 'Sp. Atk', specialDefense: 'Sp. Def' };
+const statShortLabels: Record<keyof StatStages, string> = { attack: 'Atk', defense: 'Def', specialAttack: 'SpA', specialDefense: 'SpD' };
+const stageRanks: Record<number, string> = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI' };
+const weatherLabels: Record<Weather, string> = { clear: 'Clear', sun: 'Sun', rain: 'Rain', snow: 'Snow', sandstorm: 'Sandstorm' };
+const weatherEffects: Record<Weather, string> = {
+  clear: 'No weather modifiers',
+  sun: 'Fire damage ×1.5 · Water ×0.5',
+  rain: 'Water damage ×1.5 · Fire ×0.5',
+  snow: 'Ice-type Defense ×1.5',
+  sandstorm: 'Rock Sp. Def ×1.5 · others lose 1/16 HP each cycle',
+};
+
 function StatusIcons({ unit, time }: { unit: Unit; time: number }) {
   const statuses = Object.entries(unit.status).filter(([key, until]) => key === 'flashFire' ? !!until : until > time)
-    .map(([key]) => ({ key, label: key, icon: key === 'burned' ? 'status-burned' : key === 'paralyzed' ? 'status-paralyzed' : 'status-charged' }));
+    .map(([key]) => ({ key, label: key, display: key, kind: 'status', icon: key === 'burned' ? 'status-burned' : key === 'paralyzed' ? 'status-paralyzed' : 'status-charged' }));
   const stages = Object.entries(unit.stages).filter(([key, value]) => value !== 0 && unit.stageUntil[key as keyof StatStages] > time)
-    .map(([key, value]) => ({ key, label: `${statLabels[key]} ${value > 0 ? '+' : ''}${value} · ${Math.ceil((unit.stageUntil[key as keyof StatStages] - time) / ACTION_VALUE_PER_CYCLE)} cycles left`, icon: value > 0 ? 'stage-buff' : 'stage-debuff' }));
+    .map(([key, value]) => {
+      const stat = key as keyof StatStages, cycles = Math.ceil((unit.stageUntil[stat] - time) / ACTION_VALUE_PER_CYCLE);
+      const amount = Math.abs(value);
+      return { key, label: `${statLabels[stat]} ${value > 0 ? '+' : ''}${value} ${amount === 1 ? 'stage' : 'stages'} · ${cycles} cycles left`, display: `${statShortLabels[stat]} ${stageRanks[amount]}`, kind: 'stage', icon: value > 0 ? 'stage-buff' : 'stage-debuff' };
+    });
   return statuses.length || stages.length ? <div className="status-icons" aria-label="Status and stat changes">
-    {[...statuses, ...stages].map(effect => <span className="status-icon" key={effect.key} title={effect.label} aria-label={effect.label}>
-      <img src={`/assets/ui/icons/${effect.icon}.svg`} alt="" /><small>{effect.label}</small>
+    {[...statuses, ...stages].map(effect => <span className={`status-icon ${effect.kind === 'stage' ? `status-stage ${effect.icon}` : ''}`} key={effect.key} title={effect.label} aria-label={effect.label}>
+      <img src={`/assets/ui/icons/${effect.icon}.svg`} alt="" /><small>{effect.display}</small>
     </span>)}
   </div> : null;
+}
+
+function FieldMovePreview({ move, battle }: { move: (typeof MOVES)[string]; battle: Battle }) {
+  const weather = move.effects?.find(effect => effect.kind === 'weather');
+  if (weather?.kind === 'weather') {
+    const duration = Math.ceil(weather.duration / 100);
+    const transition = weather.weather === battle.weather
+      ? `Refreshes ${weatherLabels[weather.weather]} for ${duration} cycles.`
+      : `${weatherLabels[battle.weather]} → ${weatherLabels[weather.weather]} for ${duration} cycles.`;
+    return <div className="field-move-preview" aria-label="Weather forecast">
+      <b>WEATHER FORECAST</b><span>{transition}</span><small>{weatherEffects[weather.weather]}</small>
+    </div>;
+  }
+  const trickRoom = move.effects?.find(effect => effect.kind === 'trick-room');
+  if (trickRoom?.kind === 'trick-room') {
+    const remaining = battle.trickRoomUntil > battle.time ? Math.ceil((battle.trickRoomUntil - battle.time) / ACTION_VALUE_PER_CYCLE) : 0;
+    return <div className="field-move-preview" aria-label="Trick Room forecast">
+      <b>FIELD FORECAST</b><span>{remaining ? `Trick Room active · ${remaining} cycles left; casting again ends it.` : `Trick Room · ${Math.ceil(trickRoom.duration / 100)} cycles.`}</span>
+      <small>{remaining ? 'Lower effective Speed acts more often.' : 'Lower effective Speed acts more often while active.'}</small>
+    </div>;
+  }
+  return null;
 }
 
 export default function BattleScreen(props: Props) {
@@ -38,8 +76,10 @@ export default function BattleScreen(props: Props) {
   const current = battle.result ? undefined : active(battle);
   const move = chosenMove ? MOVES[chosenMove] : undefined;
   const [open, setOpen] = useState(true);
+  const [weatherOpen, setWeatherOpen] = useState(false);
   const [panelStep, setPanelStep] = useState<'main' | 'special' | 'end-confirm'>('main');
   const [hoveredMove, setHoveredMove] = useState<string>();
+  const hoveredMoveData = hoveredMove ? MOVES[hoveredMove] : undefined;
   const [moveTooltip, setMoveTooltip] = useState({ left: 12, top: 120 });
   const [anchor, setAnchor] = useState({ left: 20, top: 150 });
   const [inspected, setInspected] = useState<[number, number]>();
@@ -57,6 +97,17 @@ export default function BattleScreen(props: Props) {
   const labAbsorption = labTarget && move ? abilityAbsorption(labTarget.ability, move.type) : undefined;
   const selectedRoute = target && mode === 'move' ? routes.get(`${target[0]},${target[1]}`) : undefined;
   const inspectedUnit = inspected ? unitAt(battle, inspected[0], inspected[1]) : undefined;
+  const inspectedTile = inspected ? battle.map.tiles[inspected[1]]?.[inspected[0]] : undefined;
+  const inspectedTileChange = inspected ? battle.tileChanges[`${inspected[0]},${inspected[1]}`] : undefined;
+  const inspectedTileKind = inspectedTileChange?.kind ?? inspectedTile?.kind;
+  const inspectedHeight = inspectedTileChange?.height ?? inspectedTile?.height;
+  const inspectedHazard = (inspectedTileChange?.hazardUntil ?? inspectedTile?.hazardUntil ?? 0) > battle.time
+    || !!inspected && battle.hazardZones.some(zone => zone.until > battle.time && zone.tiles.some(([x, y]) => x === inspected[0] && y === inspected[1]));
+  const inspectedCover = (inspectedTileChange?.coverUntil ?? inspectedTile?.coverUntil ?? 0) > battle.time;
+  const inspectedMud = (inspectedTileChange?.mudUntil ?? inspectedTile?.mudUntil ?? 0) > battle.time;
+  const weatherCycles = battle.weather !== 'clear' && battle.weatherUntil > battle.time ? Math.ceil((battle.weatherUntil - battle.time) / ACTION_VALUE_PER_CYCLE) : 0;
+  const trickRoomCycles = battle.trickRoomUntil > battle.time ? Math.ceil((battle.trickRoomUntil - battle.time) / ACTION_VALUE_PER_CYCLE) : 0;
+  useEffect(() => { if (!weatherCycles) setWeatherOpen(false); }, [weatherCycles]);
   const issueCamera = (command: CameraCommand, point?: [number, number]) => setCameraAction({ id: ++cameraSequence.current, command, point });
   const closePopup = () => {
     setOpen(false);
@@ -80,8 +131,30 @@ export default function BattleScreen(props: Props) {
     const safeBottom = 100;
     const maxTop = Math.max(safeTop, area.height - safeBottom - height);
     const preferredTop = y - height - 16;
-    const left = Math.max(margin, Math.min(Math.max(margin, area.width - margin - width), x - width / 2));
-    const top = Math.max(safeTop, Math.min(maxTop, preferredTop));
+    const maxLeft = Math.max(margin, area.width - margin - width);
+    let left = Math.max(margin, Math.min(maxLeft, x - width / 2));
+    let top = Math.max(safeTop, Math.min(maxTop, preferredTop));
+    const overlays = [...stage.querySelectorAll<HTMLElement>('.camera-hud, .lab-diagnostics, .battle-log, .battle-actor-hud, .battle-weather-details')]
+      .map(element => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left - area.left, right: rect.right - area.left, top: rect.top - area.top, bottom: rect.bottom - area.top };
+      });
+    for (const overlay of overlays) {
+      const overlaps = (candidateLeft: number, candidateTop: number) => candidateLeft < overlay.right + margin
+        && candidateLeft + width > overlay.left - margin
+        && candidateTop < overlay.bottom + margin
+        && candidateTop + height > overlay.top - margin;
+      if (!overlaps(left, top)) continue;
+      const candidates = [
+        { left, top: overlay.top - height - margin },
+        { left, top: overlay.bottom + margin },
+        { left: overlay.left - width - margin, top },
+        { left: overlay.right + margin, top },
+      ].filter(candidate => candidate.left >= margin && candidate.left <= maxLeft
+        && candidate.top >= safeTop && candidate.top <= area.height - margin - height);
+      candidates.sort((a, b) => Math.abs(a.left - left) + Math.abs(a.top - top) - Math.abs(b.left - left) - Math.abs(b.top - top));
+      if (candidates[0]) ({ left, top } = candidates[0]);
+    }
     setAnchor(previous => Math.abs(previous.left - left) < 1 && Math.abs(previous.top - top) < 1
       ? previous : { left, top });
   };
@@ -89,7 +162,9 @@ export default function BattleScreen(props: Props) {
     const stage = stageRef.current, popup = popupRef.current;
     if (!stage || !popup) return;
     const area = stage.getBoundingClientRect(), menu = popup.getBoundingClientRect();
-    const width = Math.min(280, area.width - 24), height = 170, gap = 10, margin = 12;
+    const width = Math.min(280, area.width - 24), gap = 10, margin = 12;
+    const hasFieldForecast = MOVES[id].effects?.some(effect => effect.kind === 'weather' || effect.kind === 'trick-room');
+    const height = Math.min(hasFieldForecast ? 250 : 170, area.height - margin * 2);
     const right = menu.right - area.left + gap, left = menu.left - area.left - width - gap;
     const beside = right + width <= area.width - margin || left >= margin;
     const tooltipLeft = right + width <= area.width - margin ? right : left >= margin ? left
@@ -119,7 +194,7 @@ export default function BattleScreen(props: Props) {
     const onResize = () => positionPopup();
     window.addEventListener('resize', onResize);
     return () => { insertion.disconnect(); observer.disconnect(); window.removeEventListener('resize', onResize); };
-  }, [battle.map, current?.id, current?.x, current?.y, mode, open, panelStep, chosenMove]);
+  }, [battle.map, current?.id, current?.x, current?.y, mode, open, panelStep, chosenMove, weatherOpen]);
   const onViewChange = (next: BoardView) => {
     view.current = next;
     positionPopup(next);
@@ -139,8 +214,8 @@ export default function BattleScreen(props: Props) {
           context.lineTo(px + ISO_HALF_WIDTH * scale, py); context.lineTo(px, py + ISO_HALF_HEIGHT * scale);
           context.lineTo(px - ISO_HALF_WIDTH * scale, py); context.closePath(); context.fill();
           const object = battle.map.tiles[y][x].object;
-          if (object === 'tree' || object === 'rock') {
-            context.fillStyle = object === 'tree' ? '#204a32' : '#a8ada0';
+          if (object && TERRAIN_OBJECTS[object].blocksMovement) {
+            context.fillStyle = object === 'tree' || object === 'pine-tree' ? '#204a32' : object === 'rock' ? '#a8ada0' : '#a87744';
             context.fillRect(px - 2, py - 2, 4, 4);
           }
         }
@@ -231,14 +306,20 @@ export default function BattleScreen(props: Props) {
   return <main className="battle-stage" ref={stageRef}>
     <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
     <header className="battle-top-hud">
-      <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `COLUMN ${run.encounter + 1}`} · CYCLE {battle.round} · AV {Math.floor(battle.time)}</span><strong>{battle.map.name}</strong><small>{battle.objective === 'defeat-and-capture' ? 'Defeat foes and hold capture point' : 'Defeat the opposing team'} · {battle.weather}</small></div>
+      <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `COLUMN ${run.encounter + 1}`} · CYCLE {battle.round} · AV {Math.floor(battle.time)}</span><strong>{battle.map.name}</strong><small className="battle-objective">{battle.objective === 'defeat-and-capture' ? 'Defeat foes + hold capture point' : 'Defeat all opponents'}</small>
+        {(weatherCycles > 0 || trickRoomCycles > 0) && <div className="battle-field-conditions" aria-label="Active field conditions">
+          {weatherCycles > 0 && <button type="button" className={`battle-field-condition weather-${battle.weather}`} aria-label={`${weatherLabels[battle.weather]} - ${weatherCycles} cycles left`} aria-expanded={weatherOpen} aria-controls="battle-weather-details" onClick={() => setWeatherOpen(value => !value)} title="Show current weather effects">({weatherLabels[battle.weather]} - {weatherCycles} cycles left)</button>}
+          {trickRoomCycles > 0 && <span className="battle-field-condition trick-room-active" aria-label={`Trick Room - ${trickRoomCycles} cycles left`} title="Lower effective Speed acts more often.">(Trick Room - {trickRoomCycles} cycles left)</span>}
+        </div>}
+        {weatherCycles > 0 && weatherOpen && <aside className="battle-weather-details" id="battle-weather-details" aria-label="Current weather preview"><b>{weatherLabels[battle.weather]} effects</b><span>{weatherEffects[battle.weather]}</span>{battle.weather === 'sandstorm' && <small>Next tick in {Math.max(0, battle.round * ACTION_VALUE_PER_CYCLE - battle.time).toLocaleString()} AV · resistant types avoid the 1/16 max HP damage.</small>}</aside>}
+      </div>
       <div className="turn-strip" aria-label="Turn order">{upcoming(battle).slice(0, 6).map((unit, index) =>
         <div key={`${unit.id}-${index}`} className={`turn-portrait ${unit.side} ${index === 0 ? 'now' : ''}`} title={index === 0 ? `${unit.name} · acting now · ${Math.floor(effectiveSpeed(unit, battle))} SPD` : `${unit.name} · ${Math.ceil(Math.max(0, unit.nextAction - battle.time))} AV until turn · ${unit.ap} AP banked · +${apGain(unit, battle)} next turn`}>
-          <Sprite id={unit.species} /><span>{unit.name}</span><small>{index === 0 ? 'NOW' : `${Math.ceil(Math.max(0, unit.nextAction - battle.time))} AV`}</small>
+          <Sprite id={unit.species} /><span>{unit.name}</span><small className="turn-level">Lv {unit.level}</small><small>{index === 0 ? 'NOW' : `${Math.ceil(Math.max(0, unit.nextAction - battle.time))} AV`}</small>
         </div>)}</div>
       <button className="battle-pause" onClick={props.onPause}>{props.controlBoth ? '⚙ Setup' : '☰ Menu'}</button>
     </header>
-    {current && !battle.result && <div className="battle-actor-hud"><Sprite id={current.species} /><div><b>{current.name}</b><span>{current.hp}/{current.maxHp} HP · {current.ap} AP</span><StatusIcons unit={current} time={battle.time} /></div>{playerTurn && <button ref={actorToggleRef} onClick={() => { setInspected(undefined); setPanelStep('main'); setOpen(value => !value); }} aria-label={open ? 'Hide actions' : 'Show actions'}>{open ? '×' : 'Actions'}</button>}</div>}
+    {current && !battle.result && <div className="battle-actor-hud"><Sprite id={current.species} /><div><b>{current.name} <small className="unit-level">Lv {current.level}</small></b><span>{current.hp}/{current.maxHp} HP · {current.ap} AP · {current.movedThisTurn ? 'Move used' : 'Move ready'} · {current.attackedThisTurn ? 'Attack used' : 'Attack ready'}</span><StatusIcons unit={current} time={battle.time} /></div>{playerTurn && <button ref={actorToggleRef} onClick={() => { setInspected(undefined); setPanelStep('main'); setOpen(value => !value); }} aria-label={open ? 'Hide actions' : 'Show actions'}>{open ? '×' : 'Actions'}</button>}</div>}
     {!playerTurn && !battle.result && <div className="opponent-turn">Opponent acting…</div>}
     {playerTurn && open && <section ref={popupRef} className={`action-popup glass-action-menu ${mode !== 'inspect' || panelStep !== 'main' ? 'submenu' : ''} ${mode === 'attack' && !chosenMove ? 'choosing-move' : ''} ${(mode === 'move' || mode === 'attack' && chosenMove) && !notice ? 'targeting' : ''}`} style={{ left: anchor.left, top: anchor.top }} aria-label={`${current.name} actions`} aria-busy={visualBusy}>
       {mode === 'inspect' && panelStep === 'main' && <div className="action-command-list">
@@ -275,18 +356,20 @@ export default function BattleScreen(props: Props) {
     </section>}
     {playerTurn && open && mode === 'attack' && !chosenMove && hoveredMove && <aside className="battle-move-tooltip" style={{ left: moveTooltip.left, top: moveTooltip.top }} role="status">
       <b>{MOVES[hoveredMove].name}</b><p>{MOVES[hoveredMove].detail}</p>
-      {current && previewMoveEffects(MOVES[hoveredMove], { battle, source: current, move: MOVES[hoveredMove], moveId: hoveredMove, tiles: [[current.x, current.y]] }).map((label, index) => <p key={`${hoveredMove}-${index}`}>{label}</p>)}
+      {current && !hoveredMoveData?.effects?.some(effect => effect.kind === 'weather' || effect.kind === 'trick-room') && previewMoveEffects(MOVES[hoveredMove], { battle, source: current, move: MOVES[hoveredMove], moveId: hoveredMove, tiles: [[current.x, current.y]] }).map((label, index) => <p key={`${hoveredMove}-${index}`}>{label}</p>)}
+      {hoveredMoveData && <FieldMovePreview move={hoveredMoveData} battle={battle} />}
       <small>{MOVES[hoveredMove].type} · {MOVES[hoveredMove].category} · Power {MOVES[hoveredMove].power} · Range {MOVES[hoveredMove].range} · {MOVES[hoveredMove].apCost} AP</small>
     </aside>}
     {playerTurn && mode === 'inspect' && inspected && !open && <aside className="inspect-card" aria-label="Tile inspection">
-      {inspectedUnit && <div className="inspect-unit"><Sprite id={inspectedUnit.species} /><div><b>{inspectedUnit.name}</b><small>{inspectedUnit.side === 'player' ? 'Ally' : 'Opponent'} · {inspectedUnit.types.join(' / ')}</small><small>{inspectedUnit.hp}/{inspectedUnit.maxHp} HP · {inspectedUnit.ability}</small></div></div>}
-      <p>{notice || `Tile ${inspected[0] + 1}, ${inspected[1] + 1}`}</p>
+      {inspectedUnit && <div className="inspect-unit"><Sprite id={inspectedUnit.species} /><div><b>{inspectedUnit.name} <small className="unit-level">Lv {inspectedUnit.level}</small></b><small>{inspectedUnit.side === 'player' ? 'Ally' : 'Opponent'} · {inspectedUnit.types.join(' / ')}</small><small>{inspectedUnit.hp}/{inspectedUnit.maxHp} HP · {inspectedUnit.ap} AP · {inspectedUnit.ability}</small><StatusIcons unit={inspectedUnit} time={battle.time} /></div></div>}
+      <p className="inspect-tile-readout">Tile {inspected[0] + 1}, {inspected[1] + 1} · {inspectedTile?.object ? `${inspectedTileKind} · ${inspectedTile.object}` : inspectedTileKind ?? 'Unknown'} · Height {inspectedHeight ?? '—'}{inspectedHazard ? ' · Hazard' : ''}{inspectedCover ? ' · Cover' : ''}{inspectedMud ? ' · Slowing ground' : ''}</p>
+      {notice && <small className="inspect-tile-notice">{notice}</small>}
       <button onClick={() => { setInspected(undefined); setOpen(true); }}>Return to actions</button>
     </aside>}
     {battle.result && <div className="battle-result"><h2>{props.controlBoth ? `${battle.result === 'win' ? 'Ally' : 'Opponent'} wins` : battle.result === 'win' ? 'Victory!' : 'Defeat'}</h2><button className="primary" onClick={props.onComplete}>{props.controlBoth ? 'Replay seed' : battle.result === 'win' ? 'Collect XP →' : 'View result →'}</button></div>}
     {props.controlBoth && <aside className="lab-diagnostics" aria-label="Battle Lab diagnostics"><div className="lab-diagnostics-head"><b>Damage lab</b><button onClick={props.onLabReset}>Replay seed {props.labSeed}</button></div>
       <p>{battle.units.map(unit => `${unit.side === 'player' ? 'Ally' : 'Opponent'} ${unit.name}: ${unit.hp}/${unit.maxHp} HP`).join(' · ')}</p>
-      <p>{current ? `${current.name} acting · ${current.ap} AP` : 'Battle ended'} · {battle.weather}</p>
+      <p>{current ? `${current.name} acting · ${current.ap} AP` : 'Battle ended'}{weatherCycles > 0 ? ` · ${weatherLabels[battle.weather]}` : ''}</p>
       {move && labTarget && <p>{move.name} → {labTarget.name}: {labAbsorption ? `Absorbed by ${labTarget.ability} · 0 HP damage` : labDamage ? `${labDamage.min}–${labDamage.max} HP (${labDamage.type}×); critical ${labDamage.critMin}–${labDamage.critMax} HP · 1/24 critical chance` : 'Status move · no direct damage'}</p>}
       <details open><summary>Combat log</summary>{battle.log.map((entry, index) => <p key={index}>{entry}</p>)}</details>
     </aside>}

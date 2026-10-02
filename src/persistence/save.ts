@@ -1,11 +1,11 @@
 import { abilityFor, ENCOUNTERS, itemCanEquip, itemFor, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES, TYPES } from '../content/data';
-import { defaultLoadoutAtLevel, effectiveSpeed, MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/engine';
+import { defaultLoadoutAtLevel, effectiveSpeed, encounterDefinition, MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
 import { resolvePlayerDeployment } from '../game/deployment';
 import { objectBlocksMovement } from '../content/terrainObjects';
 import { rebuildHazardTiles } from '../game/hazards';
-import { ACTION_VALUE_PER_CYCLE, actionInterval, LEGACY_TIME_PER_CYCLE } from '../game/actionValue';
+import { ACTION_VALUE_PER_CYCLE, actionInterval, LEGACY_TIME_PER_CYCLE, toActionValueDuration } from '../game/actionValue';
 import { emptyStageExpiry, MAX_STAGE, STAGE_DURATION, STAGE_STATS } from '../game/stages';
 import { MAX_RUN_POKEMON } from '../content/roster';
 import { createRoute, legacyRoute, migrateRoutePlan, routeIsValid } from '../game/route';
@@ -21,8 +21,8 @@ type MapSnapshot = { id: string; signature: string; objectSignature?: string; ch
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents' | 'hpEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV22 = { schemaVersion: 22; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV22 | { schemaVersion: 21 | 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
+type SaveV25 = { schemaVersion: 25; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV25 | { schemaVersion: 24 | 23 | 22 | 21 | 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
 // Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
 const LEGACY_HP_BASE: Record<string, number> = {
   bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
@@ -32,7 +32,7 @@ const phases = new Set<Run['phase']>(['starter', 'route', 'prepare', 'battle', '
 
 export function freshRun(unlocks = 0): Run {
   const seed = newSeed();
-  return { phase: 'starter', party: [], selected: [], deployment: {}, bag: [], pendingMoves: [], coins: 20, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: seed, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
+  return { phase: 'starter', party: [], selected: [], deployment: {}, bag: [], pendingMoves: [], coins: 0, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: seed, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
 }
 
 function isRun(value: unknown): value is Run {
@@ -45,6 +45,11 @@ function isRun(value: unknown): value is Run {
 
 function migrateRun(run: Run, version: number): Run {
   const next = structuredClone(run);
+  if (version < 25 && next.phase === 'battle' && next.battle && !next.battle.result) {
+    next.phase = 'prepare';
+    next.battle = undefined;
+    next.report = ['The active battle restarted at preparation after the base Speed update.'];
+  }
   next.encounterId ??= ENCOUNTERS[next.encounter]?.id ?? ENCOUNTERS.at(-1)!.id;
   if (!ENCOUNTERS.some(encounter => encounter.id === next.encounterId)) return freshRun(next.unlocks);
   if (!Number.isInteger(next.seed)) next.seed = newSeed();
@@ -105,6 +110,7 @@ function migrateRun(run: Run, version: number): Run {
       if (mon) unit.moves = [...mon.equipped];
     } else if (unit.side === 'enemy') unit.moves = defaultLoadoutAtLevel(unit.species, unit.level);
   }
+  if (version < 23 && next.battle) next.battle.trickRoomUntil = 0;
   if (version < 21 && next.battle && Array.isArray(next.battle.units)) {
     const battle = next.battle;
     const oldTime = Number.isFinite(battle.time) ? battle.time : 0;
@@ -151,7 +157,7 @@ function migrateRun(run: Run, version: number): Run {
   }
   next.bag = next.bag.filter(item => !!itemFor(item));
   next.selected = [...new Set(next.selected.filter(id => next.party.some(mon => mon.id === id && mon.hp > 0)))].slice(0, 6);
-  next.deployment = resolvePlayerDeployment({ ...next, deployment: next.deployment && typeof next.deployment === 'object' && !Array.isArray(next.deployment) ? next.deployment : {} }, MAPS[ENCOUNTERS.find(encounter => encounter.id === next.encounterId)!.mapId]);
+  next.deployment = resolvePlayerDeployment({ ...next, deployment: next.deployment && typeof next.deployment === 'object' && !Array.isArray(next.deployment) ? next.deployment : {} }, MAPS[encounterDefinition(next).mapId]);
 
   if (version < 11 && next.battle) {
     if (next.phase === 'battle') next.phase = 'prepare';
@@ -184,7 +190,7 @@ function migrateRun(run: Run, version: number): Run {
       unit.stageUntil = emptyStageExpiry();
       for (const stat of STAGE_STATS) {
         unit.stages[stat] = Math.max(-MAX_STAGE, Math.min(MAX_STAGE, unit.stages[stat] ?? 0));
-        if (unit.stages[stat]) unit.stageUntil[stat] = battle.time + STAGE_DURATION;
+        if (unit.stages[stat]) unit.stageUntil[stat] = battle.time + toActionValueDuration(STAGE_DURATION);
       }
     }
     const capturePending = battle.objective === 'defeat-and-capture' && !!battle.map?.capture
@@ -239,6 +245,8 @@ function migrateRun(run: Run, version: number): Run {
     const validQueue = validUnits && new Set(unitIds).size === unitIds.length && new Set(livePositions).size === livePositions.length
       && validZones && new Set(battle.hazardZones.map(zone => zone.id)).size === battle.hazardZones.length
       && ['clear', 'sun', 'rain', 'snow', 'sandstorm'].includes(battle.weather)
+      && Number.isFinite(battle.trickRoomUntil) && battle.trickRoomUntil >= 0
+      && (battle.trickRoomUntil === 0 || battle.trickRoomUntil > battle.time)
       && (battle.result === undefined || battle.result === 'win' || battle.result === 'loss')
       && Number.isInteger(battle.round) && battle.round >= 1 && Number.isFinite(battle.time) && battle.time >= 0
       && Array.isArray(battle.turnOrder) && battle.turnOrder.length === liveIds.length && battle.turnOrder.every(id => liveIds.includes(id))
@@ -282,7 +290,8 @@ function migrateRun(run: Run, version: number): Run {
   return next;
 }
 
-const signatureCache = new WeakMap<BattleMap, { old?: string; current?: string }>();
+// Authored maps are immutable; replacing a content definition gets a fresh cache entry.
+const signatureCache = new WeakMap<BattleMap, { old?: string; current?: string; objects?: string }>();
 function signatureFor(source: string): string {
   let hash = 2166136261;
   for (let i = 0; i < source.length; i++) hash = Math.imul(hash ^ source.charCodeAt(i), 16777619);
@@ -301,7 +310,11 @@ function mapSignature(map: BattleMap, includeZones: boolean): string {
 }
 
 function objectSignature(map: BattleMap): string {
-  return signatureFor(JSON.stringify(map.tiles.map(row => row.map(tile => [tile.object ?? '', tile.slope ?? '']))));
+  const cached = signatureCache.get(map)?.objects;
+  if (cached) return cached;
+  const signature = signatureFor(JSON.stringify(map.tiles.map(row => row.map(tile => [tile.object ?? '', tile.slope ?? '']))));
+  signatureCache.set(map, { ...signatureCache.get(map), objects: signature });
+  return signature;
 }
 
 function deriveChanges(map: BattleMap, authored: BattleMap): Record<string, TileChange> {
@@ -332,20 +345,20 @@ function snapshotMap(battle: Battle): MapSnapshot {
   return { id: map.id, signature: mapSignature(authored, true), objectSignature: objectSignature(authored), changes };
 }
 
-export function snapshotRun(run: Run): SaveV22 {
+export function snapshotRun(run: Run): SaveV25 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, hpEvents: _hpEvents, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 22, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 25, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18 && envelope.schemaVersion !== 19 && envelope.schemaVersion !== 20 && envelope.schemaVersion !== 21 && envelope.schemaVersion !== 22) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18 && envelope.schemaVersion !== 19 && envelope.schemaVersion !== 20 && envelope.schemaVersion !== 21 && envelope.schemaVersion !== 22 && envelope.schemaVersion !== 23 && envelope.schemaVersion !== 24 && envelope.schemaVersion !== 25) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;
@@ -376,7 +389,7 @@ function restoreRun(value: unknown): Run | undefined {
     }
   }
   const tileChanges = Object.fromEntries(saved.map.changes.map(change => [`${change.x},${change.y}`, change]));
-  return migrateRun({ ...run, battle: { ...saved, map, tileChanges, visualEvents: [], feedbackEvents: [], hpEvents: [] } } as Run, envelope.schemaVersion);
+  return migrateRun({ ...run, battle: { ...saved, trickRoomUntil: envelope.schemaVersion < 23 ? saved.trickRoomUntil ?? 0 : saved.trickRoomUntil, map, tileChanges, visualEvents: [], feedbackEvents: [], hpEvents: [] } } as Run, envelope.schemaVersion);
 }
 
 function openDatabase(): Promise<IDBDatabase> {

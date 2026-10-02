@@ -1,5 +1,5 @@
-import { itemBlocksMove, mapHeight, mapWidth, MOVES } from '../content/data';
-import { active, affectedTiles, canHitAtTarget, canHitWithMove, canUseMove, damagePreview, inMoveRange, type EnemyAction } from './engine';
+import { itemBlocksMove, MOVES } from '../content/data';
+import { active, affectedTiles, aimBoundsForTarget, canHitAtTarget, canHitWithMove, canUseMove, damagePreview, inMoveRange, type EnemyAction } from './engine';
 import { AttackPositionSearch } from './grid';
 import { scoreMoveEffects } from './moveEffects';
 import type { Battle, GridPoint, Unit } from './types';
@@ -30,9 +30,10 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
   if (!enemy.attackedThisTurn) for (const { target, moves } of viable) for (const { moveId } of moves) {
     const move = MOVES[moveId];
     if (enemy.ap < move.apCost) continue;
-    const radiusX = move.area?.width ?? 1, radiusY = move.area?.height ?? 1;
-    for (let y = Math.max(0, target.y - radiusY); y <= Math.min(mapHeight(battle.map) - 1, target.y + radiusY); y++)
-      for (let x = Math.max(0, target.x - radiusX); x <= Math.min(mapWidth(battle.map) - 1, target.x + radiusX); x++) {
+    const bounds = aimBoundsForTarget(battle.map, moveId, target);
+    if (!bounds) continue;
+    for (let y = bounds.minY; y <= bounds.maxY; y++)
+      for (let x = bounds.minX; x <= bounds.maxX; x++) {
         const valid = canUseMove(battle, enemy, moveId, x, y)
           && canHitAtTarget(battle, enemy, moveId, x, y, target);
         yield;

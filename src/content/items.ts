@@ -4,6 +4,7 @@ import { megaFormFor } from './species';
 type ItemDefinition = {
   description: string;
   teachesMove?: string;
+  evolution?: { from: string; into: string };
   periodicHealFraction?: number;
   thresholdHeal?: { atOrBelowHpRatio: number; fraction: number; consume: boolean };
   specialDefenseMultiplier?: number;
@@ -35,6 +36,10 @@ export const ITEM_DEFINITIONS = {
     description: 'Spend 3 AP with Special to Mega Evolve a compatible Pokémon once per battle.',
     special: { kind: 'mega-evolve', apCost: 3, consume: false },
   },
+  'Fire Stone': {
+    description: 'Use from the route Bag to evolve Vulpix into Ninetales. Single use.',
+    evolution: { from: 'vulpix', into: 'ninetales' },
+  },
   'TM Swift': {
     description: 'Teach Swift to a compatible Pokémon from the route Bag. Single use.',
     teachesMove: 'swift',
@@ -48,16 +53,17 @@ export const ITEM_DEFINITIONS = {
 export type ItemId = keyof typeof ITEM_DEFINITIONS;
 export const ITEMS = Object.keys(ITEM_DEFINITIONS) as ItemId[];
 export const STARTING_HELD_ITEMS: ItemId[] = ['Leftovers', 'Sitrus Berry', 'None'];
-export const STARTING_BAG: ItemId[] = ['Assault Vest', 'X Attack', 'Charizardite X', 'TM Swift'];
+export const STARTING_BAG: ItemId[] = ['Assault Vest', 'X Attack', 'Charizardite X', 'TM Swift', 'Fire Stone'];
 
 const definitions: Record<string, ItemDefinition> = ITEM_DEFINITIONS;
 export const itemFor = (id: string): ItemDefinition | undefined => definitions[id];
 export const tmMoveFor = (id: string): string | undefined => itemFor(id)?.teachesMove;
+export const itemEvolutionFor = (id: string) => itemFor(id)?.evolution;
 
 export function itemCanEquip(item: string, speciesId: string): boolean {
   const definition = itemFor(item);
   if (!definition) return false;
-  if (definition.teachesMove) return false;
+  if (definition.teachesMove || definition.evolution) return false;
   return definition.special?.kind !== 'mega-evolve' || !!megaFormFor(speciesId, item);
 }
 

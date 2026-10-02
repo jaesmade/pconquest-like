@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { validateCatalog } from '../src/content/catalog';
 import { MOVES } from '../src/content/moves';
 import { EnemyPlanner } from '../src/game/enemyPlanner';
-import { active, apGain, canHitAtTarget, canUseMove, commitEnemyAction, completeBattle, createLabBattle, damagePreview, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveLevelMove, selectRouteNode, startBattle, useMove } from '../src/game/engine';
+import { active, apGain, canHitAtTarget, canUseMove, commitEnemyAction, completeBattle, createLabBattle, damagePreview, encounterDefinition, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveLevelMove, selectRouteNode, startBattle, useMove } from '../src/game/engine';
+import { actionInterval, timelineSpeed, toActionValueDuration } from '../src/game/actionValue';
 import { reachable } from '../src/game/grid';
 import { availableRouteNodes, createRoute } from '../src/game/route';
 import type { Battle, Unit } from '../src/game/types';
@@ -10,28 +11,30 @@ import type { Battle, Unit } from '../src/game/types';
 const note = (message: string) => console.log(message);
 const distance = (a: Unit, b: Unit) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-function choosePlayerAction(battle: Battle): string {
-  const actor = active(battle);
+function choosePlayerAttack(battle: Battle, actor: Unit): string | undefined {
+  if (actor.attackedThisTurn) return;
   const enemies = battle.units.filter(unit => unit.side === 'enemy' && unit.hp > 0);
-  if (!actor.attackedThisTurn) {
-    const choices: { moveId: string; x: number; y: number; damage: number }[] = [];
-    for (const moveId of actor.moves) {
-      const move = MOVES[moveId];
-      if (!move?.power || actor.ap < move.apCost) continue;
-      for (const enemy of enemies) for (let y = 0; y < battle.map.tiles.length; y++) for (let x = 0; x < battle.map.tiles[y].length; x++) {
-        if (!canUseMove(battle, actor, moveId, x, y) || !canHitAtTarget(battle, actor, moveId, x, y, enemy)) continue;
-        const damage = damagePreview(battle, actor, enemy, moveId).damage;
-        if (damage > 0) choices.push({ moveId, x, y, damage });
-      }
-    }
-    choices.sort((a, b) => b.damage - a.damage);
-    if (choices[0]) {
-      const choice = choices[0];
-      assert.equal(useMove(battle, choice.moveId, choice.x, choice.y), undefined);
-      finishTurn(battle);
-      return `${actor.name} used ${MOVES[choice.moveId].name}`;
+  const choices: { moveId: string; x: number; y: number; damage: number }[] = [];
+  for (const moveId of actor.moves) {
+    const move = MOVES[moveId];
+    if (!move?.power || actor.ap < move.apCost) continue;
+    for (const enemy of enemies) for (let y = 0; y < battle.map.tiles.length; y++) for (let x = 0; x < battle.map.tiles[y].length; x++) {
+      if (!canUseMove(battle, actor, moveId, x, y) || !canHitAtTarget(battle, actor, moveId, x, y, enemy)) continue;
+      const damage = damagePreview(battle, actor, enemy, moveId).damage;
+      if (damage > 0) choices.push({ moveId, x, y, damage });
     }
   }
+  choices.sort((a, b) => b.damage - a.damage);
+  const choice = choices[0];
+  if (!choice) return;
+  assert.equal(useMove(battle, choice.moveId, choice.x, choice.y), undefined);
+  return `${actor.name} used ${MOVES[choice.moveId].name}`;
+}
+
+function choosePlayerMove(battle: Battle, actor: Unit): string | undefined {
+  if (actor.movedThisTurn || actor.ap < 1) return;
+  const enemies = battle.units.filter(unit => unit.side === 'enemy' && unit.hp > 0);
+  if (!enemies.length) return;
   const currentDistance = Math.min(...enemies.map(enemy => distance(actor, enemy)));
   const destinations = [...reachable(battle, actor)].map(([key, path]) => ({ key, path,
     distance: Math.min(...enemies.map(enemy => {
@@ -39,23 +42,40 @@ function choosePlayerAction(battle: Battle): string {
       return Math.abs(x - enemy.x) + Math.abs(y - enemy.y);
     })) })).filter(candidate => candidate.path.points.length && candidate.distance < currentDistance)
     .sort((a, b) => a.distance - b.distance || a.path.cost - b.path.cost);
-  if (destinations[0]) {
-    const [x, y] = destinations[0].key.split(',').map(Number);
-    assert.equal(moveUnit(battle, x, y), undefined);
-    finishTurn(battle);
-    return `${actor.name} moved to ${x},${y}`;
+  const destination = destinations[0];
+  if (!destination) return;
+  const [x, y] = destination.key.split(',').map(Number);
+  assert.equal(moveUnit(battle, x, y), undefined);
+  return `${actor.name} moved to ${x},${y}`;
+}
+
+function choosePlayerAction(battle: Battle): string {
+  const actor = active(battle);
+  const actions: string[] = [];
+  const firstAttack = choosePlayerAttack(battle, actor);
+  if (firstAttack) actions.push(firstAttack);
+  const movement = choosePlayerMove(battle, actor);
+  if (movement) actions.push(movement);
+  if (!battle.result && !actor.attackedThisTurn) {
+    const attackAfterMove = choosePlayerAttack(battle, actor);
+    if (attackAfterMove) actions.push(attackAfterMove);
   }
-  passTurn(battle);
-  return `${actor.name} passed`;
+  if (battle.result) return actions.join(' → ') || `${actor.name} passed`;
+  if (actions.length) finishTurn(battle);
+  else passTurn(battle);
+  return actions.join(' → ') || `${actor.name} passed`;
 }
 
 assert.deepEqual(validateCatalog(), [], 'content catalog should load');
 let run = newRun(['lapras', 'pikachu', 'geodude']);
+run.party.push({ ...run.party[0], id: 'smoke-test-reserve', species: 'vulpix' });
+const xpBeforeBattle = new Map(run.party.map(mon => [mon.id, mon.xp]));
 run.seed = 20260928;
 run.rngState = run.seed;
 run.route = createRoute(run.seed);
 assert.equal(run.phase, 'route');
-assert.equal(run.party.length, 3);
+assert.equal(run.party.length, 4);
+assert.equal(run.selected.length, 3, 'only the drafted battle party should be deployed');
 const firstNode = availableRouteNodes(run.route)[0];
 assert.equal(firstNode.kind, 'battle');
 run = selectRouteNode(run, firstNode.id);
@@ -63,6 +83,9 @@ assert.equal(run.phase, 'prepare');
 run = startBattle(run);
 assert.equal(run.phase, 'battle');
 const battle = run.battle!;
+const participantIds = new Set(battle.units.filter(unit => unit.side === 'player' && unit.partyId).map(unit => unit.partyId!));
+assert.deepEqual([...participantIds].sort(), Object.keys(run.deployment).sort(), 'saved deployment should identify exactly the battle participants');
+const encounterXp = encounterDefinition(run).xp;
 const planner = new EnemyPlanner();
 const actions: string[] = [];
 for (let step = 0; step < 400 && !battle.result; step++) {
@@ -81,12 +104,17 @@ for (let step = 0; step < 400 && !battle.result; step++) {
   }
 }
 assert.ok(battle.result, 'first battle should reach a result within 400 actions');
-note(`Campaign: draft → route → preparation → ${battle.result} in ${actions.length} actions, ${battle.round} rounds.`);
+const combinedTurns = actions.filter(action => action.includes(' → ')).length;
+note(`Campaign: draft → route → preparation → ${battle.result} in ${actions.length} action decisions, ${battle.round} rounds (${combinedTurns} player turns used both Move and Attack).`);
 note(`Campaign actions: ${actions.slice(0, 12).join(' | ')}${actions.length > 12 ? ' | …' : ''}`);
 run = completeBattle(run);
 if (battle.result === 'win') {
   assert.equal(run.phase, 'intermission');
   assert.ok(run.report.some(line => line.includes('XP')));
+  assert.equal(run.report.filter(line => / gained \d+ XP\.$/.test(line)).length, participantIds.size, 'only deployed participants should have XP report entries');
+  for (const mon of run.party) {
+    assert.equal(mon.xp, xpBeforeBattle.get(mon.id)! + (participantIds.has(mon.id) ? encounterXp : 0), `${mon.id} should receive XP only if deployed in the battle`);
+  }
   while (run.pendingMoves.length) {
     const offer = run.pendingMoves[0];
     run = resolveLevelMove(run, offer.monId, offer.moveId);
@@ -121,15 +149,48 @@ passTurn(timeline);
 assert.equal(active(timeline).id, waitingActor.id);
 waitingActor.stats[5] = 125;
 passTurn(timeline);
-assert.equal(timeline.time, 80, '125 Speed should act after 80 AV');
+assert.equal(timeline.time, 5200, '125 Speed should act after 5,200 AV');
 assert.equal(active(timeline).id, waitingActor.id, 'the faster unit should take its next turn first');
 firstActor.stats[5] = 200;
 finishTurn(timeline);
-assert.ok(Math.abs(firstActor.nextAction - 90) < 1e-9, 'doubling a waiting unit\'s Speed should halve its remaining AV');
+assert.ok(Math.abs(firstActor.nextAction - 5850) < 1e-9, 'doubling a waiting unit\'s Speed should halve its remaining AV');
 passTurn(timeline);
-assert.equal(timeline.time, 90);
+assert.equal(timeline.time, 5850);
 assert.equal(active(timeline).id, firstActor.id);
 note('Battle Lab: 100/125/200 SPD timeline intervals and proportional Speed rescheduling passed.');
+
+const trickRoomRules = lab('lapras', 'pikachu', 14, 14, 9876);
+const slowUnit = trickRoomRules.units.find(unit => unit.species === 'lapras')!;
+const fastUnit = trickRoomRules.units.find(unit => unit.species === 'pikachu')!;
+assert.equal(slowUnit.stats[5], 60);
+assert.equal(timelineSpeed(65, true), 65, 'Speed 65 should retain its normal cycle interval under Trick Room');
+assert.ok(actionInterval(timelineSpeed(slowUnit.stats[5], false)) > actionInterval(timelineSpeed(fastUnit.stats[5], false)), 'without Trick Room, the slower unit should have the longer interval');
+assert.ok(actionInterval(timelineSpeed(slowUnit.stats[5], true)) < actionInterval(timelineSpeed(fastUnit.stats[5], true)), 'Trick Room should give the slower unit the shorter interval');
+assert.ok(slowUnit.moves.includes('trickRoom'), 'Lapras should learn Trick Room at level 14');
+activateSideWithAp(trickRoomRules, 'player', MOVES.trickRoom.apCost);
+const roomUser = active(trickRoomRules);
+const waitingUnit = trickRoomRules.units.find(unit => unit.id !== roomUser.id)!;
+const castTime = trickRoomRules.time;
+const waitingSpeed = waitingUnit.scheduledSpeed;
+const waitingDuration = waitingUnit.nextAction - castTime;
+assert.equal(useMove(trickRoomRules, 'trickRoom', roomUser.x, roomUser.y), undefined);
+assert.equal(trickRoomRules.trickRoomUntil, castTime + toActionValueDuration(500), 'Trick Room should last five global AV cycles');
+passTurn(trickRoomRules);
+const expectedWaitingTime = castTime + waitingDuration * waitingSpeed / timelineSpeed(waitingUnit.stats[5], true);
+if (waitingDuration > 0) assert.ok(Math.abs(waitingUnit.nextAction - expectedWaitingTime) < 1e-9, 'Trick Room should proportionally reschedule a waiting unit');
+assert.equal(waitingUnit.scheduledSpeed, timelineSpeed(waitingUnit.stats[5], true));
+activateSideWithAp(trickRoomRules, 'player', MOVES.trickRoom.apCost);
+const recaster = active(trickRoomRules);
+assert.equal(recaster.species, 'lapras');
+assert.equal(useMove(trickRoomRules, 'trickRoom', recaster.x, recaster.y), undefined);
+assert.equal(trickRoomRules.trickRoomUntil, 0, 'casting Trick Room again should end the field');
+const expiringRoom = lab('lapras', 'pikachu', 14, 14, 9877);
+expiringRoom.trickRoomUntil = expiringRoom.time + toActionValueDuration(10);
+for (const unit of expiringRoom.units) unit.scheduledSpeed = timelineSpeed(unit.stats[5], true);
+for (let i = 0; i < 8 && expiringRoom.trickRoomUntil > expiringRoom.time; i++) passTurn(expiringRoom);
+assert.equal(expiringRoom.trickRoomUntil, 0, 'the Trick Room timer should expire on the AV timeline');
+assert.ok(expiringRoom.time >= toActionValueDuration(10));
+note('Battle Lab: Trick Room reverses action intervals, rescales waiting time, toggles off, and expires on the AV timeline.');
 
 const movementRules = lab('meowth', 'geodude', 13, 13, 321);
 activateSide(movementRules, 'player');

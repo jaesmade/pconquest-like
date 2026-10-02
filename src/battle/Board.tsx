@@ -11,7 +11,8 @@ import { hasLineOfSight, type MovementPath } from '../game/grid';
 import { mobilityState } from '../game/mobility';
 import { enqueueAttackCues } from './visualQueue';
 import { gameAudio } from '../audio/audio';
-import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoWorldSize } from './isometric';
+import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoGridAtWorld, isoTileCenter, isoTileDepth, isoWorldSize } from './isometric';
+import { forestCliffArt, forestCliffFaces, terrainArt, TILE_TOP_POLYGON } from './terrainArt';
 import { facingBetween, impactDelay, restingClip, unitAnimationKey, unitSet, unitSetId, unitShadowTextureKey, unitTextureKey, visualClip, type UnitClip } from './unitAnimations';
 import { moveVisualFor } from './moveVisuals';
 
@@ -49,6 +50,7 @@ class BattleScene extends Phaser.Scene {
   sprites = new Map<string, Phaser.GameObjects.Sprite>();
   markers = new Map<string, UnitMarkers>();
   hp = new Map<string, Phaser.GameObjects.Graphics>();
+  hpAppearance = new Map<string, { fraction: number; side: Unit['side'] }>();
   displayedHp = new Map<string, number>();
   cover = new Map<string, Phaser.GameObjects.Image>();
   seen = new Map<string, number>();
@@ -70,6 +72,8 @@ class BattleScene extends Phaser.Scene {
   preload() {
     for (const asset of battleAssets.assets) this.load.image(asset.id, asset.url);
     for (const [kind, urls] of Object.entries(isoAssets.tiles)) urls.forEach((url, level) => this.load.svg(`iso-${kind}-h${level}-96px`, url));
+    for (const [style, urls] of Object.entries(isoAssets.forestTiles)) urls.forEach((url, level) => this.load.svg(`iso-forest-${style}-h${level}`, url));
+    isoAssets.forestCliffs.forEach((url, level) => this.load.svg(`iso-forest-cliff-h${level}`, url));
     for (const [id, url] of Object.entries(isoAssets.decorations)) this.load.svg(`iso-${id}`, url);
     for (const [id, url] of Object.entries(isoAssets.slopes)) this.load.svg(`iso-slope-${id}`, url);
     const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
@@ -92,9 +96,10 @@ class BattleScene extends Phaser.Scene {
     const world = isoWorldSize(this.battle.map);
     this.terrainTexture = this.add.renderTexture(0, 0, world.width, world.height).setOrigin(0).setDepth(0);
     this.terrain = this.add.graphics().setDepth(0);
-    this.attackRange = this.add.graphics().setDepth(1);
-    this.ground = this.add.graphics().setDepth(1.5);
-    this.targetOverlay = this.add.graphics().setDepth(2);
+    // Tactical overlays stay readable above raised terrain and foliage at the 32×32 cap.
+    this.attackRange = this.add.graphics().setDepth(2000);
+    this.ground = this.add.graphics().setDepth(2001);
+    this.targetOverlay = this.add.graphics().setDepth(2002);
     this.drawTerrain();
     const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
     const visualIds = new Set(this.battle.units.flatMap(unit => unit.moves).map(moveId => moveVisualFor(moveId).id));
@@ -159,16 +164,29 @@ class BattleScene extends Phaser.Scene {
     const decor = new Phaser.GameObjects.Image(this, 0, 0, 'iso-flower').setOrigin(0);
     const width = mapWidth(this.battle.map), height = mapHeight(this.battle.map);
     for (let diagonal = 0; diagonal < width + height - 1; diagonal++) for (let y = Math.max(0, diagonal - width + 1); y <= Math.min(height - 1, diagonal); y++) {
-      const x = diagonal - y, tile = this.battle.map.tiles[y][x], center = isoTileCenter(this.battle.map, x, y);
-      stamp.setTexture(`iso-${tile.kind}-h${tile.height}-96px`);
+      const x = diagonal - y, tile = this.battle.map.tiles[y][x], center = isoTileCenter(this.battle.map, x, y), depth = isoTileDepth(this.battle.map, x, y);
+      const art = terrainArt(tile, x, y);
+      stamp.setTexture(art.texture);
       this.terrainTexture.draw(stamp, center.x - ISO_HALF_WIDTH, center.y - ISO_HALF_HEIGHT);
+      if (tile.kind === 'plain' && tile.height > 0) {
+        // Raised tops hide actors behind the terrace; its front faces hide their lower bodies.
+        const topTexture = this.clippedTerrainTexture(`${art.texture}-top`, art.texture, 48, [TILE_TOP_POLYGON]);
+        this.scenery.push(this.add.image(center.x - ISO_HALF_WIDTH, center.y - ISO_HALF_HEIGHT, topTexture).setOrigin(0).setDepth(100 + depth));
+        const faces = forestCliffFaces(this.battle.map, x, y);
+        if (faces.polygons.length) {
+          const cliff = forestCliffArt(tile);
+          const cliffTexture = this.clippedTerrainTexture(`iso-forest-face-${faces.key}`, cliff.texture, cliff.height, faces.polygons);
+          this.scenery.push(this.add.image(center.x - ISO_HALF_WIDTH, center.y - ISO_HALF_HEIGHT, cliffTexture).setOrigin(0).setDepth(100 + depth + ISO_HALF_HEIGHT));
+        }
+      }
       if (tile.slope) {
         stamp.setTexture(`iso-slope-${tile.slope}`);
         this.terrainTexture.draw(stamp, center.x - ISO_HALF_WIDTH, center.y - ISO_HALF_HEIGHT);
+        if (tile.kind === 'plain' && tile.height > 0) this.scenery.push(this.add.image(center.x - ISO_HALF_WIDTH, center.y - ISO_HALF_HEIGHT, `iso-slope-${tile.slope}`).setOrigin(0).setDepth(100 + depth + 0.1));
       }
       if (tile.object) {
         const object = TERRAIN_OBJECTS[tile.object];
-        if (object.tall) this.scenery.push(this.add.image(center.x, center.y + 5, `iso-${object.asset}`).setOrigin(0.5, 1).setDepth(100 + center.y + 5));
+        if (object.tall || tile.height > 0) this.scenery.push(this.add.image(center.x, center.y + 5, `iso-${object.asset}`).setOrigin(0.5, 1).setDepth(100 + depth + 5));
         else {
           decor.setTexture(`iso-${object.asset}`);
           this.terrainTexture.draw(decor, center.x - object.width / 2, center.y + 5 - object.height);
@@ -178,6 +196,23 @@ class BattleScene extends Phaser.Scene {
       if (zone !== 'neutral') { this.terrain.fillStyle(zone === 'ally' ? 0x96edb0 : 0xf8a184, 0.08); this.fillDiamond(this.terrain, center.x, center.y); }
     }
     stamp.destroy(); decor.destroy();
+  }
+  private clippedTerrainTexture(key: string, sourceKey: string, height: number, polygons: Array<Array<{ x: number; y: number }>>) {
+    if (this.textures.exists(key)) return key;
+    const texture = this.textures.createCanvas(key, 96, height);
+    if (!texture) throw new Error(`Cannot create terrain layer ${key}.`);
+    const context = texture.getContext();
+    context.imageSmoothingEnabled = false;
+    context.beginPath();
+    for (const polygon of polygons) {
+      context.moveTo(polygon[0].x, polygon[0].y);
+      for (const point of polygon.slice(1)) context.lineTo(point.x, point.y);
+      context.closePath();
+    }
+    context.clip();
+    context.drawImage(this.textures.get(sourceKey).getSourceImage() as CanvasImageSource, 0, 0);
+    texture.refresh();
+    return key;
   }
   private queueHover(x: number, y: number) {
     this.hoverPointer = { x, y };
@@ -360,14 +395,23 @@ class BattleScene extends Phaser.Scene {
   }
   private drawHpBar(unit: Unit) {
     const [x, y] = this.unitCenter(unit, [unit.x, unit.y]);
+    const fraction = (this.displayedHp.get(unit.id) ?? unit.hp) / unit.maxHp;
     let bar = this.hp.get(unit.id);
     if (!bar) { bar = this.add.graphics().setDepth(5000); this.hp.set(unit.id, bar); }
-    bar.clear(); bar.fillStyle(0x10242b); bar.fillRect(x - 24, y - 38, 48, 7);
+    // Movement changes only the transform; the command buffer depends on HP and team color.
+    bar.setPosition(x, y);
+    const previous = this.hpAppearance.get(unit.id);
+    if (previous?.fraction === fraction && previous.side === unit.side) return;
+    bar.clear(); bar.fillStyle(0x10242b); bar.fillRect(-24, -38, 48, 7);
     bar.fillStyle(unit.side === 'player' ? 0x9ee3b5 : 0xf69b8c);
-    bar.fillRect(x - 23, y - 37, 46 * (this.displayedHp.get(unit.id) ?? unit.hp) / unit.maxHp, 5);
+    bar.fillRect(-23, -37, 46 * fraction, 5);
+    this.hpAppearance.set(unit.id, { fraction, side: unit.side });
   }
   private showMarkers(unit: Unit, markers: UnitMarkers, [x, y]: [number, number]) {
     const state = mobilityState(unit.mobility.canFly, unit.mobility.canSwim, this.battle.map.tiles[y][x]);
+    const depth = isoTileDepth(this.battle.map, x, y);
+    markers.shadow.setDepth(100 + depth + 4);
+    markers.ripple.setDepth(100 + depth + 4);
     markers.shadow.setVisible(state === 'flying');
     markers.ripple.setVisible(state === 'swimming');
     markers.artShadow?.setVisible(state === 'grounded' && unit.hp > 0);
@@ -426,7 +470,7 @@ class BattleScene extends Phaser.Scene {
         this.showMarkers(attacker, markers, event.from);
       }
       this.tweens.killTweensOf(attackerSprite);
-      attackerSprite.setPosition(sourceX, sourceY).setDepth(100 + sourceY + 33);
+      attackerSprite.setPosition(sourceX, sourceY).setDepth(105 + isoTileDepth(this.battle.map, event.from[0], event.from[1]));
       const facing = facingBetween(event.from, event.to, attacker.facing);
       attackerSprite.play(unitAnimationKey(attacker.species, facing, clip), true);
     }
@@ -485,7 +529,7 @@ class BattleScene extends Phaser.Scene {
   renderBattle() {
     if (!this.battle || !this.ground) return;
     this.ground.clear();
-    for (const label of this.labels) label.destroy(); this.labels = [];
+    let matchupCount = 0;
     const current = active(this.battle);
     const moveHighlights = this.mode === 'move' && (current.side === 'player' || this.controlBoth) ? new Set(this.moveRoutes?.keys()) : new Set<string>();
     const attackMove = this.mode === 'attack' && this.chosenMove && (current.side === 'player' || this.controlBoth) ? MOVES[this.chosenMove] : undefined;
@@ -500,7 +544,7 @@ class BattleScene extends Phaser.Scene {
       if (tile.mudUntil && tile.mudUntil > this.battle.time) { this.ground.fillStyle(0x563c31, 0.7); this.ground.fillEllipse(center.x, center.y, 28, 10); }
       if (tile.coverUntil && tile.coverUntil > this.battle.time) {
         const key = `${x},${y}`; activeCover.add(key);
-        if (!this.cover.has(key)) this.cover.set(key, this.add.image(center.x, center.y - 16, 'overlay-cover-16px').setScale(1.8).setDepth(3));
+        if (!this.cover.has(key)) this.cover.set(key, this.add.image(center.x, center.y - 16, 'overlay-cover-16px').setScale(1.8).setDepth(105 + isoTileDepth(this.battle.map, x, y)));
       }
       if (moveHighlights.has(`${x},${y}`)) { this.ground.fillStyle(0x9fe4bd, 0.38); this.fillDiamond(this.ground, center.x, center.y); }
       const defender = defenders?.[y * width + x];
@@ -509,12 +553,22 @@ class BattleScene extends Phaser.Scene {
         const multiplier = absorbed ? 0 : effectiveness(attackMove.type, defender.types);
         const color = multiplier === 0 ? 0xa7aeb3 : multiplier < 1 ? 0xeea47d : multiplier > 1 ? 0x7be3a6 : 0xf0d985;
         this.ground.lineStyle(3, color); this.strokeDiamond(this.ground, center.x, center.y);
-        this.labels.push(this.add.text(center.x, center.y - 31, absorbed ? 'ABS' : `${multiplier}×`, { fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', backgroundColor: '#183033' }).setOrigin(0.5).setDepth(5000));
+        const text = absorbed ? 'ABS' : `${multiplier}×`;
+        let label = this.labels[matchupCount++];
+        if (label) {
+          label.setPosition(center.x, center.y - 31).setText(text);
+          this.children.bringToTop(label);
+        } else {
+          label = this.add.text(center.x, center.y - 31, text, { fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', backgroundColor: '#183033' }).setOrigin(0.5).setDepth(5000);
+          this.labels.push(label);
+        }
       }
       if (this.battle.map.capture?.[0] === x && this.battle.map.capture[1] === y) {
         this.ground.lineStyle(3, this.battle.captureHeld ? 0x7be0a3 : 0xe7d477); this.strokeDiamond(this.ground, center.x, center.y);
       }
     }
+    // Keep only visible labels, bounded by the current matchups rather than prior battles.
+    for (const label of this.labels.splice(matchupCount)) label.destroy();
     for (const unit of this.battle.units) this.drawUnit(unit);
     const protectedIds = new Set([...(this.playingAttack ? [this.playingAttack] : []), ...this.pendingAttacks].flatMap(event => [event.sourceId, ...event.targetIds]));
     for (const [id, sprite] of this.sprites) if (!this.battle.units.some(u => u.id === id && u.hp > 0) && !protectedIds.has(id)) {
@@ -523,6 +577,7 @@ class BattleScene extends Phaser.Scene {
       sprite.destroy(); this.sprites.delete(id);
       const markers = this.markers.get(id); markers?.shadow.destroy(); markers?.ripple.destroy(); markers?.artShadow?.destroy(); this.markers.delete(id);
       this.hp.get(id)?.destroy(); this.hp.delete(id);
+      this.hpAppearance.delete(id);
       this.displayedHp.delete(id);
     }
     for (const [key, image] of this.cover) if (!activeCover.has(key)) { image.destroy(); this.cover.delete(key); }
@@ -594,7 +649,7 @@ class BattleScene extends Phaser.Scene {
     this.tweens.killTweensOf(markers.ripple);
     if (markers.artShadow) this.tweens.killTweensOf(markers.artShadow);
     const [startX, startY] = this.unitCenter(unit, start), [markerX, markerY] = this.markerCenter(start);
-    sprite.setPosition(startX, startY).setDepth(100 + startY + 33);
+    sprite.setPosition(startX, startY).setDepth(105 + isoTileDepth(this.battle.map, start[0], start[1]));
     markers.shadow.setPosition(markerX, markerY); markers.ripple.setPosition(markerX, markerY);
     markers.artShadow?.setPosition(startX, startY);
     this.showMarkers(unit, markers, start);
@@ -612,9 +667,14 @@ class BattleScene extends Phaser.Scene {
       sprite.play(unitAnimationKey(unit.species, facingBetween(previous, point, unit.facing), 'walk'), true);
       this.showMarkers(unit, markers, point);
       const [x, y] = this.unitCenter(unit, point), [markerX, markerY] = this.markerCenter(point);
-      this.tweens.add({ targets: [markers.shadow, markers.ripple], x: markerX, y: markerY, duration: MOVE_STEP_MS, ease: 'Linear' });
-      this.tweens.add({ targets: [sprite, ...(markers.artShadow ? [markers.artShadow] : [])], x, y, duration: MOVE_STEP_MS, ease: 'Linear', onUpdate: () => {
-        sprite.setDepth(100 + sprite.y + 33);
+      const startDepth = isoTileDepth(this.battle.map, previous[0], previous[1]), endDepth = isoTileDepth(this.battle.map, point[0], point[1]);
+      this.tweens.add({ targets: [markers.shadow, markers.ripple], x: markerX, y: markerY, duration: MOVE_STEP_MS, ease: 'Linear', onUpdate: (tween: Phaser.Tweens.Tween) => {
+        const depth = Phaser.Math.Linear(startDepth, endDepth, tween.progress);
+        markers.shadow.setDepth(104 + depth);
+        markers.ripple.setDepth(104 + depth);
+      } });
+      this.tweens.add({ targets: [sprite, ...(markers.artShadow ? [markers.artShadow] : [])], x, y, duration: MOVE_STEP_MS, ease: 'Linear', onUpdate: (tween: Phaser.Tweens.Tween) => {
+        sprite.setDepth(105 + Phaser.Math.Linear(startDepth, endDepth, tween.progress));
         markers.artShadow?.setDepth(sprite.depth - 1);
       }, onComplete: () => {
         const cues = this.pendingMovementHp.get(unit.id) ?? [];
@@ -636,21 +696,22 @@ class BattleScene extends Phaser.Scene {
     const wasVisible = !!sprite;
     const [x, y] = this.unitCenter(unit, [unit.x, unit.y]);
     const [markerX, markerY] = this.markerCenter([unit.x, unit.y]);
+    const depth = isoTileDepth(this.battle.map, unit.x, unit.y);
     let markers = this.markers.get(unit.id);
     if (!markers) {
-      const shadow = this.add.ellipse(markerX, markerY, 35, 11, 0x071d24, 0.55).setDepth(4);
-      const ripple = this.add.ellipse(markerX, markerY, 42, 15, 0x9eddfa, 0.18).setStrokeStyle(2, 0xc5f0ff, 0.9).setDepth(4);
+      const shadow = this.add.ellipse(markerX, markerY, 35, 11, 0x071d24, 0.55).setDepth(104 + depth);
+      const ripple = this.add.ellipse(markerX, markerY, 42, 15, 0x9eddfa, 0.18).setStrokeStyle(2, 0xc5f0ff, 0.9).setDepth(104 + depth);
       markers = { shadow, ripple }; this.markers.set(unit.id, markers);
     }
     const idleShadowKey = unitShadowTextureKey(setId, 'idle');
     if (this.textures.exists(idleShadowKey) && !markers.artShadow) {
-      markers.artShadow = this.add.sprite(x, y, idleShadowKey).setScale(1.65).setTint(0x000000).setAlpha(0.35).setDepth(100 + y + 32);
+      markers.artShadow = this.add.sprite(x, y, idleShadowKey).setScale(1.65).setTint(0x000000).setAlpha(0.35).setDepth(104 + depth);
     } else if (!this.textures.exists(idleShadowKey) && markers.artShadow) {
       markers.artShadow.destroy(); markers.artShadow = undefined;
     }
     const newVisual = this.seen.get(unit.id) !== unit.visualNonce;
     if (!sprite) {
-      sprite = this.add.sprite(x, y, unitTextureKey(setId, 'idle')).setScale(1.65).setDepth(100 + y + 33);
+      sprite = this.add.sprite(x, y, unitTextureKey(setId, 'idle')).setScale(1.65).setDepth(105 + depth);
       sprite.setData('unitSet', setId);
       this.sprites.set(unit.id, sprite);
       sprite.on(Phaser.Animations.Events.ANIMATION_START, () => this.syncUnitShadow(unit.id));
@@ -662,10 +723,10 @@ class BattleScene extends Phaser.Scene {
     }
     if (wasVisible && newVisual && unit.visual === 'move' && unit.visualFrom && unit.visualPath?.length) this.animateRoute(sprite, markers, unit.visualFrom, unit.visualPath, unit);
     else if ((sprite.x !== x || sprite.y !== y) && !this.tweens.isTweening(sprite)) this.tweens.add({ targets: [sprite, ...(markers.artShadow ? [markers.artShadow] : [])], x, y, duration: MOVE_STEP_MS, ease: 'Sine.easeInOut', onUpdate: () => {
-      sprite.setDepth(100 + sprite.y + 33);
+      sprite.setDepth(105 + depth);
       markers.artShadow?.setDepth(sprite.depth - 1);
     } });
-    sprite.setDepth(100 + sprite.y + 33);
+    if (!this.movingUnits.has(unit.id)) sprite.setDepth(105 + depth);
     this.syncUnitShadow(unit.id);
     if (!this.movingUnits.has(unit.id)) {
       this.showMarkers(unit, markers, [unit.x, unit.y]);

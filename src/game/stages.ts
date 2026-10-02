@@ -1,7 +1,8 @@
 import type { StageExpiry, StatStages, Unit } from './types';
 
-export const MAX_STAGE = 3;
-export const STAGE_DURATION = 200;
+export const MAX_STAGE = 6;
+// Move-effect durations use the legacy 100-unit clock; 500 units equal five AV cycles.
+export const STAGE_DURATION = 500;
 export const STAGE_STATS: (keyof StatStages)[] = ['attack', 'defense', 'specialAttack', 'specialDefense'];
 
 export function emptyStageExpiry(): StageExpiry {

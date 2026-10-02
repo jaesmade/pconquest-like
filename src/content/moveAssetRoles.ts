@@ -5,7 +5,7 @@ export type MoveAssetRole = 'melee' | 'projectile' | 'area' | 'self' | 'hazard' 
 /** Shared presentation fallback; this never affects move rules or seeded RNG. */
 export function moveAssetRole(move?: Move): MoveAssetRole {
   if (!move) return 'melee';
-  if (move.effects?.some(effect => effect.kind === 'weather')) return 'weather';
+  if (move.effects?.some(effect => effect.kind === 'weather' || effect.kind === 'trick-room')) return 'weather';
   // Secondary tile effects on a damaging move do not replace its hit animation.
   if (move.category !== 'Status') {
     if (move.area) return 'area';

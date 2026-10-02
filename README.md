@@ -4,6 +4,8 @@ This early browser build turns the [design plan](docs/PLAN.md) into a tactical r
 
 The [project master record](docs/PROJECT_MASTER.md) indexes the design documents and records completed changes. Future work is logged there.
 
+Read the [detailed game description](docs/GAME_DESCRIPTION.md) for an overview of the run, battle systems, progression, and planned artifacts.
+
 ## Run locally
 
 ```powershell
@@ -13,12 +15,14 @@ npm run dev -- --host 127.0.0.1 --port 8080
 
 Open <http://localhost:8080>. Drag the battlefield with the mouse to pan; click a tile to interact, use the wheel to zoom, or use the camera controls beside the minimap.
 
+Run `npm run build` for the production build, `npm run playthrough` for scripted campaign/Battle Lab checks, `npm run verify:targeting` for exhaustive targeting and planner equivalence, and `npm run measure:save` for synthetic clone/save timings and fingerprint checks. Measurement scope and limitations are in the [optimization audit](docs/SCALABILITY_AUDIT.md); browser fixture instructions are in the [render profile](docs/RENDER_PROFILE.md).
+
 ## What is playable
 
 The [Battle Lab](docs/BATTLE_LAB.md) is a small 1v1 arena where you control both sides, choose species, level, held item, weather, and seed, then inspect animation playback and damage ranges without changing the saved run.
 
 - Draft a starting roster with six points. A run can own 20 Pokémon and deploy up to six healthy members. Choose their positions directly on the isometric preparation map.
-- Pick a path through a [ten-column cavern route](docs/ROUTE_OVERHAUL.md), ending at a boss in column ten. Normal and elite battles, full-party healing, a coin shop, and a simple recruit-or-coins special encounter use authored square battle maps, currently 8×8. Maps include elevation, deep water, lava, a boss capture point, and varied weather. Swimmers show a water ripple; flying forms float above a shadow.
+- Pick a path through a [ten-column cavern route](docs/ROUTE_OVERHAUL.md), ending at a boss in column ten. Five 16×16 normal forests rotate through the campaign, with a dedicated elite lake and an 8×8 boss capture arena. Forests have elevation, clear ramps, dirt trails, logs, stumps, varied vegetation, and grounded routes around deep water. Swimmers show a water ripple; flying forms float above a shadow. The route also offers full-party healing, a coin shop, and recruitment events.
 - Speed-based Action Value turns: each unit starts at AV 0, and the living unit with the lowest next-action time acts next. Its next turn is scheduled at `current AV + 10,000 / effective Speed`; Speed changes rescale its remaining wait, and action advance or delay effects adjust that wait directly. Each turn grants 3 AP, added to unused AP banked from earlier turns in that battle. A Pokémon may move once per turn for 1 AP, up to its Movement tile range, and use one Attack command (including a Status move). Moves and usable held items keep their listed AP costs; Special actions remain available with leftover AP.
 - Selecting a move highlights its range and affected area. Reachable enemies show type-effectiveness labels on the grid and matchup details in the action panel before confirmation.
 - The supplied 18-type chart, dual-type multiplication, STAB, a 1-in-24 critical chance, abilities, terrain hazards, weather effects, basic statuses, line of sight, and enemy actions.
@@ -34,7 +38,7 @@ Source layout: [main.tsx](src/main.tsx) loads and mounts the game; [App.tsx](src
 
 ## Placeholder assets
 
-The battlefield now uses a [replaceable isometric tile family](docs/ISOMETRIC_ASSETS.md) and a generated reference-inspired title backdrop. The route uses a separate [generated cavern backdrop](docs/ROUTE_OVERHAUL.md). Its square combat rules remain unchanged; the renderer projects cells, units, paths, and attack effects into the new view. Pokémon sheets remain named placeholders.
+The battlefield uses a [replaceable isometric tile family](docs/ISOMETRIC_ASSETS.md) with original Mystery Dungeon-inspired forest art, moss, paths, rooted cliffs, broadleaf/pine trees, logs, stumps, ferns, and mushrooms. With the development server running, review all seven maps at [`/docs/FOREST_MAP_PREVIEW.html`](docs/FOREST_MAP_PREVIEW.html); run `npm run verify:forest` to check navigation, ramps, collisions, art registration, and campaign selection. The route uses a separate [generated cavern backdrop](docs/ROUTE_OVERHAUL.md). Its square combat rules remain unchanged; the renderer projects cells, units, paths, and attack effects into the new view. Pokémon sheets remain named placeholders.
 
 The [animation asset guide](docs/ANIMATION_ASSETS.md) describes filenames, sheet layout, direction rows, frame ranges, all 15 move-specific attack effects, and replacement steps. The runtime reads [animation-manifest.json](public/assets/animations/animation-manifest.json). Named starter sheets are included; other forms use the `placeholder` sheet until their artwork is added. Attack effects are queued on the board so quick enemy turns do not overwrite them.
 

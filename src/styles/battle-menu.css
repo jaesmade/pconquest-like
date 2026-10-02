@@ -1,7 +1,7 @@
 /* Floating battle controls; only each control has a glass surface. */
 .action-popup.glass-action-menu {
-  --glass-ink: #102a36;
-  --glass-edge: #d8ffffbd;
+  --glass-ink: #f7f7f1;
+  --glass-edge: #d8e3e1;
   width: min(246px, calc(100vw - 24px));
   max-height: min(68dvh, calc(100dvh - 190px));
   gap: 0;
@@ -25,12 +25,11 @@
   border: 2px solid var(--glass-edge);
   border-radius: 13px;
   color: var(--glass-ink);
-  background: linear-gradient(145deg, #effffc9e, #cbf5ed78);
-  box-shadow: 0 4px 12px #0619237a, inset 0 1px 0 #ffffff9e;
-  backdrop-filter: blur(8px) saturate(1.2);
-  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  background: linear-gradient(145deg, #29444ef5, #132b36f5);
+  box-shadow: 0 5px 0 #1b252ab0, inset 0 0 0 2px #ffffff14, 0 8px 16px #0619237a;
+  backdrop-filter: blur(5px) saturate(1.05);
+  -webkit-backdrop-filter: blur(5px) saturate(1.05);
   font: clamp(.69rem, 1.1vw, .83rem)/1.45 'Press Start 2P', monospace;
-  text-shadow: 0 1px 1px #ffffff8c;
   text-align: center;
   transition: transform .12s ease, background .12s ease, border-color .12s ease;
 }
@@ -41,7 +40,7 @@
   min-height: 46px;
   padding: 10px;
   color: var(--glass-ink);
-  background: linear-gradient(145deg, #effffc9e, #cbf5ed78);
+  background: linear-gradient(145deg, #29444ef5, #132b36f5);
   border: 2px solid var(--glass-edge);
 }
 .glass-action-menu button:hover:not(:disabled),
@@ -49,9 +48,9 @@
 .glass-action-menu .action-move-choice .moves button:hover:not(:disabled) {
   color: var(--glass-ink);
   border-color: #fff;
-  background: linear-gradient(145deg, #effffcc2, #cdf8f0a8);
+  background: linear-gradient(145deg, #3a5961, #29444e);
 }
-.glass-action-menu button:active:not(:disabled) { transform: translateY(1px); }
+.glass-action-menu button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 #1b252ab0, inset 0 0 0 2px #ffffff14; }
 .glass-action-menu button:disabled { opacity: .5; box-shadow: none; }
 .glass-action-menu button:focus-visible { outline: 3px solid var(--ui-gold); outline-offset: 2px; }
 
@@ -74,7 +73,7 @@
   padding: 6px;
   overflow-wrap: anywhere;
   color: var(--glass-ink);
-  background: linear-gradient(145deg, #effffc9e, #cbf5ed78);
+  background: linear-gradient(145deg, #29444ef5, #132b36f5);
   border: 2px solid var(--glass-edge);
   text-align: center;
   font-size: .7rem;
@@ -95,40 +94,56 @@
   position: absolute;
   z-index: 7;
   width: min(280px, calc(100vw - 24px));
-  max-height: 170px;
+  max-height: min(250px, calc(100dvh - 24px));
   overflow: auto;
   padding: 10px 12px;
-  color: #102a36;
-  background: #e5fff3a8;
-  border: 2px solid #d8ffffbd;
-  border-radius: 12px;
-  box-shadow: 0 5px 15px #1d4d5147;
-  backdrop-filter: blur(8px) saturate(1.2);
-  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+  color: #f7f7f1;
+  background: #132b36f2;
+  border: 3px solid #d8e3e1;
+  border-radius: 13px;
+  box-shadow: 0 5px 0 #1b252ab0, inset 0 0 0 2px #ffffff14, 0 10px 24px #07101470;
+  backdrop-filter: blur(5px) saturate(1.05);
+  -webkit-backdrop-filter: blur(5px) saturate(1.05);
   pointer-events: none;
 }
 .battle-move-tooltip b { display: block; font: .72rem/1.55 'Press Start 2P', monospace; }
-.battle-move-tooltip p { margin: 6px 0; color: #234750; font-size: .8rem; line-height: 1.45; }
-.battle-move-tooltip small { display: block; margin-top: 5px; color: #365a61; font-size: .72rem; line-height: 1.4; }
+.battle-move-tooltip b { color: #ffcb3d; }
+.battle-move-tooltip p { margin: 6px 0; color: #edf5ee; font-size: .8rem; line-height: 1.45; }
+.battle-move-tooltip small { display: block; margin-top: 5px; color: #c0d2d1; font-size: .72rem; line-height: 1.4; }
 .glass-action-menu .action-target-choice { display: flex; align-items: center; gap: 9px; }
 .glass-action-menu .action-special-choice { display: grid; grid-template-columns: 52px 1fr; gap: 8px; align-items: center; }
-.glass-action-menu .action-special-choice > small { grid-column: 1 / -1; color: #365a61; text-align: center; font-size: .72rem; }
+.glass-action-menu .action-special-choice > small { grid-column: 1 / -1; color: #c0d2d1; text-align: center; font-size: .72rem; }
 .glass-action-menu .action-end-confirm { display: grid; gap: 8px; }
 .glass-action-menu .action-end-confirm p {
   margin: 0 0 4px;
   padding: 10px;
   color: var(--glass-ink);
-  background: #e5fff3a8;
+  background: #29444e;
   border: 2px solid var(--glass-edge);
   border-radius: 12px;
   font-size: .82rem;
   line-height: 1.5;
   text-align: center;
 }
-.glass-action-menu .notice { margin-top: 8px; color: #803c36; }
-.battle-actor-hud button { border: 1px solid #cce8e4; border-radius: 9px; background: #ffffff2e; backdrop-filter: blur(10px); }
+.glass-action-menu .notice { margin-top: 8px; color: #ffc1ad; }
+.battle-actor-hud button {
+  color: #f7f7f1;
+  background: #29444e;
+  border: 2px solid #d8e3e1;
+  border-radius: 9px;
+  box-shadow: 0 3px 0 #1b252ab0;
+}
 
 @media (max-width: 700px) {
+  .battle-actor-hud { max-width: calc(100vw - 124px); }
+  .battle-actor-hud > .portrait { flex: none; }
+  .lab-diagnostics { bottom: calc(104px + env(safe-area-inset-bottom)); }
+  .action-popup.glass-action-menu:not(.submenu) {
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(34dvh, calc(100dvh - 190px));
+  }
+  .glass-action-menu:not(.submenu) .action-command-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .glass-action-menu:not(.submenu) .action-command-list button { min-height: 46px; padding: 7px; font-size: .65rem; }
   .action-popup.glass-action-menu,
   .action-popup.glass-action-menu.choosing-move {
     right: auto;

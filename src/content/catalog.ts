@@ -1,7 +1,7 @@
 import { ABILITIES } from './abilities';
 import { ENCOUNTERS } from './encounters';
-import { itemFor, ITEMS } from './items';
-import { MAPS, MAX_MAP_SIZE } from './maps';
+import { itemEvolutionFor, itemFor, ITEMS } from './items';
+import { ELITE_MAP_ID, MAPS, MAX_MAP_SIZE, NORMAL_MAP_IDS } from './maps';
 import { MAX_EQUIPPED_MOVES, MOVES, MOVE_TAGS } from './moves';
 import { RECRUITS, SPECIES, STARTERS } from './species';
 import { TYPES } from './typeChart';
@@ -45,8 +45,13 @@ export function validateCatalog(): string[] {
     }
   }
   for (const item of ITEMS) {
-    const moveId = itemFor(item)?.teachesMove;
+    const definition = itemFor(item);
+    const moveId = definition?.teachesMove;
     if (moveId && !MOVES[moveId]) errors.push(`Item ${item}: unknown TM move ${moveId}`);
+    const evolution = itemEvolutionFor(item);
+    if (evolution && (!SPECIES[evolution.from] || !SPECIES[evolution.into] || SPECIES[evolution.from]?.form || SPECIES[evolution.into]?.form)) {
+      errors.push(`Item ${item}: evolution must reference existing non-temporary species`);
+    }
   }
   for (const id of [...STARTERS, ...RECRUITS]) {
     if (!SPECIES[id]) errors.push(`Roster: unknown species ${id}`);
@@ -117,6 +122,21 @@ export function validateCatalog(): string[] {
       if (!point) errors.push(`Encounter ${encounter.id}: no distinct legal enemy-zone tile for ${id}`);
       else occupied.add(point.join(','));
     }
+  }
+  const eliteMap = MAPS[ELITE_MAP_ID];
+  if (!NORMAL_MAP_IDS.length || new Set(NORMAL_MAP_IDS).size !== NORMAL_MAP_IDS.length) errors.push('Normal battles: provide distinct forest map IDs');
+  for (const id of NORMAL_MAP_IDS as readonly string[]) {
+    const map = MAPS[id];
+    if (!map) { errors.push(`Normal battles: unknown map ${id}`); continue; }
+    if (id === ELITE_MAP_ID || id === ENCOUNTERS.at(-1)?.mapId) errors.push(`Normal battles: special arena ${id} cannot enter the forest rotation`);
+    if (map.enemySpawns.length < Math.max(...ENCOUNTERS.slice(0, -1).map(encounter => encounter.enemies.length)))
+      errors.push(`Normal map ${id}: fewer enemy spawns than a normal team needs`);
+  }
+  if (!eliteMap) errors.push(`Elite battles: unknown map ${ELITE_MAP_ID}`);
+  else {
+    if (eliteMap.tiles.length !== 16 || eliteMap.tiles.some(row => row.length !== 16)) errors.push(`Elite map ${ELITE_MAP_ID}: expected a 16×16 battlefield`);
+    if (eliteMap.enemySpawns.length < Math.max(...ENCOUNTERS.map(encounter => encounter.enemies.length + 1)))
+      errors.push(`Elite map ${ELITE_MAP_ID}: fewer enemy spawns than an elite team needs`);
   }
   for (const encounter of ENCOUNTERS) {
     const seen = new Set<string>();

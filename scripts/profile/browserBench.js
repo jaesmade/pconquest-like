@@ -1,4 +1,4 @@
-import { isoTileCenter } from '../../src/battle/isometric';
+import { tileCenter } from '../../src/battle/topDown';
 
 const round = value => Math.round(value * 100) / 100;
 const percentile = (values, fraction) => {
@@ -154,7 +154,7 @@ function checkRendererReuse(scene) {
     scene.battle = { ...original.battle, units: original.battle.units.map(unit => unit.id === defender.id ? defender : unit) };
     scene.mode = 'attack'; scene.chosenMove = 'thunderbolt';
     scene.renderBattle();
-    const center = isoTileCenter(scene.battle.map, defender.x, defender.y);
+    const center = tileCenter(scene.battle.map, defender.x, defender.y);
     const label = scene.labels.find(candidate => candidate.x === center.x && candidate.y === center.y - 31);
     assert(label?.text === '2×', 'water defender shows the expected effectiveness');
     const labels = [...scene.labels];

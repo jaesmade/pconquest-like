@@ -3,7 +3,7 @@ import { canEnter } from './grid';
 import { placeHazardZone } from './hazards';
 import { syncMobility } from './mobility';
 import { random } from './rng';
-import { changeStage, MAX_STAGE } from './stages';
+import { changeStage, MAX_STAGE, statWithStage } from './stages';
 import { changeNextAction, formatCycleDuration, timelineSpeed, toActionValueDuration } from './actionValue';
 import { abilitySpeedMultiplier } from '../content/abilities';
 import type { AttackVisualEvent, Battle, GridPoint, Move, MoveEffect, Unit } from './types';
@@ -37,7 +37,7 @@ const actionTargets = (effect: OfKind<'action'>, context: EffectView) => effect.
       : effect.recipients === 'allies' ? unit.side === context.source.side
         : effect.recipients === 'enemies' ? unit.side !== context.source.side : true));
 const planningSpeed = (unit: Unit, battle: Battle) => Math.max(0.5,
-  unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
+  statWithStage(unit.stats[5], unit.stages.speed) * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
 
 /** The authored effect array is the order within each phase. This table owns all effect-family rules. */
 const handlers: { [K in Kind]: Handler<OfKind<K>> } = {

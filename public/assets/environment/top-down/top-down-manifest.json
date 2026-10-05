@@ -1,0 +1,99 @@
+{
+  "tilePixels": [
+    64,
+    64
+  ],
+  "tiles": {
+    "grass": [
+      "/assets/environment/top-down/grass-h0.svg",
+      "/assets/environment/top-down/grass-h1.svg",
+      "/assets/environment/top-down/grass-h2.svg"
+    ],
+    "speckled": [
+      "/assets/environment/top-down/speckled-h0.svg",
+      "/assets/environment/top-down/speckled-h1.svg",
+      "/assets/environment/top-down/speckled-h2.svg"
+    ],
+    "moss": [
+      "/assets/environment/top-down/moss-h0.svg",
+      "/assets/environment/top-down/moss-h1.svg",
+      "/assets/environment/top-down/moss-h2.svg"
+    ],
+    "path": [
+      "/assets/environment/top-down/path-h0.svg",
+      "/assets/environment/top-down/path-h1.svg",
+      "/assets/environment/top-down/path-h2.svg"
+    ],
+    "stone": [
+      "/assets/environment/top-down/stone-h0.svg",
+      "/assets/environment/top-down/stone-h1.svg",
+      "/assets/environment/top-down/stone-h2.svg"
+    ],
+    "seal": [
+      "/assets/environment/top-down/seal-h0.svg",
+      "/assets/environment/top-down/seal-h1.svg",
+      "/assets/environment/top-down/seal-h2.svg"
+    ],
+    "water": [
+      "/assets/environment/top-down/water-h0.svg",
+      "/assets/environment/top-down/water-h1.svg",
+      "/assets/environment/top-down/water-h2.svg"
+    ],
+    "lava": [
+      "/assets/environment/top-down/lava-h0.svg",
+      "/assets/environment/top-down/lava-h1.svg",
+      "/assets/environment/top-down/lava-h2.svg"
+    ],
+    "wall": [
+      "/assets/environment/top-down/wall-h0.svg",
+      "/assets/environment/top-down/wall-h1.svg",
+      "/assets/environment/top-down/wall-h2.svg"
+    ]
+  },
+  "ramps": {
+    "north": {
+      "path": "/assets/environment/top-down/ramp-path-north.svg",
+      "stone": "/assets/environment/top-down/ramp-stone-north.svg"
+    },
+    "east": {
+      "path": "/assets/environment/top-down/ramp-path-east.svg",
+      "stone": "/assets/environment/top-down/ramp-stone-east.svg"
+    },
+    "south": {
+      "path": "/assets/environment/top-down/ramp-path-south.svg",
+      "stone": "/assets/environment/top-down/ramp-stone-south.svg"
+    },
+    "west": {
+      "path": "/assets/environment/top-down/ramp-path-west.svg",
+      "stone": "/assets/environment/top-down/ramp-stone-west.svg"
+    }
+  },
+  "edges": {
+    "ledge-north": "/assets/environment/top-down/ledge-north.svg",
+    "bank-north": "/assets/environment/top-down/bank-north.svg",
+    "trail-north": "/assets/environment/top-down/trail-north.svg",
+    "ledge-east": "/assets/environment/top-down/ledge-east.svg",
+    "bank-east": "/assets/environment/top-down/bank-east.svg",
+    "trail-east": "/assets/environment/top-down/trail-east.svg",
+    "ledge-south": "/assets/environment/top-down/ledge-south.svg",
+    "bank-south": "/assets/environment/top-down/bank-south.svg",
+    "trail-south": "/assets/environment/top-down/trail-south.svg",
+    "ledge-west": "/assets/environment/top-down/ledge-west.svg",
+    "bank-west": "/assets/environment/top-down/bank-west.svg",
+    "trail-west": "/assets/environment/top-down/trail-west.svg"
+  },
+  "decorations": {
+    "tree": "/assets/environment/top-down/tree.svg",
+    "pine-tree": "/assets/environment/top-down/pine-tree.svg",
+    "ancient-tree": "/assets/environment/top-down/ancient-tree.svg",
+    "rock": "/assets/environment/top-down/rock.svg",
+    "bush": "/assets/environment/top-down/bush.svg",
+    "fallen-log": "/assets/environment/top-down/fallen-log.svg",
+    "tree-stump": "/assets/environment/top-down/tree-stump.svg",
+    "standing-stone": "/assets/environment/top-down/standing-stone.svg",
+    "fern": "/assets/environment/top-down/fern.svg",
+    "mushrooms": "/assets/environment/top-down/mushrooms.svg",
+    "flower": "/assets/environment/top-down/flower.svg",
+    "grass-tuft": "/assets/environment/top-down/grass-tuft.svg"
+  }
+}

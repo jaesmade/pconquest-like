@@ -1,36 +1,35 @@
-import isoAssets from '../../public/assets/environment/isometric/isometric-manifest.json';
+import assets from '../../public/assets/environment/top-down/top-down-manifest.json';
 import type { BattleMap, Tile } from '../game/types';
-import { ISO_ELEVATION } from './isometric';
+import { TILE_SIZE } from './topDown';
 
-export const TILE_TOP_POLYGON = [{ x: 48, y: 0 }, { x: 96, y: 24 }, { x: 48, y: 48 }, { x: 0, y: 24 }];
+export { assets as terrainAssets };
 
 /** Shared art selection keeps preparation and battle terrain identical without consuming game RNG. */
 export function terrainArt(tile: Tile, x: number, y: number) {
-  const height = 72 + tile.height * 20;
-  if (tile.kind !== 'plain') return {
-    texture: `iso-${tile.kind}-h${tile.height}-96px`,
-    url: isoAssets.tiles[tile.kind][tile.height],
-    height,
-  };
+  if (tile.kind === 'plain' && tile.slope) {
+    const surface = tile.surface === 'stone' ? 'stone' : 'path';
+    return { texture: `ground-ramp-${surface}-${tile.slope}`, url: assets.ramps[tile.slope][surface], height: TILE_SIZE };
+  }
   const variation = ((Math.imul(x + 1, 73856093) ^ Math.imul(y + 1, 19349663)) >>> 0) % 11;
-  const style = tile.surface ?? (variation < 3 ? 'speckled' : variation === 3 ? 'moss' : 'grass');
-  return { texture: `iso-forest-${style}-h${tile.height}`, url: isoAssets.forestTiles[style][tile.height], height };
+  const style = tile.kind !== 'plain' ? tile.kind : tile.surface ?? (variation < 3 ? 'speckled' : variation === 3 ? 'moss' : 'grass');
+  return { texture: `ground-${style}-h${tile.height}`, url: assets.tiles[style][tile.height], height: TILE_SIZE };
 }
 
-export function forestCliffArt(tile: Tile) {
-  return { texture: `iso-forest-cliff-h${tile.height}`, url: isoAssets.forestCliffs[tile.height], height: 72 + tile.height * 20 };
-}
-
-/** Adjacent tops bury the lower soil: only exposed front faces can occlude actors. */
-export function forestCliffFaces(map: BattleMap, x: number, y: number) {
+/** Borders occupy their owning square; ledges never obscure neighboring cells. */
+export function terrainEdges(map: BattleMap, x: number, y: number) {
   const tile = map.tiles[y][x];
-  const exposed = (neighbor?: Tile) => neighbor ? Math.max(0, tile.height - neighbor.height) * ISO_ELEVATION : 22 + tile.height * ISO_ELEVATION;
-  const left = exposed(map.tiles[y + 1]?.[x]), right = exposed(map.tiles[y]?.[x + 1]);
-  return {
-    key: `${tile.height}-${left}-${right}`,
-    polygons: [
-      ...(left ? [[{ x: 0, y: 24 }, { x: 48, y: 48 }, { x: 48, y: 48 + left }, { x: 0, y: 24 + left }]] : []),
-      ...(right ? [[{ x: 48, y: 48 }, { x: 96, y: 24 }, { x: 96, y: 24 + right }, { x: 48, y: 48 + right }]] : []),
-    ],
-  };
+  const edges: Array<{ texture: string; url: string }> = [];
+  const neighbors = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] } as const;
+  for (const [direction, [dx, dy]] of Object.entries(neighbors)) {
+    const neighbor = map.tiles[y + dy]?.[x + dx];
+    let kind: 'ledge' | 'bank' | 'trail' | undefined;
+    if (tile.kind === 'water' && (!neighbor || neighbor.kind !== 'water')) kind = 'bank';
+    else if (neighbor && tile.height > neighbor.height && tile.slope !== direction) kind = 'ledge';
+    else if (tile.kind === 'plain' && tile.surface === 'path' && neighbor?.kind === 'plain' && neighbor.surface !== 'path' && !neighbor.slope) kind = 'trail';
+    if (kind) {
+      const key = `${kind}-${direction}` as keyof typeof assets.edges;
+      edges.push({ texture: `ground-${key}`, url: assets.edges[key] });
+    }
+  }
+  return edges;
 }

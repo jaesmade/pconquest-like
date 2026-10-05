@@ -7,14 +7,16 @@ import { newSeed, random } from './rng';
 import { mobilityFor, syncMobility } from './mobility';
 import { calculateDamage, damageRange } from './damage';
 import { expireHazardZones } from './hazards';
-import { emptyStageExpiry, expireStages } from './stages';
+import { emptyStageExpiry, emptyStages, expireStages, statWithStage } from './stages';
 import { hasMoveTag } from '../content/moves';
 import { resolveMoveEffects } from './moveEffects';
 import { canDeploy, chooseEnemyDeployment, resolvePlayerDeployment } from './deployment';
 import { createMap, NORMAL_MAP_IDS } from '../content/maps';
 import { SHOP_STOCK } from '../content/shop';
 import { availableRouteNodes, createRoute, routeNode, ROUTE_COLUMNS } from './route';
-import type { Encounter } from './types';
+import type { Encounter, EnemyRank } from './types';
+import { ENEMY_RANKS, rankedStats, resolveEnemyEncounter } from './enemyRanks';
+import { eligibleMovesAtLevel, latestMovesAtLevel } from './movesets';
 import { ACTION_VALUE_PER_CYCLE, actionInterval, timelineSpeed, toActionValueDuration } from './actionValue';
 
 export { reachable, reachableTiles } from './grid';
@@ -35,15 +37,15 @@ export const RUN_START_LEVEL = 10;
 export function encounterDefinition(run: Run): Encounter {
   const node = routeNode(run.route, run.currentNodeId);
   const template = node?.kind === 'boss' ? ENCOUNTERS.at(-1)! : ENCOUNTERS.find(encounter => encounter.id === run.encounterId) ?? ENCOUNTERS[0];
-  if (!node) return template;
-  if (node.kind === 'boss') return { ...template, enemies: ['lapras', 'geodude', 'pikachu', 'charmander'], enemyLevel: 21, xp: 100 };
+  if (!node) return resolveEnemyEncounter(template, template.kind, template.enemyLevel, run.seed, template.id);
+  if (node.kind === 'boss') return resolveEnemyEncounter(template, 'boss', 21, run.seed, node.id);
   const level = 9 + Math.floor((node.column - 1) * 0.8) + (node.kind === 'elite' ? 3 : 0);
-  return { ...template, mapId: node.kind === 'elite' ? ELITE_MAP_ID : NORMAL_MAP_IDS[(node.column - 1) % NORMAL_MAP_IDS.length], enemies: node.kind === 'elite' ? [...template.enemies, RECRUITS[node.column % RECRUITS.length]] : template.enemies,
+  return { ...resolveEnemyEncounter(template, node.kind === 'elite' ? 'elite' : 'normal', level, run.seed, node.id), mapId: node.kind === 'elite' ? ELITE_MAP_ID : NORMAL_MAP_IDS[(node.column - 1) % NORMAL_MAP_IDS.length],
     enemyLevel: level, xp: node.kind === 'elite' ? 85 : 65, objective: 'defeat' };
 }
 export const unitAt = (battle: Battle, x: number, y: number) => battle.units.find(unit => alive(unit) && unit.x === x && unit.y === y);
 export const active = (battle: Battle) => battle.units.find(unit => unit.id === battle.current)!;
-export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, unit.stats[5] * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
+export const effectiveSpeed = (unit: Unit, battle: Battle) => Math.max(0.5, statWithStage(unit.stats[5], unit.stages?.speed ?? 0) * abilitySpeedMultiplier(unit, battle.weather) * (unit.status.paralyzed > battle.time ? 0.5 : 1));
 const scheduledTimelineSpeed = (unit: Unit, battle: Battle) => timelineSpeed(effectiveSpeed(unit, battle), battle.trickRoomUntil > battle.time);
 export const apGain = (_unit: Unit, _battle: Battle) => 3;
 const scaleStats = (stats: Unit['stats'], level: number) => stats.map((base, index) =>
@@ -51,12 +53,8 @@ const scaleStats = (stats: Unit['stats'], level: number) => stats.map((base, ind
     : Math.floor(2 * base * level / 100) + (index === 0 ? level + 10 : 5)) as Unit['stats'];
 export const statsAtLevel = (species: string, level: number) => scaleStats(SPECIES[species].stats, level);
 export const xpForLevel = (level: number) => (level - 1) * 65;
-export const learnedAtLevel = (species: string, level: number) => [...new Set([...SPECIES[species].moves, ...Object.entries(SPECIES[species].learn).filter(([required]) => Number(required) <= level).map(([, move]) => move)])];
-export const defaultLoadoutAtLevel = (species: string, level: number) => {
-  const starting = SPECIES[species].moves;
-  const recent = learnedAtLevel(species, level).filter(id => !starting.includes(id)).reverse();
-  return [...new Set([...starting.slice(0, 2), ...recent, ...starting.slice(2)])].slice(0, MAX_EQUIPPED_MOVES);
-};
+export const learnedAtLevel = (species: string, level: number) => [...new Set(eligibleMovesAtLevel(SPECIES[species], level))];
+export const defaultLoadoutAtLevel = (species: string, level: number) => latestMovesAtLevel(SPECIES[species], level);
 const makePartyMon = (species: string, level = RUN_START_LEVEL, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: defaultLoadoutAtLevel(species, level), item });
 const recruitLevel = (run: Run) => Math.max(RUN_START_LEVEL, ...run.party.map(mon => mon.level));
 export function newRun(selectedSpecies: string[], unlocks = 0): Run {
@@ -67,10 +65,10 @@ export function newRun(selectedSpecies: string[], unlocks = 0): Run {
   const party = draft.map((id, i) => makePartyMon(id, RUN_START_LEVEL, STARTING_HELD_ITEMS[i] ?? 'None'));
   return { phase: 'route', party, selected: party.slice(0, 6).map(p => p.id), deployment: {}, bag: [...STARTING_BAG], pendingMoves: [], coins: 0, encounter: 0, encounterId: ENCOUNTERS[0].id, seed, rngState: rng.rngState, route: createRoute(seed), routeChoice: 'rest', report: [], unlocks };
 }
-function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile): Unit {
+function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile, rank: EnemyRank = 'normal'): Unit {
   const species = SPECIES[mon.species];
-  const stats = statsAtLevel(mon.species, mon.level);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, species: mon.species, name: species.name, level: mon.level, types: species.types, moves: [...mon.equipped], mobility: mobilityFor(species, tile), ability: species.ability, stats, hp: Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, movedThisTurn: false, attackedThisTurn: false, nextAction: 0, nextActionShift: 0, scheduledSpeed: stats[5], status: {}, stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 }, stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
+  const stats = rankedStats(statsAtLevel(mon.species, mon.level), rank);
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, rank, species: mon.species, name: species.name, level: mon.level, types: species.types, moves: [...mon.equipped], mobility: mobilityFor(species, tile), ability: species.ability, stats, hp: side === 'enemy' ? stats[0] : Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, movedThisTurn: false, attackedThisTurn: false, nextAction: 0, nextActionShift: 0, scheduledSpeed: stats[5], status: {}, stages: emptyStages(), stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const next = { ...run };
@@ -85,7 +83,8 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: definition.objective, units: players, weather: map.weather, weatherUntil: map.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, trickRoomUntil: 0, time: 0, round: 1, turnOrder: [], turnIndex: 0, current: '', rngState: next.rngState, log: [`${map.name}: defeat the opposing team${definition.objective === 'defeat-and-capture' ? ' and hold the capture tile' : ''}.`], visualEvents: [], feedbackEvents: [], hpEvents: [], captureHeld: false, encounterId: definition.id };
   const occupied = new Set(players.map(unit => `${unit.x},${unit.y}`));
   if (enemyDeployment && enemyDeployment.length !== definition.enemies.length) throw new Error(`Map ${map.id}: enemy deployment count does not match the team.`);
-  for (const [index, id] of definition.enemies.entries()) {
+  for (const [index, enemy] of definition.enemies.entries()) {
+    const id = enemy.species;
     const chosen = enemyDeployment?.[index];
     if (enemyDeployment && !chosen) throw new Error(`Map ${map.id}: missing enemy-zone placement for ${id}.`);
     if (chosen && (!canDeploy(map, id, chosen, 'enemy') || occupied.has(`${chosen[0]},${chosen[1]}`))) throw new Error(`Map ${map.id}: invalid enemy-zone placement for ${id}.`);
@@ -93,7 +92,7 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
     if (!point) throw new Error(`Map ${map.id}: no legal enemy deployment for ${id}.`);
     const [x, y] = point;
     occupied.add(`${x},${y}`);
-    battle.units.push(makeUnit(makePartyMon(id, definition.enemyLevel), 'enemy', x, y, map.tiles[y][x]));
+    battle.units.push(makeUnit(makePartyMon(id, definition.enemyLevel), 'enemy', x, y, map.tiles[y][x], enemy.rank));
   }
   next.battle = battle;
   next.phase = 'battle';
@@ -102,7 +101,7 @@ export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
   return next;
 }
 function nextSpeedExpiry(battle: Battle) {
-  const expiries = battle.units.filter(alive).map(unit => unit.status.paralyzed).filter(until => until > battle.time);
+  const expiries = battle.units.filter(alive).flatMap(unit => [unit.status.paralyzed, unit.stageUntil.speed]).filter(until => until > battle.time);
   if (battle.weather !== 'clear' && battle.weatherUntil > battle.time) expiries.push(battle.weatherUntil);
   if (battle.trickRoomUntil > battle.time) expiries.push(battle.trickRoomUntil);
   return expiries.length ? Math.min(...expiries) : Number.POSITIVE_INFINITY;
@@ -150,10 +149,11 @@ function processTimedEventsAtCurrentTime(battle: Battle) {
   rescheduleForSpeedChanges(battle);
 }
 
-export type LabConfig = { allySpecies: string; enemySpecies: string; allyLevel: number; enemyLevel: number; allyItem: ItemId; enemyItem: ItemId; weather: Weather; seed: number };
+export type LabConfig = { allySpecies: string; enemySpecies: string; allyLevel: number; enemyLevel: number; allyItem: ItemId; enemyItem: ItemId; enemyRank?: EnemyRank; weather: Weather; seed: number };
 
 /** Disposable 1v1 battle. It shares the campaign's unit, turn, damage, and effect rules. */
 export function createLabBattle(config: LabConfig): Battle {
+  if (config.enemyRank !== undefined && !ENEMY_RANKS.includes(config.enemyRank)) throw new Error('Invalid lab enemy rank.');
   for (const id of [config.allySpecies, config.enemySpecies]) if (!SPECIES[id]) throw new Error(`Unknown lab species ${id}`);
   for (const level of [config.allyLevel, config.enemyLevel]) if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) throw new Error('Lab levels must be 1–100.');
   if (!itemCanEquip(config.allyItem, config.allySpecies) || !itemCanEquip(config.enemyItem, config.enemySpecies)) throw new Error('Invalid lab held item.');
@@ -161,7 +161,7 @@ export function createLabBattle(config: LabConfig): Battle {
     terrain: Array(5).fill('.....'), elevation: Array(5).fill('00000'), zones: ['EEEEE', 'EEEEE', 'NNNNN', 'AAAAA', 'AAAAA'],
     playerSpawns: [[2, 3]], enemySpawns: [[2, 1]] });
   const ally = makeUnit(makePartyMon(config.allySpecies, config.allyLevel, config.allyItem), 'player', 2, 3, map.tiles[3][2]);
-  const enemy = makeUnit(makePartyMon(config.enemySpecies, config.enemyLevel, config.enemyItem), 'enemy', 2, 1, map.tiles[1][2]);
+  const enemy = makeUnit(makePartyMon(config.enemySpecies, config.enemyLevel, config.enemyItem), 'enemy', 2, 1, map.tiles[1][2], config.enemyRank);
   // The lab uses each level's default four-move loadout, including newly learned moves.
   const battle: Battle = { map, tileChanges: {}, hazardZones: [], objective: 'defeat', units: [ally, enemy], weather: config.weather,
     weatherUntil: config.weather === 'clear' ? 0 : 3 * ACTION_VALUE_PER_CYCLE, trickRoomUntil: 0, time: 0, round: 1, turnOrder: [], turnIndex: 0,
@@ -431,7 +431,7 @@ export function useSpecial(battle: Battle): string | undefined {
     const oldMax = unit.maxHp;
     unit.species = form.id; unit.name = form.species.name; unit.types = [...form.species.types]; unit.ability = form.species.ability;
     unit.mobility = mobilityFor(form.species, battle.map.tiles[unit.y][unit.x]);
-    unit.stats = statsAtLevel(form.id, unit.level); unit.maxHp = unit.stats[0]; unit.hp += unit.maxHp - oldMax;
+    unit.stats = rankedStats(statsAtLevel(form.id, unit.level), unit.rank); unit.maxHp = unit.stats[0]; unit.hp += unit.maxHp - oldMax;
     log(battle, `${unit.name} Mega Evolved!`);
   }
   unit.visual = 'special'; unit.visualNonce = (unit.visualNonce ?? 0) + 1;

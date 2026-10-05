@@ -23,8 +23,9 @@ const bundle = await build({
       export { canDeploy, zoneCells } from './src/game/deployment.ts';
       export { newRun, encounterDefinition, startBattle } from './src/game/engine.ts';
       export { ROUTE_COLUMNS } from './src/game/route.ts';
-      export { isoTileCenter, isoTileDepth, isoGridAtWorld } from './src/battle/isometric.ts';
-      export { forestCliffFaces } from './src/battle/terrainArt.ts';
+      export { tileCenter, tileDepth, tileOrigin, tileTopPoints, gridAtWorld } from './src/battle/topDown.ts';
+      export { terrainEdges, terrainArt } from './src/battle/terrainArt.ts';
+      export { unitAnimationKey, unitSet, facingBetween } from './src/battle/unitAnimations.ts';
     `,
     resolveDir: process.cwd(), sourcefile: 'forest-check-entry.ts',
   },
@@ -39,8 +40,8 @@ finally { await unlink(bundlePath); }
 const { MAPS, NORMAL_MAP_IDS, ELITE_MAP_ID, ENCOUNTERS, validateCatalog,
   TERRAIN_OBJECTS, objectBlocksMovement, objectBlocksSight, terrainReachable,
   canTraverseTerrain, hasLineOfSight, canDeploy, zoneCells, newRun,
-  encounterDefinition, startBattle, ROUTE_COLUMNS, isoTileCenter, isoTileDepth,
-  isoGridAtWorld, forestCliffFaces } = game;
+  encounterDefinition, startBattle, ROUTE_COLUMNS, tileCenter, tileDepth,
+  gridAtWorld, tileOrigin, tileTopPoints, terrainEdges, terrainArt } = game;
 
 assert.deepEqual(validateCatalog(), [], 'the complete content catalog should remain valid');
 const retainedIds = ['mossveil-grove', 'fernroot-woods', 'sunshade-thicket', 'moonpool-elite', 'ancient-heartwood'];
@@ -55,7 +56,7 @@ assert.ok(!NORMAL_MAP_IDS.includes(ELITE_MAP_ID) && !NORMAL_MAP_IDS.includes(bos
 const ground = { canFly: false, canSwim: false };
 const offsets = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
 const objectUse = new Set();
-let groundCells = 0, ramps = 0, cliffEdges = 0, elevatedCenters = 0;
+let groundCells = 0, ramps = 0, cliffEdges = 0, squareCenters = 0;
 const pickingFailures = [];
 
 for (const [id, map] of Object.entries(MAPS)) {
@@ -80,16 +81,16 @@ for (const [id, map] of Object.entries(MAPS)) {
     }
     if (tile.surface) {
       assert.equal(tile.kind, 'plain', `${label}: authored floor surfaces belong on plain ground`);
-      assert.ok(['path', 'moss'].includes(tile.surface), `${label}: unknown forest surface`);
+      assert.ok(['path', 'moss', 'stone', 'seal'].includes(tile.surface), `${label}: unknown forest surface`);
     }
     if (tile.kind === 'plain' && !objectBlocksMovement(tile)) {
       heights.add(tile.height);
       mapPlain++;
       assert.ok(reachable.has(`${x},${y}`), `${label}: every usable plain tile needs a grounded route from ally deployment`);
     }
-    if (tile.height > 0) {
-      elevatedCenters++;
-      const center = isoTileCenter(map, x, y), picked = isoGridAtWorld(map, center.x, center.y);
+    {
+      squareCenters++;
+      const center = tileCenter(map, x, y), picked = gridAtWorld(map, center.x, center.y);
       if (!picked || picked[0] !== x || picked[1] !== y) pickingFailures.push(`${label} -> ${picked?.join(',') ?? 'none'}`);
     }
     if (tile.slope) {
@@ -99,6 +100,7 @@ for (const [id, map] of Object.entries(MAPS)) {
       assert.equal(lower.object, undefined, `${label}: ramp entrances must have no scenery`);
       assert.ok(canTraverseTerrain(map, ground, x, y, x + dx, y + dy), `${label}: a grounded unit must ascend the ramp`);
       assert.ok(canTraverseTerrain(map, ground, x + dx, y + dy, x, y), `${label}: a grounded unit must descend the ramp`);
+      assert.ok(!terrainEdges(map, x, y).some(edge => edge.texture === `ground-ledge-${tile.slope}`), `${label}: ramp entrance must stay open`);
       mapRamps++;
     }
     // The elevation affordance must also prevent walking straight up a cliff.
@@ -131,38 +133,32 @@ for (const [id, map] of Object.entries(MAPS)) {
   ramps += mapRamps;
   console.log(`${map.name}: ${size}×${size}, ${mapPlain} connected ground cells, ${mapRamps} ramps, reachable heights ${[...heights].sort().join('/')}.`);
 }
-assert.deepEqual(pickingFailures, [], 'elevated tile centers should pick their own grid cell');
-
-// Soil buried beneath adjacent tiles must not become a foreground occluder.
-// Small asymmetric fixtures distinguish south/east exposure and the exterior
-// island edge, where the visible face also includes the base soil thickness.
-const plateau = { tiles: [
-  [{ kind: 'plain', height: 2 }, { kind: 'plain', height: 2 }],
-  [{ kind: 'plain', height: 2 }, { kind: 'plain', height: 2 }],
-] };
-assert.deepEqual(forestCliffFaces(plateau, 0, 0).polygons, [], 'an internal same-height plateau must have no exposed front faces');
-const ledge = { tiles: [
-  [{ kind: 'plain', height: 2 }, { kind: 'plain', height: 1 }],
-  [{ kind: 'plain', height: 0 }, { kind: 'plain', height: 0 }],
-] };
-const faceDepths = faces => faces.polygons.map(polygon => polygon[2].y - polygon[1].y);
-assert.deepEqual(faceDepths(forestCliffFaces(ledge, 0, 0)), [40, 20], 'south/east cliff masks must expose two/one elevation steps respectively');
-assert.deepEqual(faceDepths(forestCliffFaces(plateau, 1, 1)), [62, 62], 'a level-two map corner must expose full soil depth on both sides');
-assert.deepEqual(faceDepths(forestCliffFaces({ tiles: [[{ kind: 'plain', height: 0 }]] }, 0, 0)), [22, 22], 'a ground-level exterior edge must preserve base soil depth');
-
-// Elevation moves the art upward but cannot change its grid-footprint order.
-// This is the Moonpool approach where a foreground upper terrace overlaps a
-// ground-level actor; actors standing on that terrace must stay above its top.
-const moonpool = MAPS[ELITE_MAP_ID];
-assert.equal(moonpool.tiles[1][7].height, 0, 'Moonpool depth fixture needs a ground-level approach');
-assert.equal(moonpool.tiles[2][8].height, 2, 'Moonpool depth fixture needs a foreground upper terrace');
-const flatMoonpool = structuredClone(moonpool);
-flatMoonpool.tiles[2][8].height = 0;
-const upperDepth = isoTileDepth(moonpool, 8, 2);
-assert.equal(upperDepth, isoTileDepth(flatMoonpool, 8, 2), 'changing elevation must preserve the footprint sort depth');
-assert.equal(isoTileCenter(flatMoonpool, 8, 2).y - isoTileCenter(moonpool, 8, 2).y, 40, 'the depth fixture must still lift the upper terrace art');
-assert.ok(isoTileDepth(moonpool, 7, 1) + 5 < upperDepth, 'the ground-level approach actor must draw behind the foreground upper top');
-assert.ok(isoTileDepth(moonpool, 8, 2) + 5 > upperDepth, 'an actor on the upper terrace must draw above its own top');
+assert.deepEqual(pickingFailures, [], 'every square cell center must pick itself, including elevated ramps');
+// Square projection must work at cell edges, all ramp orientations, and outside bounds.
+for (const direction of Object.keys(offsets)) {
+  const fixture = { tiles: Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => ({ kind: 'plain', height: 0 }))) };
+  fixture.tiles[1][1] = { kind: 'plain', height: 1, slope: direction };
+  const origin = tileOrigin(fixture, 1, 1);
+  assert.deepEqual(tileTopPoints(fixture, 1, 1), [{x:128,y:128},{x:192,y:128},{x:192,y:192},{x:128,y:192}]);
+  assert.deepEqual(tileCenter(fixture, 1, 1), {x:160,y:160}, 'height and ramps never displace the cell');
+  for (const u of [.01, .5, .99]) for (const v of [.01, .5, .99])
+    assert.deepEqual(gridAtWorld(fixture, origin.x + u * 64, origin.y + v * 64), [1,1]);
+  for (const point of [[63,96],[96,63],[256,96],[96,256]]) assert.equal(gridAtWorld(fixture, ...point), undefined);
+  assert.deepEqual(gridAtWorld(fixture, 192, 160), [2,1], 'a shared edge belongs to the next square');
+  assert.equal(tileDepth(fixture, 0, 1), tileDepth(fixture, 2, 1), 'row depth ignores column');
+  assert.ok(tileDepth(fixture, 1, 2) > tileDepth(fixture, 1, 1), 'lower row paints in front');
+}
+const water = { tiles: [[{kind:'plain',height:0},{kind:'water',height:0}],[{kind:'water',height:0},{kind:'water',height:0}]] };
+assert.ok(terrainEdges(water,1,0).some(edge => edge.texture === 'ground-bank-west'));
+assert.ok(!terrainEdges(water,1,0).some(edge => edge.texture === 'ground-bank-south'), 'joined water has no internal bank');
+const ledge = { tiles: [[{kind:'plain',height:1},{kind:'plain',height:0}]] };
+assert.ok(terrainEdges(ledge,0,0).some(edge => edge.texture === 'ground-ledge-east'));
+ledge.tiles[0][0].slope = 'east';
+assert.ok(!terrainEdges(ledge,0,0).some(edge => edge.texture === 'ground-ledge-east'));
+assert.deepEqual(game.unitSet('bulbasaur').facingRows, [0,6,2,4], 'cardinal source rows replace diagonal isometric rows');
+assert.ok(game.unitAnimationKey('bulbasaur',3,'idle').endsWith('-4'), 'allies face straight up');
+assert.ok(game.unitAnimationKey('bulbasaur',0,'idle').endsWith('-0'), 'enemies face straight down');
+for (const [to, expected] of [[[1,0],2],[[-1,0],1],[[0,-1],3],[[0,1],0]]) assert.equal(game.facingBetween([0,0],to,0),expected);
 
 // Check the actual movement and projectile behavior through a controlled corridor,
 // rather than only inspecting catalog flags. Low logs/stumps still allow attacks.
@@ -170,6 +166,7 @@ const objectRules = {
   tree: [true, true], rock: [true, true], bush: [false, false],
   'fallen-log': [true, false], flower: [false, false], 'grass-tuft': [false, false],
   'tree-stump': [true, false], 'pine-tree': [true, true], fern: [false, false], mushrooms: [false, false],
+  'ancient-tree': [true, true], 'standing-stone': [true, true],
 };
 for (const [id, [blocksMove, blocksSight]] of Object.entries(objectRules)) {
   const tile = { kind: 'plain', height: 0, object: id };
@@ -181,7 +178,22 @@ for (const [id, [blocksMove, blocksSight]] of Object.entries(objectRules)) {
   assert.equal(canTraverseTerrain(corridor, { canFly: true, canSwim: false }, 1, 0, 0, 0), !blocksMove, `${id}: flying movement through footprint`);
   assert.equal(hasLineOfSight({ map: corridor, time: 0 }, [0, 0], [2, 0]), !blocksSight, `${id}: ranged attack through footprint`);
 }
-for (const id of ['tree-stump', 'pine-tree', 'fern', 'mushrooms', 'fallen-log']) assert.ok(objectUse.has(id), `new forests should visibly use ${id}`);
+for (const id of ['tree-stump', 'pine-tree', 'fern', 'mushrooms', 'fallen-log', 'ancient-tree', 'standing-stone']) assert.ok(objectUse.has(id), `new forests should visibly use ${id}`);
+
+// The boss's ceremonial floor must remain an open fight, with independent
+// grounded approaches and no obstacle planted over its original objective.
+const bossMap = MAPS[bossId];
+assert.deepEqual(bossMap.capture, [4, 4], 'Heartwood retains its capture coordinate');
+assert.equal(bossMap.tiles[4][4].surface, 'seal', 'capture objective sits on the ceremonial seal');
+for (let y = 2; y <= 5; y++) for (let x = 2; x <= 5; x++) {
+  assert.ok(bossMap.tiles[y][x].height > 0, 'the fighting dais must form a raised central platform');
+  assert.equal(objectBlocksMovement(bossMap.tiles[y][x]), false, 'the central arena must stay open for combat');
+  if (bossMap.tiles[y][x].slope) assert.ok(terrainArt(bossMap.tiles[y][x], x, y).url.includes('/ramp-stone-'), 'boss ramps must share the dais paving');
+}
+for (const approach of [[3, 6], [4, 6], [1, 3], [6, 3]]) assert.ok(terrainReachable(bossMap, approach, ground).has('4,4'), `Heartwood: grounded approach ${approach} must reach the seal`);
+assert.equal(bossMap.tiles.flat().filter(tile => tile.object === 'ancient-tree').length, 2, 'two old-growth guardians frame Heartwood');
+assert.equal(bossMap.tiles.flat().filter(tile => tile.object === 'standing-stone').length, 4, 'four standing stones mark the arena perimeter');
+for (const id of [...NORMAL_MAP_IDS, ELITE_MAP_ID]) assert.ok(MAPS[id].tiles.flat().every(tile => tile.surface !== 'stone' && tile.surface !== 'seal' && tile.object !== 'ancient-tree' && tile.object !== 'standing-stone'), `${id}: ceremonial art belongs to the boss arena`);
 
 // Exercise map choice and legal battle creation at every campaign column. The
 // synthetic node removes route randomness from this content-coverage check.
@@ -198,6 +210,7 @@ for (let column = 1; column < ROUTE_COLUMNS; column++) {
   const started = startBattle(run);
   assert.equal(started.battle.map.id, definition.mapId, `column ${column}: battle loads selected forest`);
   assert.equal(new Set(started.battle.units.map(unit => `${unit.x},${unit.y}`)).size, started.battle.units.length, `column ${column}: both teams deploy into distinct cells`);
+  for (const unit of started.battle.units) assert.equal(unit.facing, unit.side === 'player' ? 3 : 0, 'team deployment uses north/south facing');
   for (const unit of started.battle.units) assert.ok(canDeploy(started.battle.map, unit.species, [unit.x, unit.y], unit.side === 'player' ? 'ally' : 'enemy'), `column ${column}: ${unit.name} should have a legal start`);
   selectedMaps.push(definition.mapId);
 }
@@ -214,39 +227,18 @@ for (const [kind, column, expectedMap, objective] of [['elite', 3, ELITE_MAP_ID,
 
 // Every registered forest tile and prop must be loadable with the geometry used
 // by the battle renderer and preparation SVG. Missing files can pass TypeScript.
-const manifest = JSON.parse(await readFile('public/assets/environment/isometric/isometric-manifest.json', 'utf8'));
-assert.deepEqual(manifest.tileTopPixels, [96, 48], 'tile top dimensions should match projection');
-assert.equal(manifest.heightStepPixels, 20, 'art and projection elevation steps must agree');
-const svgCache = new Map();
-async function verifySvg(url, width, height, diamond = false) {
-  assert.ok(typeof url === 'string' && url.startsWith('/assets/'), 'asset URL should use the public assets directory');
-  let svg = svgCache.get(url);
-  if (!svg) {
-    svg = await readFile(resolve('public', url.slice(1)), 'utf8');
-    svgCache.set(url, svg);
-  }
-  const opening = svg.match(/<svg\b[^>]*>/)?.[0];
-  assert.ok(opening, `${url}: SVG root`);
-  assert.match(opening, new RegExp(`\\bwidth=["']${width}["']`), `${url}: width`);
-  assert.match(opening, new RegExp(`\\bheight=["']${height}["']`), `${url}: height`);
-  assert.match(opening, new RegExp(`\\bviewBox=["']0 0 ${width} ${height}["']`), `${url}: viewBox`);
-  if (diamond) assert.ok(/points=["']48,0 96,24 48,48 0,24["']/.test(svg), `${url}: aligned 96×48 top diamond`);
+const manifest = JSON.parse(await readFile('public/assets/environment/top-down/top-down-manifest.json', 'utf8'));
+assert.deepEqual(manifest.tilePixels, [64,64]);
+const urls = new Set([...Object.values(manifest.tiles).flat(), ...Object.values(manifest.ramps).flatMap(Object.values), ...Object.values(manifest.edges), ...Object.values(manifest.decorations)]);
+for (const url of urls) {
+  const svg = await readFile(resolve('public',url.slice(1)), 'utf8');
+  assert.match(svg, /width="64" height="64" viewBox="0 0 64 64"/, `${url}: square art dimensions`);
 }
-for (const variants of Object.values(manifest.tiles)) {
-  assert.equal(variants.length, 3, 'each terrain kind needs levels 0–2');
-  for (const [level, url] of variants.entries()) await verifySvg(url, 96, 72 + 20 * level, true);
+for (const object of Object.values(TERRAIN_OBJECTS)) assert.ok(manifest.decorations[object.asset], 'every object needs top-down art');
+for (const map of Object.values(MAPS)) for (let y=0;y<map.tiles.length;y++) for (let x=0;x<map.tiles[y].length;x++) {
+  assert.ok(urls.has(terrainArt(map.tiles[y][x],x,y).url), 'all authored floors resolve to registered art');
+  for (const edge of terrainEdges(map,x,y)) assert.ok(urls.has(edge.url), 'all neighbor borders resolve');
 }
-for (const surface of ['grass', 'speckled', 'moss', 'path']) {
-  const variants = manifest.forestTiles?.[surface];
-  assert.ok(variants, `forest floor variant ${surface} must be registered`);
-  assert.equal(variants.length, 3, `${surface}: height variants`);
-  for (const [level, url] of variants.entries()) await verifySvg(url, 96, 72 + 20 * level, true);
-}
-assert.equal(manifest.forestCliffs?.length, 3, 'forest cliff overlays need levels 0–2');
-for (const [level, url] of manifest.forestCliffs.entries()) await verifySvg(url, 96, 72 + 20 * level);
-for (const direction of Object.keys(offsets)) await verifySvg(manifest.slopes[direction], 96, 48);
-for (const [id, object] of Object.entries(TERRAIN_OBJECTS)) await verifySvg(manifest.decorations[object.asset], object.width, object.height);
-
-console.log(`PASS: ${Object.keys(MAPS).length} forests; ${groundCells} connected ground cells; ${ramps} bidirectional ramps; ${cliffEdges} blocked cliff edges; ${elevatedCenters} elevated click centers; ${Object.keys(objectRules).length} object collision/LoS profiles; ${svgCache.size} SVG assets.`);
-console.log('Terrain occlusion: buried plateau faces, asymmetric ledges, full border soil depth, and Moonpool footprint/actor ordering passed.');
+console.log(`PASS: ${Object.keys(MAPS).length} forests; ${groundCells} connected ground cells; ${ramps} bidirectional ramps; ${cliffEdges} blocked cliff edges; ${squareCenters} square click centers; ${Object.keys(objectRules).length} object collision/LoS profiles; ${urls.size} square SVG assets.`);
+console.log('Square picking, cardinal facing, open ramps, shoreline borders, and row depth passed.');
 console.log(`Normal campaign rotation: ${selectedMaps.join(' -> ')}. Elite and boss arena selection passed.`);

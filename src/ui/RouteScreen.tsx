@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { unitSet } from '../battle/unitAnimations';
 import { itemCanEquip, itemEvolutionFor, itemFor, ITEMS, MOVES, SPECIES, tmMoveFor } from '../content/data';
 import type { ItemId } from '../content/items';
@@ -6,8 +6,18 @@ import { MAX_RUN_POKEMON } from '../content/roster';
 import { statsAtLevel } from '../game/engine';
 import { availableRouteNodes, routeNode, ROUTE_COLUMNS, type RouteNode, type RouteNodeKind } from '../game/route';
 import type { PartyMon, Run } from '../game/types';
-import Sprite from './Sprite';
 import SpeciesPortrait from './SpeciesPortrait';
+import PixelIcon from './PixelIcon';
+
+function containDialogFocus(event: ReactKeyboardEvent<HTMLElement>) {
+  if (event.key !== 'Tab' || event.defaultPrevented) return;
+  const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), summary, [tabindex="0"]')]
+    .filter(control => control.getClientRects().length > 0 && !control.closest('[inert]'));
+  const first = controls[0], last = controls.at(-1);
+  if (!first || !last) return;
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+}
 
 function RoutePyramid({ x, y }: { x: number; y: number }) {
   return <g className="route-player" transform={`translate(${x} ${y})`} role="img" aria-label="Current route position">
@@ -91,9 +101,9 @@ function EvolutionScene({ scene, onClose, onSkip }: { scene: EvolutionSceneState
 
 function Glyph({ kind }: { kind: RouteNodeKind }) {
   if (kind === 'heal') return <path d="M-9-29h18v20h20V9H9v20H-9V9h-20V-9h20z" />;
-  if (kind === 'special') return <text textAnchor="middle" dominantBaseline="central" fontSize="66" fontWeight="900">?</text>;
-  if (kind === 'recruit') return <g><circle cx="-21" cy="-11" r="8" /><circle cx="0" cy="-18" r="9" /><circle cx="21" cy="-11" r="8" /><path d="M-35 12q0-15 14-15t14 15v6h-28zM-17 12q0-18 17-18t17 18v8h-34zM7 12q0-15 14-15t14 15v6H7z" /></g>;
-  if (kind === 'store') return <g fill="none" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="square"><path d="M-30-23h9l7 34h34l7-25h-42M-9-3h31M-14 12h38" /><circle cx="-5" cy="23" r="4" /><circle cx="19" cy="23" r="4" /></g>;
+  if (kind === 'special') return <path d="M-18-29h36v6h6v23h-6v6H6v11H-6V-6H6v-6h6v-12h-24v12h-12v-11h6ZM-6 23H6v12H-6Z" />;
+  if (kind === 'recruit') return <g><path d="M-30-19h16v16h-16ZM-9-30H9v18H-9ZM14-19h16v16H14ZM-34 3h24v21h-24ZM-13-4h26v31h-26ZM10 3h24v21H10Z" /></g>;
+  if (kind === 'store') return <g fill="none" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="square"><path d="M-30-23h9l7 34h34l7-25h-42M-9-3h31M-14 12h38M-10 20h8v8h-8ZM14 20h8v8h-8Z" /></g>;
   if (kind === 'boss') return <g><path d="M0-30l23 7 10 16-7 23-11 2-4 12-11-9-11 9-4-12-11-2-7-23 10-16z" /><path className="route-glyph-cutout" d="M-20-1l14 4-8 9zM20-1L6 3l8 9z" /></g>;
   if (kind === 'elite') return <g className="route-elite-spark"><path d="M0-37 8-10 36 0 8 9 0 35-8 9-36 0-8-10Z" /><path d="M-29-25v13m-6-6h13M29 17v13m-6-6h13" /><path className="route-spark-shine" d="M0-23 4-6 21 0 4 5 0 22-4 5-21 0-4-6Z" /></g>;
   return <g className="route-sword"><path d="M-38-5h9v-5h6v5h8v-8h6v8h27L37 0 18 5H-9v8h-6V5h-8v5h-6V5h-9z" /><path className="route-sword-line" d="M-11 0h37" /><path className="route-sword-glint" d="M-30-1h7m8-5h6" /></g>;
@@ -198,7 +208,7 @@ function TmTeachingDialog({ flow, moveId, eligible, recipient, onChooseParty, on
     }}>
       <header className="tm-flow-heading">
         <div><small>{flow.step === 'party' ? 'STEP 1 OF 2 · CHOOSE A RECIPIENT' : 'STEP 2 OF 2 · CHOOSE A MOVE SLOT'}</small><h2 id="tm-flow-title">{flow.step === 'party' ? 'Use Technical Machine' : 'Choose a move to replace'}</h2></div>
-        <button type="button" className="tm-flow-close" aria-label="Close TM use" onClick={onClose}>×</button>
+        <button type="button" className="tm-flow-close" aria-label="Close TM use" onClick={onClose}><PixelIcon name="close" /></button>
       </header>
       <p id="tm-flow-description" className="tm-flow-description">{flow.step === 'party'
         ? `Choose a compatible party Pokémon to learn ${taughtMove?.name ?? moveId}.`
@@ -207,17 +217,17 @@ function TmTeachingDialog({ flow, moveId, eligible, recipient, onChooseParty, on
         {eligible.map((mon, index) => {
           const species = SPECIES[mon.species];
           return <button key={mon.id} type="button" className="tm-party-choice" autoFocus={mon.id === flow.monId || (!flow.monId && index === 0)} onClick={() => onChooseParty(mon.id)}>
-            <span className="tm-party-choice-portrait"><Sprite id={mon.species} /></span>
+            <span className="tm-party-choice-portrait"><SpeciesPortrait id={mon.species} /></span>
             <span className="tm-party-choice-details"><strong>{species.name}</strong><small>Lv {mon.level} · {species.types.join(' / ')}</small></span>
             <span className="tm-party-choice-count">{mon.equipped.length}/4 moves</span>
           </button>;
         })}
       </div>}
       {flow.step === 'moves' && recipient && <>
-        <div className="tm-selected-recipient"><span className="tm-party-choice-portrait"><Sprite id={recipient.species} /></span><span><strong>{SPECIES[recipient.species].name}</strong><small>Lv {recipient.level} · {recipient.equipped.length} active moves</small></span></div>
+        <div className="tm-selected-recipient"><span className="tm-party-choice-portrait"><SpeciesPortrait id={recipient.species} /></span><span><strong>{SPECIES[recipient.species].name}</strong><small>Lv {recipient.level} · {recipient.equipped.length} active moves</small></span></div>
         <div className="tm-move-choices">
           {recipient.equipped.length < 4 && <button type="button" className="tm-move-choice tm-open-slot-choice" autoFocus onClick={() => onChooseMove()}>
-            <span className="tm-move-slot-number">＋</span><span className="tm-move-choice-copy"><strong>Open move slot</strong><small>Add {taughtMove?.name ?? moveId} without replacing a move.</small></span><span className="tm-move-action-label">ADD</span>
+            <span className="tm-move-slot-number"><PixelIcon name="plus" /></span><span className="tm-move-choice-copy"><strong>Open move slot</strong><small>Add {taughtMove?.name ?? moveId} without replacing a move.</small></span><span className="tm-move-action-label">ADD</span>
           </button>}
           {recipient.equipped.length >= 4 && recipient.equipped.map((id, index) => {
             const move = MOVES[id];
@@ -226,7 +236,7 @@ function TmTeachingDialog({ flow, moveId, eligible, recipient, onChooseParty, on
             </button>;
           })}
         </div>
-        <div className="tm-flow-actions"><button type="button" className="tm-flow-back" onClick={onBack}>← Choose another Pokémon</button><small>Using this TM consumes one copy.</small></div>
+        <div className="tm-flow-actions"><button type="button" className="tm-flow-back" onClick={onBack}><PixelIcon name="arrow-left" /> Choose another Pokémon</button><small>Using this TM consumes one copy.</small></div>
       </>}
       {flow.step === 'party' && <div className="tm-flow-actions"><button type="button" className="tm-flow-cancel" onClick={onClose}>Cancel</button><small>The TM is used only after you confirm a move.</small></div>}
     </section>
@@ -253,14 +263,14 @@ function EvolutionItemDialog({ item, evolution, eligible, onChooseParty, onClose
     }}>
       <header className="tm-flow-heading">
         <div><small>CHOOSE A RECIPIENT</small><h2 id="evolution-item-title">Use {item}</h2></div>
-        <button type="button" className="tm-flow-close" aria-label={`Close ${item} use`} onClick={onClose}>×</button>
+        <button type="button" className="tm-flow-close" aria-label={`Close ${item} use`} onClick={onClose}><PixelIcon name="close" /></button>
       </header>
       <p id="evolution-item-description" className="tm-flow-description">Choose a {fromName} to evolve into {intoName}. Using the stone consumes one copy.</p>
       <div className="tm-party-choices">
         {eligible.map((mon, index) => {
           const species = SPECIES[mon.species];
           return <button key={mon.id} type="button" className="tm-party-choice" autoFocus={index === 0} onClick={() => onChooseParty(mon.id)}>
-            <span className="tm-party-choice-portrait"><Sprite id={mon.species} /></span>
+            <span className="tm-party-choice-portrait"><SpeciesPortrait id={mon.species} /></span>
             <span className="tm-party-choice-details"><strong>{species.name}</strong><small>Lv {mon.level} · {species.types.join(' / ')}</small></span>
             <span className="tm-party-choice-count">EVOLVE</span>
           </button>;
@@ -325,7 +335,7 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
   const tmFlowMove = tmFlow ? tmMoveFor(tmFlow.item) : undefined;
   const tmFlowEligible = tmFlowMove ? run.party.filter(mon => SPECIES[mon.species].tmMoves?.includes(tmFlowMove) && !mon.equipped.includes(tmFlowMove)) : [];
   const tmFlowRecipient = tmFlow?.monId ? run.party.find(mon => mon.id === tmFlow.monId) : undefined;
-  const pan = (direction: -1 | 1) => scroll.current?.scrollBy({ top: direction * Math.max(300, scroll.current.clientHeight * .72), behavior: 'smooth' });
+  const pan = (direction: -1 | 1) => scroll.current?.scrollBy({ top: direction * Math.max(300, scroll.current.clientHeight * .72), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   const closePanel = () => {
     const returnFocus = openPanel === 'party' ? partyButton : openPanel === 'artifacts' ? artifactButton : inventoryButton;
     setOpenPanel(null);
@@ -473,8 +483,8 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       <small>Column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} / {ROUTE_COLUMNS}</small>
     </header>
 
-    {!backdropOnly && <aside className="route-hud" aria-label="Route status">
-      <div className="route-coins" aria-label={`${run.coins} coins`}><i aria-hidden="true" /><b>{run.coins}</b><span>COINS</span></div>
+    {!backdropOnly && <aside className="route-hud" aria-label="Route status" inert={!!openPanel}>
+      <div className="route-coins" aria-label={`${run.coins} coins`}><PixelIcon name="coin" /><b>{run.coins}</b><span>COINS</span></div>
       <button className="route-party-button" ref={partyButton} type="button" aria-label={`Open travelling team, ${run.party.length} of ${MAX_RUN_POKEMON} Pokémon owned`} aria-expanded={openPanel === 'party'} onClick={() => setOpenPanel('party')}>
         <PartyEmblem /><b>Party</b><small>{run.party.length} / {MAX_RUN_POKEMON}</small>
       </button>
@@ -485,17 +495,17 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
         <ArtifactEmblem /><b>Artifact Bag</b><small>SOON</small>
       </button>
     </aside>}
-    {!backdropOnly && <button className="route-back-button" type="button" aria-label="Return to title screen" onClick={onBack}>&lt;</button>}
-    {!backdropOnly && <aside className="route-guide" aria-label="Route guide">
+    {!backdropOnly && <button className="route-back-button" type="button" aria-label="Return to title screen" inert={!!openPanel} onClick={onBack}><PixelIcon name="arrow-left" /></button>}
+    {!backdropOnly && <aside className="route-guide" aria-label="Route guide" inert={!!openPanel}>
       <div className="route-guide-heading"><span>NEXT STOP</span><b>{String(nextColumn).padStart(2, '0')} <small>/ {ROUTE_COLUMNS}</small></b></div>
       <div className="route-guide-track" aria-label={`${run.route.visited.length} of ${ROUTE_COLUMNS} columns cleared`}>
         {Array.from({ length: ROUTE_COLUMNS }, (_, index) => <i key={index} className={index < run.route.visited.length ? 'cleared' : index === run.route.visited.length ? 'next' : ''} />)}
       </div>
       {inspectedNode && <div className="route-guide-detail" aria-live="polite"><strong>{names[inspectedNode.kind]}</strong><span>{inspectedStatus} · COLUMN {inspectedNode.column}</span><p>{descriptions[inspectedNode.kind]}</p></div>}
-      <div className="route-guide-controls"><button type="button" onClick={() => pan(-1)} aria-label="Pan route up toward boss">↑</button><span>CLIMB TO THE BOSS</span><button type="button" onClick={() => pan(1)} aria-label="Pan route down toward start">↓</button></div>
+      <div className="route-guide-controls"><button type="button" onClick={() => pan(-1)} aria-label="Pan route up toward boss"><PixelIcon name="arrow-up" /></button><span>CLIMB TO THE BOSS</span><button type="button" onClick={() => pan(1)} aria-label="Pan route down toward start"><PixelIcon name="arrow-down" /></button></div>
     </aside>}
 
-    <div className="route-map-scroll" ref={scroll} aria-label="Ten-column route map. Scroll or drag upward from the start to the boss."
+    <div className="route-map-scroll" ref={scroll} inert={!!openPanel || backdropOnly} aria-label="Ten-column route map. Scroll or drag upward from the start to the boss."
       onPointerDown={onMapPointerDown} onPointerMove={onMapPointerMove} onPointerUp={endMapDrag}
       onPointerCancel={endMapDrag} onLostPointerCapture={endMapDrag}
       onClickCapture={event => {
@@ -507,7 +517,6 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       onDragStart={event => event.preventDefault()}>
       <svg className="route-map" viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} preserveAspectRatio="xMidYMin meet" aria-label="Vertical branching route climbing from column one at the bottom to the boss in column ten at the top">
         <defs>
-          <filter id="route-cyan-glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="10" result="blur" /><feFlood floodColor="#70f4ff" floodOpacity=".95" /><feComposite in2="blur" operator="in" /><feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge></filter>
           <pattern id="route-stone-grain" width="18" height="16" patternUnits="userSpaceOnUse"><path fill="#fff1c2" opacity=".32" d="M2 2h5v2H2zM12 11h4v2h-4z" /><path fill="#483018" opacity=".27" d="M9 5h4v2H9zM1 12h3v2H1z" /></pattern>
         </defs>
         <line className="route-start-link" x1={START_X} y1={START_Y - 28} x2={xOf(run.route.nodes[0])} y2={yOf(run.route.nodes[0]) - 28} />
@@ -537,23 +546,24 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     </div>
     {!backdropOnly && <p className="route-instruction"><span>◆</span> Select a glowing connected node <b>·</b> paths can branch into up to four choices</p>}
 
-    {!backdropOnly && openPanel === 'artifacts' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-artifact-title" onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
+    {!backdropOnly && openPanel === 'artifacts' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-artifact-title" onKeyDown={containDialogFocus} onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
       <div className="route-party-panel route-artifact-panel">
         <div className="route-party-head">
           <div className="route-party-heading"><span className="route-party-heading-icon"><ArtifactEmblem /></span><div><small>ROUTE · ARTIFACTS</small><h2 id="route-artifact-title">Artifact Bag</h2></div></div>
-          <div className="route-party-head-actions"><button type="button" autoFocus aria-label="Close Artifact Bag" onClick={closePanel}>×</button></div>
+          <div className="route-party-head-actions"><button type="button" autoFocus aria-label="Close Artifact Bag" onClick={closePanel}><PixelIcon name="close" /></button></div>
         </div>
-        <p className="route-artifact-message">coming soon</p>
+        <p className="route-artifact-message">Coming soon</p>
+        <p className="route-party-note">Artifacts will live here in a future update. Continue your journey with Party and Bag.</p>
       </div>
     </section>}
 
-    {!backdropOnly && openPanel === 'inventory' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-inventory-title" onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
+    {!backdropOnly && openPanel === 'inventory' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-inventory-title" inert={!!tmFlow || !!evolutionItemFlow || !!evolutionScene} onKeyDown={containDialogFocus} onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
       <div className="route-party-panel route-inventory-panel">
         <div className="route-party-head">
           <div className="route-party-heading"><span className="route-party-heading-icon"><BagEmblem /></span><div><small>ROUTE · ITEMS</small><h2 id="route-inventory-title">Inventory</h2></div></div>
-          <div className="route-party-head-actions"><button ref={inventoryModalCloseButton} type="button" autoFocus aria-label="Close inventory" onClick={closePanel}>×</button></div>
+          <div className="route-party-head-actions"><button ref={inventoryModalCloseButton} type="button" autoFocus aria-label="Close inventory" onClick={closePanel}><PixelIcon name="close" /></button></div>
         </div>
-        <div className="route-inventory-summary"><span><b>{run.bag.length}</b> in bag</span><span><b>{equippedItems.length}</b> held by team</span><button type="button" onClick={() => setOpenPanel('party')}>Manage team →</button></div>
+        <div className="route-inventory-summary"><span><b>{run.bag.length}</b> in bag</span><span><b>{equippedItems.length}</b> held by team</span><button type="button" onClick={() => setOpenPanel('party')}>Manage team <PixelIcon name="arrow-right" /></button></div>
         {heldBagItems.length > 0 && <><h3>Held items</h3><div className="route-inventory-grid">{heldBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
         {evolutionBagItems.length > 0 && <><h3>Evolution items</h3><p className="route-tm-help">Use an evolution item to choose a compatible Pokémon. Each item is single-use.</p><div className="route-inventory-grid">{evolutionBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
         {tmBagItems.length > 0 && <><h3>Technical Machines</h3><p className="route-tm-help">Use a TM to choose a compatible Pokémon, then select a move to replace. Each TM is single-use.</p><div className="route-inventory-grid">{tmBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
@@ -562,11 +572,11 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       </div>
     </section>}
 
-    {!backdropOnly && openPanel === 'party' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-party-title" onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
+    {!backdropOnly && openPanel === 'party' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-party-title" inert={!!evolutionScene} onKeyDown={containDialogFocus} onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
       <div className="route-party-panel">
         <div className="route-party-head">
           <div className="route-party-heading"><span className="route-party-heading-icon"><PartyEmblem /></span><div><small>ROUTE · TEAM MANAGEMENT</small><h2 id="route-party-title">Travelling Team</h2></div></div>
-          <div className="route-party-head-actions"><div className="route-party-owned"><b>{run.party.length}</b><span>/ {MAX_RUN_POKEMON} OWNED</span></div><button type="button" autoFocus aria-label="Close travelling team" onClick={closePanel}>×</button></div>
+          <div className="route-party-head-actions"><div className="route-party-owned"><b>{run.party.length}</b><span>/ {MAX_RUN_POKEMON} OWNED</span></div><button type="button" autoFocus aria-label="Close travelling team" onClick={closePanel}><PixelIcon name="close" /></button></div>
         </div>
         <div className="route-party-intro"><p>Review active moves, manage held items and evolve here. New moves are chosen at level-up or taught from a TM in the Bag.</p><span>{run.party.filter(mon => mon.hp > 0).length} ready</span><span>{run.bag.length} in bag</span></div>
         <div className="route-party-grid">{run.party.map(mon => {
@@ -583,7 +593,7 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
                 <div className="route-party-health" role="progressbar" aria-label={`${species.name} HP`} aria-valuemin={0} aria-valuemax={maxHp} aria-valuenow={mon.hp}><i style={{ width: `${Math.max(0, Math.min(100, mon.hp / maxHp * 100))}%` }} /></div>
               </div>
             </div>
-            <div className="route-party-facts"><div><span aria-hidden="true">✦</span><small>ABILITY</small><b>{species.ability}</b></div><div><span aria-hidden="true">▣</span><small>HELD ITEM</small><b>{mon.item}</b></div></div>
+            <div className="route-party-facts"><div><span aria-hidden="true"><PixelIcon name="spark" /></span><small>ABILITY</small><b>{species.ability}</b></div><div><span aria-hidden="true"><PixelIcon name="bag" /></span><small>HELD ITEM</small><b>{mon.item}</b></div></div>
             <div className="route-party-moves"><span>EQUIPPED MOVES</span><ul>{mon.equipped.map((id, index) => <li key={`${index}-${id}`}>{MOVES[id]?.name ?? id}</li>)}</ul></div>
             <details className="route-party-manage"><summary><span>Manage Pokémon</span><span>{evolution ? 'Evolution ready' : 'Held item'}</span></summary>
               <div className="route-party-controls">

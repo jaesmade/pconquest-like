@@ -16,7 +16,7 @@ The campaign's story and setting are not defined by the current design documents
 
 At the start of a run, the player drafts Pokémon from an eligible catalog using six party points. Most species cost two points, so the standard budget usually buys three Pokémon. The draft has no duplicate species. A run can eventually own up to 20 Pokémon, but only six can enter a battle. This makes the opening choice a starting core, not a requirement to fill every deployment slot immediately.
 
-The run party includes both the battle lineup and reserves. Before each battle, the player chooses up to six healthy Pokémon and places them in the ally deployment zone on the isometric battlefield. The opposing team enters from the other side. There is no mid-battle swapping in the early design, so deployment and unit choice matter before the first action. Reserves stay out of combat and avoid battle terrain and weather damage, but their HP and fainted state persist from earlier encounters.
+The run party includes both the battle lineup and reserves. Before each battle, the player chooses up to six healthy Pokémon and places them in the ally deployment zone on the top-down battlefield. The opposing team enters from the other side. There is no mid-battle swapping in the early design, so deployment and unit choice matter before the first action. Reserves stay out of combat and avoid battle terrain and weather damage, but their HP and fainted state persist from earlier encounters.
 
 Each Pokémon has HP, Attack, Defense, Special Attack, Special Defense, Speed, and Movement. Speed controls how frequently it gets an action; Movement controls how far it can travel in a Move command. They are separate strengths. Species types, ability, learned moves, held item, level, and current condition all contribute to a Pokémon's role in the squad.
 
@@ -26,8 +26,8 @@ A run follows a seeded, branching route of ten progression columns. The route is
 
 The route combines several kinds of stop:
 
-- **Battle nodes** pit the team against three standard opponents. A win currently awards 65 XP to each Pokémon deployed in that battle, including battlers that faint; reserves receive no battle XP. The reward is 10 coins.
-- **Elite battles** field four stronger opponents and currently award 85 XP to each Pokémon deployed in that battle, including battlers that faint; reserves receive no battle XP. The reward is 20 coins.
+- **Battle nodes** pit the team against 3–8 Normal opponents by level (3–5 on this floor). A win awards 65 XP to each Pokémon deployed in that battle, including battlers that faint; reserves receive no battle XP. The reward is 10 coins.
+- **Elite battles** field 1–3 Elites plus 3–5 Normal escorts and award 85 XP to each Pokémon deployed in that battle, including battlers that faint; reserves receive no battle XP. The reward is 20 coins.
 - **Healing nodes** restore HP and revive every owned Pokémon, including reserves.
 - **Stores** let the player spend coins on held items and single-use Technical Machines. The Bag holds unequipped items and TMs; held items occupy a separate slot on each Pokémon.
 - **Special events** have a 75% chance of a positive result and a 25% chance of a negative result. Positive outcomes grant 50–100 coins in 10-coin steps, a Sitrus Berry, or 25% roster-wide healing. Negative outcomes remove half the coins or deal 20% HP damage across the roster. The result is saved when entered and claimed from its event screen.
@@ -38,7 +38,7 @@ The route design guarantees opportunities such as healing, shopping, special eve
 
 ## Tactical battles
 
-Battles take place on square tile grids rendered from an isometric view. Maps use authored terrain and deployment areas. Height, blocked tiles, deep water, lava, temporary hazards, and line of sight can change which routes are safe and which targets can be reached. Weather such as sun, rain, snow, or sandstorm can alter battle conditions. The boss encounter adds a capture tile as a second objective.
+Battles take place on square tile grids rendered from a non-isometric top-down view. Maps use authored terrain and deployment areas. Height, blocked tiles, deep water, lava, temporary hazards, and line of sight can change which routes are safe and which targets can be reached. Weather such as sun, rain, snow, or sandstorm can alter battle conditions. The boss encounter adds a capture tile as a second objective.
 
 ### Speed-based action order
 
@@ -58,7 +58,7 @@ Regular encounters are won by defeating the opposing deployed team. If all of th
 
 ## Growing and managing the roster
 
-After a battle victory, each Pokémon deployed in that battle receives the encounter's XP award, including deployed battlers that faint. Reserves do not gain battle XP. Level gains improve applicable combat stats and can unlock moves. Recruits begin near the current party level so that they can contribute soon after joining.
+After a battle victory, each Pokémon deployed in that battle receives the encounter's XP award, including deployed battlers that faint. Reserves do not gain battle XP. Level gains improve applicable combat stats and can unlock moves. New recruits begin at the highest owned level and arrive with their latest four distinct level-eligible moves (fewer if unavailable), as do wild opponents at their encounter level. Owned Pokémon keep their selected moves after joining.
 
 When a Pokémon becomes eligible to learn a move, the post-battle growth screen offers the move. The player may replace one of the four active moves or keep the current moves; all pending choices must be resolved before moving on. At a later route choice, an eligible Pokémon can evolve or defer evolution. Ordinary evolution lasts for the rest of the run and updates the Pokémon's form, stats, and any defined type or ability while retaining its move slots and held item. Mega Evolution is different: a compatible stone temporarily changes the Pokémon's battle form for one battle, then the run party returns to its ordinary species form.
 
@@ -66,7 +66,9 @@ HP, fainted state, level, experience, evolution, active moves, learned-move hist
 
 ## The final encounter and run outcome
 
-The route culminates in a boss fight with four high-level opponents. A victory currently awards 100 XP to each deployed participant, including a deployed battler that faints, and 30 coins. Reserves receive no battle XP. Defeating every opponent completes only the first half of the objective: the player must also move a living Pokémon onto the capture tile. Winning produces the run result and a permanent unlock that can add variety to future runs, such as a starter, recruit, map, or item. Losing ends the current attempt. Run progress and unlocks are stored locally in the browser so a refresh does not erase the campaign.
+Normal encounters scale from three to eight Normal enemies with level. Elite encounters contain one to three Elites and three to five Normals; Boss encounters always contain one Boss, zero to two Elites, and two to five Normals. Normal, Elite, and Boss units have intrinsic 1×, 2×, and 3× HP, Attack, Defense, Special Attack, Special Defense, and Speed respectively; temporary buffs/debuffs apply separately and Movement is unchanged. Preparation shows the actual roster, ranks, and moves before entry.
+
+The route culminates in a level-21 fight on Ancient Heartwood with one Charmander Boss, two Elites, and five Normals. A victory awards 100 XP to each deployed participant, including a deployed battler that faints, and 30 coins. Reserves receive no battle XP. Defeating every opponent completes only the first half of the objective: the player must also move a living Pokémon onto the capture tile. Winning produces the run result and increments the permanent win counter; specific unlock rewards remain proposed. Losing ends the current attempt. Save v27 preserves rank, owned moves, and pending level-up choices. Active older battles restart at preparation with a report so their teams adopt the new encounter rules; party and route progress remain.
 
 ## Run-wide artifacts — planned system
 

@@ -75,8 +75,26 @@ const forestFaces = level => {
     edge: `<path d="M48 53v${depth - 5}" stroke="#594333" stroke-width="2" opacity=".45"/>`,
   };
 };
+const stoneSurface = variant => {
+    const paving = `<polygon points="48,0 96,24 48,48 0,24" fill="#6a7767"/>`
+      + `<path d="M48 3L91 24L48 45L5 24z" fill="#b3b59a"/>`
+      + `<path d="M25 12L71 35 M25 36L71 13 M48 3L48 45" stroke="#718371" stroke-width="2" fill="none"/>`
+      + `<path d="M7 24L27 34 M50 43L69 33 M28 13L45 5" stroke="#ded7b4" stroke-width="2" fill="none"/>`
+      + `<path d="M16 20h9v3h-5v3h-9z M69 27h11v4h-5v3h-9v-3h3z M42 39h11v4H42z" fill="#608a4e"/>`
+      + `<path d="M17 21h7v2h-7z M71 28h8v2h-8z M45 40h7v2h-7z" fill="#9eb65c"/>`
+      + `<path d="M39 8l3 5-5 3 M64 38l-2-5 5-3" stroke="#84917b" stroke-width="1" fill="none"/>`;
+    const seal = variant === 'seal' ? `<path d="M48 7L81 24L48 41L15 24z" fill="#445f54"/>`
+      + `<ellipse cx="48" cy="24" rx="26" ry="12" fill="none" stroke="#e7c777" stroke-width="2"/>`
+      + `<ellipse cx="48" cy="24" rx="19" ry="8" fill="none" stroke="#a7ba7a" stroke-width="1"/>`
+      + `<path d="M48 10v5 M48 33v5 M20 24h9 M67 24h9 M34 16l5 3 M57 29l5 3 M34 32l5-3 M57 19l5-3" stroke="#ead899" stroke-width="2" fill="none"/>`
+      + `<path d="M48 17l8 7-8 7-8-7z" fill="#c9d897"/><path d="M48 19v10 M43 24h10" stroke="#53765b" stroke-width="2"/>` : '';
+    return paving + seal;
+};
 const forestTile = (variant, level) => {
   const faces = forestFaces(level);
+  if (variant === 'stone' || variant === 'seal') {
+    return svg(96, faces.height, `<defs>${faces.clip}<clipPath id="top"><polygon points="48,0 96,24 48,48 0,24"/></clipPath></defs>${faces.planes}<g clip-path="url(#top)">${stoneSurface(variant)}</g>${faces.edge}`);
+  }
   const isPath = variant === 'path', isMoss = variant === 'moss';
   const base = isPath ? '#b69a60' : isMoss ? '#77ab50' : '#84b94d';
   let texture = '';
@@ -109,8 +127,10 @@ const forestTile = (variant, level) => {
     + faces.edge;
   return svg(96, faces.height, body);
 };
-for (const variant of ['grass', 'speckled', 'moss', 'path']) for (let level = 0; level <= 2; level++) {
-  const kind = variant === 'grass' ? 'plain' : variant === 'path' ? 'woodland-path' : `grass-${variant}`;
+const forestVariants = ['grass', 'speckled', 'moss', 'path', 'stone', 'seal'];
+const forestFileKind = variant => variant === 'grass' ? 'plain' : variant === 'path' ? 'woodland-path' : ['stone', 'seal'].includes(variant) ? `forest-${variant}` : `grass-${variant}`;
+for (const variant of forestVariants) for (let level = 0; level <= 2; level++) {
+  const kind = forestFileKind(variant);
   save(`iso-${kind}-h${level}-96px.svg`, forestTile(variant, level), true);
 }
 // Depth-sorted faces can occlude actors behind raised foreground ground while
@@ -185,18 +205,70 @@ const pine = `<ellipse cx="40" cy="114" rx="25" ry="5" fill="#1d3e38" opacity=".
   + `<path d="M48 28h5v12h-5z M52 48h9v5h-9z M53 65h12v6H53z M51 86h14v5H51z M25 95h13v5H25z" fill="#3c6947"/>`;
 save('iso-pine-tree-80px.svg', svg(80, 120, pine), true);
 
-// A slope is a readable top-surface ramp on the higher tile. Its open edge faces
-// a neighboring tile exactly one elevation level lower.
-const ramp = `<polygon points="9,20 40,4 65,17 37,31" fill="#89714a" stroke="#615338" stroke-width="2"/>`
-  + `<polygon points="13,19 40,6 61,17 37,28" fill="#b49b62"/>`
-  + `<path d="M13 19L40 6 M21 21L47 9 M29 24L54 13 M37 27L61 17" fill="none" stroke="#dfc280" stroke-width="3"/>`
-  + `<path d="M9 20L40 4 M37 31L65 17" fill="none" stroke="#8cb953" stroke-width="3"/>`
-  + `<path d="M14 15h4v3h-4z M47 25h4v3h-4z" fill="#477743"/>`;
-for (const [direction, transform] of Object.entries({
-  west: '', north: 'translate(96 0) scale(-1 1)',
-  east: 'translate(96 48) scale(-1 -1)', south: 'translate(0 48) scale(1 -1)',
-})) {
-  save(`iso-slope-${direction}-96px.svg`, svg(96, 48, `<g${transform ? ` transform="${transform}"` : ''}>${ramp}</g>`), true);
+// Larger old-growth silhouettes and weathered markers frame the boss clearing.
+const ancientTree = `<ellipse cx="72" cy="166" rx="54" ry="8" fill="#1d3e38" opacity=".3"/>`
+  + `<path d="M53 70h31l8 57 14 20 28 14v8h-30l-20-11-7-16-8 25H43l10-19-21 16H8v-8l32-22 12-24z" fill="#5c4937"/>`
+  + `<path d="M60 79h12l-3 46-11 29H44l15-25z M78 94h7l4 38 19 25 17 6h-15l-27-21z" fill="#aa7c4b"/>`
+  + `<path d="M60 97v25l-8 12 M78 113l2 21 10 15 M65 145l-7 16 M40 147l-16 12" stroke="#d3a26a" stroke-width="3" fill="none"/>`
+  + `<path d="M41 150h14v7H40v6H25v-5h9z M94 150h13v7h13v5h-17v-5H92z M61 161h17v5H61z" fill="#639348"/>`
+  + lobe(7, 45, 64, 56, '#345d40') + lobe(71, 40, 64, 62, '#365f43')
+  + lobe(17, 23, 74, 65, '#638d47') + lobe(61, 18, 72, 63, '#6a984b')
+  + lobe(38, 5, 70, 60, '#a0ba59') + lobe(14, 46, 74, 49, '#7ba34c')
+  + lobe(60, 48, 70, 54, '#608d45')
+  + `<path d="M53 16h23v5H53z M41 31h15v5H41z M87 30h18v5H87z M25 48h19v5H25z M49 64h17v5H49z M95 56h15v5H95z M77 78h21v4H77z" fill="#c7d37a"/>`
+  + `<path d="M26 72h17v5H26z M67 45h14v5H67z M107 77h15v5h-15z M51 84h14v5H51z" fill="#456f42"/>`
+  + `<path d="M31 95v19h5v10 M105 96v12h-5v9" stroke="#7d9d4f" stroke-width="3" fill="none"/>`;
+save('iso-ancient-tree-144px.svg', svg(144, 176, ancientTree), true);
+const standingStone = `<ellipse cx="24" cy="58" rx="21" ry="5" fill="#1d3e38" opacity=".28"/>`
+  + `<path d="M10 15l6-10h16l7 10v37l-9 8H15l-6-7z" fill="#50675d"/>`
+  + `<path d="M13 16l5-9h12l4 8-2 35-8 7H13z" fill="#a5ad91"/>`
+  + `<path d="M34 15l5 1v36l-9 8-6-3 8-7z" fill="#718477"/>`
+  + `<path d="M17 12h12 M15 21h5 M29 43v7l-6 5" fill="none" stroke="#d4d0ab" stroke-width="2"/>`
+  + `<path d="M22 23h7v4h-3v5h-5v6h7v4H17v-8h5v-5h-4v-6z" fill="#496c59"/>`
+  + `<path d="M23 24h5v2h-4v5h-2v5h5v2h-8v-3h3v-6h-2v-3h3z" fill="#e3c878"/>`
+  + `<path d="M9 45h9v5h-4v5h10v5H12l-6-6z M31 50h8v5h5v5H29v-4h3z" fill="#63884a"/>`
+  + `<path d="M10 47h7v2h-7z M33 52h5v2h-5z" fill="#a6b961"/>`;
+save('iso-standing-stone-48px.svg', svg(48, 64, standingStone), true);
+
+// Affine projection of a continuous incline: the downhill edge drops exactly
+// 20px while the uphill edge stays flush with the higher plateau. No stair treads.
+const rampTransforms = {
+  north: [5 / 24, 7 / 12, 10], east: [5 / 24, 17 / 12, -10],
+  south: [-5 / 24, 17 / 12, 10], west: [-5 / 24, 7 / 12, 30],
+};
+for (const [direction, [shear, scaleY, offset]] of Object.entries(rampTransforms)) {
+  const project = ([x, y]) => [x, shear * x + scaleY * y + offset];
+  const top = [[48, 0], [96, 24], [48, 48], [0, 24]].map(project);
+  const points = polygon => polygon.map(point => point.join(',')).join(' ');
+  const acrossX = direction === 'east' || direction === 'west';
+  const trail = acrossX ? '38,5 86,29 58,43 10,19' : '58,5 86,19 38,43 10,29';
+  const ruts = acrossX ? 'M29 10L77 34 M19 15L67 39' : 'M67 10L19 34 M77 15L29 39';
+  const turf = patch(37, 1, 20, 6, '#a5ca61', .6) + patch(3, 22, 12, 5, '#699d49', .7)
+    + patch(80, 21, 12, 6, '#a5ca61', .5) + patch(39, 42, 18, 6, '#568647', .7);
+  const surface = `<defs><clipPath id="ramp-top"><polygon points="${points(top)}"/></clipPath></defs>`
+    + `<g clip-path="url(#ramp-top)"><g transform="matrix(1 ${shear} 0 ${scaleY} 0 ${offset})">`
+    + `<polygon points="48,0 96,24 48,48 0,24" fill="#84b94d"/>${turf}`
+    + `<polygon points="${trail}" fill="#b69a60"/>`
+    + `<path d="${ruts}" fill="none" stroke="#d5bb7b" stroke-width="2" opacity=".6"/>`
+    + patch(36, 18, 9, 3, '#947a4f', .5) + patch(52, 29, 7, 3, '#e2c78c', .7)
+    + `<path d="M24 23h4v2h-4z M65 20h3v2h-3z" fill="#826b48" opacity=".6"/>`
+    + `<path d="M0 24L48 0L96 24" fill="none" stroke="#b5d66a" stroke-width="2" opacity=".4"/>`
+    + `<path d="M0 24L48 48L96 24" fill="none" stroke="#568740" stroke-width="1" opacity=".65"/>`
+    + `</g></g>`;
+  save(`iso-slope-${direction}-96px.svg`, svg(96, 68, surface), true);
+  const stoneRamp = `<defs><clipPath id="ramp-top"><polygon points="${points(top)}"/></clipPath></defs>`
+    + `<g clip-path="url(#ramp-top)"><g transform="matrix(1 ${shear} 0 ${scaleY} 0 ${offset})">${stoneSurface('stone')}</g></g>`;
+  for (let level = 0; level <= 2; level++) {
+    const depth = 22 + level * 20, bottom = 48 + depth;
+    const left = [top[3], top[2], [48, bottom], [0, 24 + depth]];
+    const right = [top[2], top[1], [96, 24 + depth], [48, bottom]];
+    const lip = `<path d="M${top[3].join(' ')}L${top[2].join(' ')}L${top[1].join(' ')}" fill="none" stroke="#3f7341" stroke-width="4"/>`;
+    const sides = `<defs><clipPath id="ramp-sides"><polygon points="${points(left)}"/><polygon points="${points(right)}"/></clipPath></defs>`
+      + `<polygon points="${points(left)}" fill="#a1774e"/><polygon points="${points(right)}" fill="#79563d"/>`
+      + `<g clip-path="url(#ramp-sides)">${soil(depth, bottom)}${lip}</g>`;
+    save(`iso-slope-${direction}-h${level}-96px.svg`, svg(96, bottom + 2, sides + surface), true);
+    save(`iso-stone-slope-${direction}-h${level}-96px.svg`, svg(96, bottom + 2, sides + stoneRamp), true);
+  }
 }
 
 // Keep existing texture identifiers and optional manifest metadata intact.
@@ -207,14 +279,21 @@ const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath
   tiles: Object.fromEntries(Object.keys(palettes).map(kind => [kind, [0, 1, 2].map(level => `/assets/environment/isometric/iso-${kind}-h${level}-96px.svg`)])),
   decorations: {}, slopes: Object.fromEntries(['north', 'south', 'east', 'west'].map(direction => [direction, `/assets/environment/isometric/iso-slope-${direction}-96px.svg`])),
 };
-manifest.forestTiles = Object.fromEntries(['grass', 'speckled', 'moss', 'path'].map(variant => {
-  const kind = variant === 'grass' ? 'plain' : variant === 'path' ? 'woodland-path' : `grass-${variant}`;
+manifest.forestTiles = Object.fromEntries(forestVariants.map(variant => {
+  const kind = forestFileKind(variant);
   return [variant, [0, 1, 2].map(level => `/assets/environment/isometric/iso-${kind}-h${level}-96px.svg`)];
 }));
 manifest.forestCliffs = [0, 1, 2].map(level => `/assets/environment/isometric/iso-forest-cliff-h${level}-96px.svg`);
+manifest.forestRamps = Object.fromEntries(Object.keys(rampTransforms).map(direction => [direction,
+  [0, 1, 2].map(level => `/assets/environment/isometric/iso-slope-${direction}-h${level}-96px.svg`),
+]));
+manifest.stoneRamps = Object.fromEntries(Object.keys(rampTransforms).map(direction => [direction,
+  [0, 1, 2].map(level => `/assets/environment/isometric/iso-stone-slope-${direction}-h${level}-96px.svg`),
+]));
 Object.assign(manifest.decorations, Object.fromEntries([
   ['tree', 'tree-96px'], ['rock', 'rock-48px'], ['flower', 'flower-32px'], ['bush', 'bush-48px'],
   ['fallen-log', 'fallen-log-80px'], ['grass-tuft', 'grass-tuft-24px'], ['tree-stump', 'tree-stump-56px'],
   ['fern', 'fern-40px'], ['mushrooms', 'mushrooms-32px'], ['pine-tree', 'pine-tree-80px'],
+  ['ancient-tree', 'ancient-tree-144px'], ['standing-stone', 'standing-stone-48px'],
 ].map(([id, file]) => [id, `/assets/environment/isometric/iso-${file}.svg`])));
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);

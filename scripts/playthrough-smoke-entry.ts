@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { validateCatalog } from '../src/content/catalog';
 import { MOVES } from '../src/content/moves';
 import { EnemyPlanner } from '../src/game/enemyPlanner';
-import { active, apGain, canHitAtTarget, canUseMove, commitEnemyAction, completeBattle, createLabBattle, damagePreview, encounterDefinition, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveLevelMove, selectRouteNode, startBattle, useMove } from '../src/game/engine';
+import { active, apGain, canHitAtTarget, canUseMove, commitEnemyAction, completeBattle, createLabBattle, damagePreview, effectiveSpeed, encounterDefinition, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveLevelMove, selectRouteNode, startBattle, useMove } from '../src/game/engine';
 import { actionInterval, timelineSpeed, toActionValueDuration } from '../src/game/actionValue';
+import { changeStage } from '../src/game/stages';
 import { reachable } from '../src/game/grid';
 import { availableRouteNodes, createRoute } from '../src/game/route';
 import type { Battle, Unit } from '../src/game/types';
+import { verifyRankedEncounters } from './ranked-encounters-checks';
 
 const note = (message: string) => console.log(message);
 const distance = (a: Unit, b: Unit) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -67,6 +69,7 @@ function choosePlayerAction(battle: Battle): string {
 }
 
 assert.deepEqual(validateCatalog(), [], 'content catalog should load');
+verifyRankedEncounters();
 let run = newRun(['lapras', 'pikachu', 'geodude']);
 run.party.push({ ...run.party[0], id: 'smoke-test-reserve', species: 'vulpix' });
 const xpBeforeBattle = new Map(run.party.map(mon => [mon.id, mon.xp]));
@@ -158,6 +161,54 @@ passTurn(timeline);
 assert.equal(timeline.time, 5850);
 assert.equal(active(timeline).id, firstActor.id);
 note('Battle Lab: 100/125/200 SPD timeline intervals and proportional Speed rescheduling passed.');
+
+const speedStages = lab('bulbasaur', 'meowth');
+const stagedUnit = active(speedStages);
+const originalHealth = [stagedUnit.hp, stagedUnit.maxHp, stagedUnit.stats[0]];
+passTurn(speedStages);
+const originalWait = stagedUnit.nextAction - speedStages.time;
+const stageExpiry = speedStages.time + toActionValueDuration(500);
+changeStage(stagedUnit, 'speed', 2, stageExpiry);
+finishTurn(speedStages);
+assert.equal(effectiveSpeed(stagedUnit, speedStages), stagedUnit.stats[5] * 2);
+assert.ok(Math.abs(stagedUnit.nextAction - speedStages.time - originalWait / 2) < 1e-9, 'Speed +2 should halve a waiting unit\'s remaining AV');
+changeStage(stagedUnit, 'speed', 10, stageExpiry);
+finishTurn(speedStages);
+assert.equal(stagedUnit.stages.speed, 6, 'Speed boosts should cap at +6');
+assert.equal(effectiveSpeed(stagedUnit, speedStages), stagedUnit.stats[5] * 4);
+changeStage(stagedUnit, 'speed', -20, stageExpiry);
+finishTurn(speedStages);
+assert.equal(stagedUnit.stages.speed, -6, 'Speed drops should cap at -6');
+assert.equal(effectiveSpeed(stagedUnit, speedStages), stagedUnit.stats[5] / 4);
+assert.ok(Math.abs(stagedUnit.nextAction - speedStages.time - originalWait * 4) < 1e-9, 'Speed -6 should quadruple the original remaining AV');
+changeStage(stagedUnit, 'speed', 6, stageExpiry);
+finishTurn(speedStages);
+assert.equal(stagedUnit.stageUntil.speed, 0, 'cancelling Speed stages should clear their timer');
+speedStages.trickRoomUntil = stageExpiry;
+finishTurn(speedStages);
+const roomWait = stagedUnit.nextAction - speedStages.time;
+changeStage(stagedUnit, 'speed', 2, stageExpiry);
+finishTurn(speedStages);
+assert.ok(Math.abs(stagedUnit.nextAction - speedStages.time - roomWait * 2) < 1e-9, 'Trick Room should make Speed +2 double the remaining AV');
+stagedUnit.status.paralyzed = stageExpiry;
+assert.equal(effectiveSpeed(stagedUnit, speedStages), stagedUnit.stats[5], 'paralysis should combine with the Speed stage multiplier');
+assert.deepEqual([stagedUnit.hp, stagedUnit.maxHp, stagedUnit.stats[0]], originalHealth, 'stat stages must leave HP unchanged');
+assert.equal('hp' in stagedUnit.stages, false, 'HP must not have a stat-stage entry');
+
+const expiringSpeed = lab('bulbasaur', 'meowth');
+const expiringUnit = active(expiringSpeed);
+passTurn(expiringSpeed);
+const unstagedDue = expiringUnit.nextAction;
+const expiresAt = expiringSpeed.time + 1000;
+changeStage(expiringUnit, 'speed', 2, expiresAt);
+finishTurn(expiringSpeed);
+passTurn(expiringSpeed);
+assert.equal(expiringUnit.stages.speed, 0);
+assert.equal(expiringUnit.stageUntil.speed, 0);
+assert.equal(expiringUnit.scheduledSpeed, expiringUnit.stats[5]);
+assert.ok(Math.abs(expiringUnit.nextAction - (unstagedDue - 1000)) < 1e-9, 'Speed expiry should rescale the remaining wait at its exact AV timestamp');
+assert.equal(expiringSpeed.round, 1, 'a Speed stage should expire before the next cycle when its timer requires it');
+note('Battle Lab: Speed stages cap at ±6, reschedule waiting turns, combine with paralysis/Trick Room, expire between cycles, and leave HP unchanged.');
 
 const trickRoomRules = lab('lapras', 'pikachu', 14, 14, 9876);
 const slowUnit = trickRoomRules.units.find(unit => unit.species === 'lapras')!;
@@ -259,7 +310,7 @@ assert.equal(useMove(displacement, 'waterPulse', displacedTarget.x, displacedTar
 assert.equal(displacedTarget.y, 0);
 note('Battle Lab: Water Pulse damaged and pushed the target one tile.');
 
-const tile = lab('geodude', 'meowth', 13, 20);
+const tile = lab('geodude', 'meowth', 10, 20);
 activateSide(tile, 'player');
 const tileTarget = tile.units.find(unit => unit.side === 'enemy')!;
 assert.equal(useMove(tile, 'rockThrow', tileTarget.x, tileTarget.y), undefined);
@@ -268,7 +319,7 @@ note('Battle Lab: Rock Throw created timed cover on hit.');
 
 let burned = false;
 for (let seed = 1; seed <= 64 && !burned; seed++) {
-  const status = lab('charmander', 'bulbasaur', 13, 20, seed);
+  const status = lab('charmander', 'bulbasaur', 10, 20, seed);
   activateSide(status, 'player');
   const target = status.units.find(unit => unit.side === 'enemy')!;
   assert.equal(useMove(status, 'ember', target.x, target.y), undefined);
@@ -279,7 +330,7 @@ note('Battle Lab: Ember inflicted Burn in a seeded cast.');
 
 let chainAttempted = false;
 for (let seed = 1; seed <= 64 && !chainAttempted; seed++) {
-  const chain = lab('pikachu', 'squirtle', 13, 20, seed);
+  const chain = lab('pikachu', 'squirtle', 10, 20, seed);
   activateSide(chain, 'player');
   const target = chain.units.find(unit => unit.side === 'enemy')!;
   const grounded = { ...structuredClone(target), id: 'ground-chain-target', x: 3, y: 1,

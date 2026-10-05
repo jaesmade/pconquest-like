@@ -1,6 +1,6 @@
 import { abilityAbsorption, abilityDamageMultiplier, effectiveness, itemSpecialDefenseMultiplier } from '../content/data';
 import type { Battle, Move, StatStages, Unit } from './types';
-import { MAX_STAGE } from './stages';
+import { MAX_STAGE, statWithStage } from './stages';
 
 export type DamageRoll = { critical: boolean; randomPercent: number };
 export type DamageRange = { min: number; max: number; critMin: number; critMax: number; type: number; damage: number; crit: number };
@@ -14,9 +14,7 @@ function modify(value: number, multiplier: number): number {
 function stagedStat(unit: Unit, stat: keyof StatStages, index: number, critical: boolean, offensive: boolean): number {
   const stage = Math.max(-MAX_STAGE, Math.min(MAX_STAGE, unit.stages[stat] ?? 0));
   const effective = critical && ((offensive && stage < 0) || (!offensive && stage > 0)) ? 0 : stage;
-  const numerator = effective >= 0 ? 2 + effective : 2;
-  const denominator = effective >= 0 ? 2 : 2 - effective;
-  return Math.max(1, Math.floor(unit.stats[index] * numerator / denominator));
+  return Math.max(1, Math.floor(statWithStage(unit.stats[index], effective)));
 }
 
 function attackStat(source: Unit, move: Move, critical: boolean): number {

@@ -40,7 +40,9 @@
     "tree-stump": "/assets/environment/isometric/iso-tree-stump-56px.svg",
     "fern": "/assets/environment/isometric/iso-fern-40px.svg",
     "mushrooms": "/assets/environment/isometric/iso-mushrooms-32px.svg",
-    "pine-tree": "/assets/environment/isometric/iso-pine-tree-80px.svg"
+    "pine-tree": "/assets/environment/isometric/iso-pine-tree-80px.svg",
+    "ancient-tree": "/assets/environment/isometric/iso-ancient-tree-144px.svg",
+    "standing-stone": "/assets/environment/isometric/iso-standing-stone-48px.svg"
   },
   "slopes": {
     "north": "/assets/environment/isometric/iso-slope-north-96px.svg",
@@ -69,11 +71,65 @@
       "/assets/environment/isometric/iso-woodland-path-h0-96px.svg",
       "/assets/environment/isometric/iso-woodland-path-h1-96px.svg",
       "/assets/environment/isometric/iso-woodland-path-h2-96px.svg"
+    ],
+    "stone": [
+      "/assets/environment/isometric/iso-forest-stone-h0-96px.svg",
+      "/assets/environment/isometric/iso-forest-stone-h1-96px.svg",
+      "/assets/environment/isometric/iso-forest-stone-h2-96px.svg"
+    ],
+    "seal": [
+      "/assets/environment/isometric/iso-forest-seal-h0-96px.svg",
+      "/assets/environment/isometric/iso-forest-seal-h1-96px.svg",
+      "/assets/environment/isometric/iso-forest-seal-h2-96px.svg"
     ]
   },
   "forestCliffs": [
     "/assets/environment/isometric/iso-forest-cliff-h0-96px.svg",
     "/assets/environment/isometric/iso-forest-cliff-h1-96px.svg",
     "/assets/environment/isometric/iso-forest-cliff-h2-96px.svg"
-  ]
+  ],
+  "forestRamps": {
+    "north": [
+      "/assets/environment/isometric/iso-slope-north-h0-96px.svg",
+      "/assets/environment/isometric/iso-slope-north-h1-96px.svg",
+      "/assets/environment/isometric/iso-slope-north-h2-96px.svg"
+    ],
+    "east": [
+      "/assets/environment/isometric/iso-slope-east-h0-96px.svg",
+      "/assets/environment/isometric/iso-slope-east-h1-96px.svg",
+      "/assets/environment/isometric/iso-slope-east-h2-96px.svg"
+    ],
+    "south": [
+      "/assets/environment/isometric/iso-slope-south-h0-96px.svg",
+      "/assets/environment/isometric/iso-slope-south-h1-96px.svg",
+      "/assets/environment/isometric/iso-slope-south-h2-96px.svg"
+    ],
+    "west": [
+      "/assets/environment/isometric/iso-slope-west-h0-96px.svg",
+      "/assets/environment/isometric/iso-slope-west-h1-96px.svg",
+      "/assets/environment/isometric/iso-slope-west-h2-96px.svg"
+    ]
+  },
+  "stoneRamps": {
+    "north": [
+      "/assets/environment/isometric/iso-stone-slope-north-h0-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-north-h1-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-north-h2-96px.svg"
+    ],
+    "east": [
+      "/assets/environment/isometric/iso-stone-slope-east-h0-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-east-h1-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-east-h2-96px.svg"
+    ],
+    "south": [
+      "/assets/environment/isometric/iso-stone-slope-south-h0-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-south-h1-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-south-h2-96px.svg"
+    ],
+    "west": [
+      "/assets/environment/isometric/iso-stone-slope-west-h0-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-west-h1-96px.svg",
+      "/assets/environment/isometric/iso-stone-slope-west-h2-96px.svg"
+    ]
+  }
 }

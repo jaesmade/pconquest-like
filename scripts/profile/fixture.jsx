@@ -43,8 +43,8 @@ function makeUnit(speciesId, side, index) {
     hp: stats[0], maxHp: stats[0], x, y, facing: side === 'player' ? 2 : 1,
     ap: 8, maxAp: 8, movedThisTurn: false, attackedThisTurn: false,
     nextAction: 0, nextActionShift: 0, scheduledSpeed: stats[5], status: {},
-    stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 },
-    stageUntil: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0 },
+    stages: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0, speed: 0 },
+    stageUntil: { attack: 0, defense: 0, specialAttack: 0, specialDefense: 0, speed: 0 },
     item: 'None', itemAttackMultiplier: 1,
   };
 }

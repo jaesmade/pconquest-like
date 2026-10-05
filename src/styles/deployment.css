@@ -105,3 +105,94 @@
   .prepare-frame .prepare-map-head { min-height: 55px; }
   .prepare-frame .prepare-map-footer { min-height: 56px; }
 }
+.prepare-enemy-roster{padding:6px 12px;background:#173b3ee6;color:#eef4e6;font-size:.72rem;max-height:160px;overflow:auto}.prepare-enemy-roster summary{cursor:pointer}.prepare-enemy-roster ul{list-style:none;padding:0;margin:8px 0;display:grid;gap:6px}.prepare-enemy-roster li{display:grid;gap:2px}.prepare-enemy-roster li span{font-size:.66rem;color:#c8ded1}
+
+/* Deployment is a crisp cartridge-style roster and tactical map. */
+.prepare-frame {
+  border: 3px solid var(--pixel-frame, #d8e3df);
+  border-radius: 0;
+  background: #132b36;
+  box-shadow: 6px 6px 0 var(--pixel-edge, #102632), inset 0 0 0 2px #34515a;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  font-family: var(--pixel-body-font, monospace);
+}
+.prepare-frame .prepare-title .eyebrow { color: var(--pixel-gold, #ffcb3d); font-size: 9px; line-height: 1.6; }
+.prepare-frame .prepare-title h2 { font-family: var(--pixel-font, 'Press Start 2P', monospace); font-size: clamp(14px, 1.8vw, 24px); line-height: 1.6; text-shadow: 3px 3px 0 #091b24; }
+.prepare-frame .prepare-title p { font-size: 15px; line-height: 1.4; }
+.prepare-frame .prepare-roster, .prepare-frame .prepare-map-panel { border: 3px solid #8ab1b4; border-radius: 0; background: #203e49; box-shadow: inset 0 0 0 2px #34515a; }
+.prepare-frame .prepare-roster-head h3 { font-family: var(--pixel-font, 'Press Start 2P', monospace); font-size: 12px; line-height: 1.6; }
+.prepare-roster-head span { font-size: 8px; line-height: 1.5; }
+.prepare-roster-head > b { font-size: 10px; }
+.prepare-roster-meter i { height: 8px; border-radius: 0; border: 2px solid #8ab1b4; background: #132b36; }
+.prepare-roster-meter i.filled { border-color: #b79231; background: var(--pixel-gold, #ffcb3d); }
+.prepare-frame .prepare-roster-card { border: 3px solid #718b90; border-radius: 0; background: #dce5df; box-shadow: 3px 3px 0 #102632; }
+.prepare-frame .prepare-roster-card.selected { border-color: #6ed8d6; background: var(--pixel-paper, #f7f7e9); }
+.prepare-frame .prepare-roster-card.focused { border-color: var(--pixel-gold, #ffcb3d); box-shadow: 3px 3px 0 #102632, inset 0 0 0 1px #b79231; }
+.prepare-frame .prepare-roster-card.fainted { opacity: 1; background: #b6c5c0; border-color: #637b7e; }
+.prepare-roster-portrait { width: 64px; height: 64px; border: 2px solid #436e78; border-radius: 0; background: #bdd6c9; box-shadow: inset 2px 2px 0 #8aa69c; }
+.prepare-roster-portrait .species-portrait { width: 48px; height: 48px; }
+.prepare-frame .prepare-roster-copy strong { font: 10px/1.6 var(--pixel-font, 'Press Start 2P', monospace); }
+.prepare-frame .prepare-roster-copy small { font-size: 13px; line-height: 1.3; color: #3e5b63; }
+.prepare-roster-hp { font-size: 12px; line-height: 1.2; }
+.prepare-frame .prepare-roster-health { border: 2px solid #203e49; border-radius: 0; height: 10px; background: #9caeab; }
+.prepare-frame .prepare-roster-health i { background: #51ab67; box-shadow: inset 0 2px 0 #86d893; }
+.prepare-roster-action { min-height: 53px; padding: 4px 7px 5px; background: #e2ece3; border-top: 2px solid #b5c8bf; }
+.prepare-roster-action span { font-size: 8px; line-height: 1.6; }
+.prepare-roster-action button { min-height: 44px; min-width: 64px; padding: 5px 7px; border: 2px solid #234552; border-radius: 0; background: #f7f7e9; color: #17303e; box-shadow: 2px 2px 0 #234552; font: 9px/1.5 var(--pixel-font, 'Press Start 2P', monospace); }
+.prepare-roster-action button:hover:not(:disabled) { border-color: #17303e; background: var(--pixel-gold, #ffcb3d); }
+.prepare-roster-action button:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
+.prepare-roster-action button:disabled { opacity: 1; color: #677a7b; background: #ced7d1; border-color: #8a9e9d; box-shadow: none; }
+.prepare-frame .prepare-map-head, .prepare-frame .prepare-map-footer { background: var(--pixel-paper, #f7f7e9); }
+.prepare-frame .prepare-map-head { border-bottom: 3px solid #17303e; }
+.prepare-frame .prepare-map-head small, .prepare-placement-status > span { color: #925525; font-size: 8px; line-height: 1.6; }
+.prepare-frame .prepare-map-head b { font-family: var(--pixel-font, 'Press Start 2P', monospace); font-size: 11px; line-height: 1.6; }
+.prepare-frame .prepare-map-head span { font-size: 14px; line-height: 1.3; }
+.prepare-map-opponents { border: 2px solid #a8b9b4; border-radius: 0; background: #dce5df; }
+.prepare-frame .prepare-map-opponents b { color: #a32950; }
+.prepare-frame .prepare-map-opponents span { font-size: 11px; }
+.prepare-frame .deploy-map-wrap { background: #c4d9cb; }
+.deploy-zone-tag { border-width: 2px; border-radius: 0; background: #17313b; font-size: 8px; line-height: 1.4; box-shadow: 2px 2px 0 #102632; }
+.prepare-frame .prepare-map-footer { border-top: 3px solid #17303e; }
+.prepare-placement-status > strong { font-size: 14px; line-height: 1.3; }
+.prepare-frame .prepare-map-footer .primary { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; font-family: var(--pixel-font, 'Press Start 2P', monospace); font-size: 10px; }
+.prepare-enemy-roster { flex: none; background: #203e49; padding: 0 12px; border-bottom: 3px solid #17303e; font-size: 14px; }
+.prepare-enemy-roster summary { min-height: 40px; padding-block: 10px; line-height: 1.3; }
+.prepare-enemy-roster li span { font-size: 13px; line-height: 1.3; }
+.prepare-screen .route-modal-back { border-radius: 0; border-color: var(--pixel-frame, #d8e3df); padding: 0; background: #203e49; box-shadow: 4px 4px 0 #102632; }
+.prepare-screen .route-modal-back .pixel-icon { width: 32px; height: 32px; }
+
+@media (max-width: 680px) {
+  .prepare-screen.route-modal-screen { padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+  .prepare-frame { height: 100%; max-height: 100%; overflow-y: auto; padding: 10px; gap: 10px; }
+  .prepare-frame .prepare-title .eyebrow { font-size: 7px; }
+  .prepare-frame .prepare-title h2 { font-size: 12px; }
+  .prepare-frame .prepare-title p { font-size: 12px; }
+  .prepare-frame .prepare-layout { flex: none; gap: 10px; }
+  .prepare-frame .prepare-roster { height: 224px; padding: 8px; }
+  .prepare-frame .prepare-roster-head h3 { font-size: 10px; }
+  .prepare-roster-head span { font-size: 7px; }
+  .prepare-roster-head > b { font-size: 9px; }
+  .prepare-frame .prepare-roster-card { flex-basis: 206px; }
+  .prepare-frame .prepare-roster-focus { min-height: 80px; gap: 6px; }
+  .prepare-roster-portrait { width: 52px; height: 52px; }
+  .prepare-frame .prepare-roster-copy strong { font-size: 8px; }
+  .prepare-frame .prepare-roster-copy small { font-size: 12px; }
+  .prepare-roster-action span { font-size: 7px; }
+  .prepare-roster-action button { font-size: 8px; }
+  .prepare-frame .prepare-map-panel { flex: none; min-height: 410px; height: auto; }
+  .prepare-frame .prepare-map-head { min-height: 64px; padding: 8px; }
+  .prepare-frame .prepare-map-head small { font-size: 7px; }
+  .prepare-frame .prepare-map-head b { font-size: 9px; }
+  .prepare-frame .prepare-map-head span { font-size: 12px; }
+  .prepare-frame .deploy-map { min-height: 240px; }
+  .deploy-zone-tag { font-size: 7px; }
+  .prepare-frame .prepare-map-footer { flex-wrap: wrap; gap: 7px; padding: 8px; }
+  .prepare-placement-status { flex: 1; min-width: 130px; }
+  .prepare-placement-status > span { font-size: 7px; }
+  .prepare-placement-status > strong { font-size: 12px; }
+  .prepare-frame .prepare-map-footer .primary { min-height: 48px; font-size: 8px; padding: 7px; }
+  .prepare-enemy-roster { font-size: 12px; }
+  .prepare-enemy-roster li span { font-size: 12px; }
+  .prepare-screen .route-modal-back .pixel-icon { width: 24px; height: 24px; }
+}

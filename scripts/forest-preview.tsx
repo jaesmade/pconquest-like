@@ -17,6 +17,7 @@ function ForestPreview() {
   const [cameraAction, setCameraAction] = useState({ id: 0, command: 'fit' as const });
   const map = MAPS[mapId];
   useEffect(() => { setReady(false); }, [mapId, mode]);
+  useEffect(() => { if (ready) setCameraAction(previous => ({ id: previous.id + 1, command: 'fit' })); }, [ready]);
   const { battle, party, placements } = useMemo(() => {
     const run = startBattle(newRun(['bulbasaur', 'charmander', 'squirtle']));
     const battle = run.battle!;
@@ -41,7 +42,7 @@ function ForestPreview() {
     </header>
     <section aria-label={map.name}>
       {mode === 'battle' ? <Board key={mapId} battle={battle} mode="inspect" onTile={() => {}} cameraAction={cameraAction}
-        onAnimationState={() => { setReady(true); setCameraAction(previous => ({ id: previous.id + 1, command: 'fit' })); }} />
+        onViewChange={() => { setReady(true); }} />
         : <DeploymentBoard map={map} selected={party} placements={placements} onPlace={() => {}} />}
     </section>
     <footer>{map.tiles[0].length} × {map.tiles.length} · {map.weather} weather · {mode === 'deployment' ? 'Deployment layout' : ready ? 'Drag to explore, scroll to zoom' : 'Loading woodland...'}</footer>

@@ -11,7 +11,8 @@
     "playthrough": "node scripts/playthrough-smoke.mjs",
     "verify:targeting": "node scripts/verify-targeting.mjs",
     "verify:forest": "node scripts/verify-forest-maps.mjs",
-    "measure:save": "node scripts/measure-save.mjs"
+    "measure:save": "node scripts/measure-save.mjs",
+    "measure:catalog": "node scripts/measure-catalog.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0",

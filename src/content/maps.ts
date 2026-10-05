@@ -19,8 +19,8 @@ type MapSource = {
 
 const terrainKinds: Record<string, Tile['kind']> = { '.': 'plain', '~': 'water', '^': 'lava', '#': 'wall' };
 const slopeKinds: Record<string, SlopeDirection> = { '^': 'north', v: 'south', '>': 'east', '<': 'west' };
-const objectKinds: Record<string, TerrainObjectId> = { T: 'tree', P: 'pine-tree', R: 'rock', B: 'bush', L: 'fallen-log', S: 'tree-stump', V: 'fern', M: 'mushrooms', F: 'flower', G: 'grass-tuft' };
-const surfaceKinds: Record<string, NonNullable<Tile['surface']>> = { ':': 'path', ',': 'moss' };
+const objectKinds: Record<string, TerrainObjectId> = { T: 'tree', P: 'pine-tree', R: 'rock', B: 'bush', L: 'fallen-log', S: 'tree-stump', V: 'fern', M: 'mushrooms', F: 'flower', G: 'grass-tuft', H: 'ancient-tree', O: 'standing-stone' };
+const surfaceKinds: Record<string, NonNullable<Tile['surface']>> = { ':': 'path', ',': 'moss', '=': 'stone', '*': 'seal' };
 const slopeOffsets: Record<SlopeDirection, GridPoint> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
 const zoneKinds: Record<string, DeploymentZone> = { A: 'ally', N: 'neutral', E: 'enemy' };
 export const MAX_MAP_SIZE = 32;
@@ -34,7 +34,7 @@ function edgeSpawns(size: number, y: number): GridPoint[] {
   return Array.from({ length: count }, (_, index): GridPoint => [first + index, y]);
 }
 
-type ObjectMarker = 'T' | 'P' | 'R' | 'B' | 'L' | 'S' | 'V' | 'M' | 'F' | 'G';
+type ObjectMarker = 'T' | 'P' | 'R' | 'B' | 'L' | 'S' | 'V' | 'M' | 'F' | 'G' | 'H' | 'O';
 type ForestSource = {
   id: string;
   name: string;
@@ -45,6 +45,8 @@ type ForestSource = {
   objects: Partial<Record<ObjectMarker, GridPoint[]>>;
   paths: GridPoint[][];
   moss: GridPoint[];
+  stone?: GridPoint[];
+  seals?: GridPoint[];
   water?: GridPoint[];
   capture?: GridPoint;
 };
@@ -87,6 +89,8 @@ function forestMap(source: ForestSource): BattleMap {
   }
   for (const point of source.moss) put(surfaces, point, ',');
   for (const cells of source.paths) for (const point of cells) put(surfaces, point, ':');
+  for (const point of source.stone ?? []) put(surfaces, point, '=');
+  for (const point of source.seals ?? []) put(surfaces, point, '*');
   const rows = (cells: string[][]) => cells.map(row => row.join(''));
   const map = createMap({
     id: source.id, name: source.name, weather: source.weather,
@@ -342,23 +346,30 @@ export const MAPS: Record<string, BattleMap> = Object.fromEntries([
     ],
     moss: [...patch(1, 2, 3, 2), ...patch(12, 2, 3, 3), ...patch(1, 5, 3, 5), ...patch(12, 6, 3, 5), ...patch(6, 2, 4, 2), ...patch(1, 12, 3, 2), ...patch(12, 12, 3, 2)],
   }),
-  // A compact heartwood dais keeps the original capture tile and two side approaches.
+  // A ceremonial forest arena: open stone dais, twin processional ramps,
+  // rear crown terrace, and an old-growth/monolith perimeter around the fight.
   forestMap({
     id: 'ancient-heartwood', name: 'Ancient Heartwood', weather: 'clear', size: 8, capture: [4, 4],
-    terraces: [{ height: 1, cells: [...patch(2, 3, 4, 2), ...patch(3, 5, 2, 1)] }, { height: 2, cells: [[3, 4]] }],
+    terraces: [{ height: 1, cells: patch(2, 2, 4, 4) }, { height: 2, cells: [[3, 2], [4, 2]] }],
     ramps: [
-      { point: [2, 3], facing: 'west' }, { point: [5, 3], facing: 'east' },
-      { point: [3, 5], facing: 'south' }, { point: [4, 5], facing: 'south' }, { point: [3, 4], facing: 'north' },
+      { point: [2, 3], facing: 'west' }, { point: [2, 4], facing: 'west' },
+      { point: [5, 3], facing: 'east' }, { point: [5, 4], facing: 'east' },
+      { point: [3, 5], facing: 'south' }, { point: [4, 5], facing: 'south' },
+      { point: [3, 2], facing: 'south' }, { point: [4, 2], facing: 'south' },
     ],
     objects: {
-      T: [[0, 2], [1, 2], [7, 2], [7, 3], [0, 5], [6, 5]], P: [[7, 4]], L: [[1, 4]], S: [[5, 5]],
-      V: [[2, 2], [5, 4], [1, 5]], M: [[2, 4], [6, 4]], F: [[4, 3], [5, 2]], G: [[0, 3], [7, 5]],
+      H: [[0, 3], [7, 3]], O: [[1, 0], [6, 0], [1, 5], [6, 5]],
+      T: [[0, 0], [7, 0], [0, 2], [7, 2], [0, 4], [7, 4]], S: [[0, 5], [7, 5]],
+      B: [[0, 6], [7, 6]], V: [[2, 0], [5, 0], [0, 7], [7, 7]],
+      M: [[0, 1], [7, 1]], F: [[2, 2], [5, 2]], G: [[2, 7], [5, 7]],
     },
     paths: [
-      trail([3, 1], [3, 2], [4, 2], [6, 2], [6, 3], [5, 3], [4, 3], [4, 6]),
-      trail([2, 6], [3, 6], [3, 5]), trail([1, 3], [2, 3], [3, 3], [3, 4]),
+      trail([3, 7], [3, 2]), trail([4, 7], [4, 2]),
+      trail([1, 1], [1, 3], [3, 3]), trail([6, 1], [6, 3], [4, 3]),
+      trail([1, 4], [3, 4]), trail([6, 4], [4, 4]),
     ],
-    moss: [...patch(0, 2, 3, 4), ...patch(6, 2, 2, 4), ...patch(2, 3, 4, 2)],
+    moss: [...patch(0, 0, 8, 2), ...patch(0, 2, 2, 4), ...patch(6, 2, 2, 4)],
+    stone: patch(2, 2, 4, 4), seals: [[4, 4]],
   }),
 ].map(map => [map.id, map]));
 

@@ -31,9 +31,9 @@ The battle unit uses seven action clips and one portrait. Its sprite sheet files
 | `hurt` | Damage reaction and faint | 2 × 8 |
 | `normal` | Portrait in menus and deployment | One standalone image, not a strip |
 
-Export transparent PNG sheets. Within a clip, every frame has the same width and height; frames run left to right and facing rows top to bottom. Sheet width is `frameWidth × frames` and height is `frameHeight × rows`. For example, a 5-frame, 8-row idle clip at 32×40 per frame is **160×320 pixels**. Keep the Pokémon's feet or ground point in the same place across idle, walk, attack, shoot, charge, and hurt, even when those clips use different frame dimensions. Leave room for the animation without clipping at frame edges. Pixel art is displayed with nearest-neighbor filtering on the isometric board.
+Export transparent PNG sheets. Within a clip, every frame has the same width and height; frames run left to right and facing rows top to bottom. Sheet width is `frameWidth × frames` and height is `frameHeight × rows`. For example, a 5-frame, 8-row idle clip at 32×40 per frame is **160×320 pixels**. Keep the Pokémon's feet or ground point in the same place across idle, walk, attack, shoot, charge, and hurt, even when those clips use different frame dimensions. Leave room for the animation without clipping at frame edges. Pixel art is displayed with nearest-neighbor filtering on the top-down board.
 
-The supplied placeholder row order is **down, down-right, right, up-right, up, up-left, left, down-left**. Its `facingRows` is `[7, 5, 1, 3]` for the game's logical south, west, east, north order after isometric projection. If your sheets use a different row order, set `facingRows` to the row indices for those four directions. A one-row clip such as `sleep` ignores the facing mapping. The board does not flip a sprite automatically to create missing directions.
+The supplied placeholder row order is **down, down-right, right, up-right, up, up-left, left, down-left**. Its `facingRows` is `[0, 6, 2, 4]` for the game's logical south, west, east, north order in the top-down view. If your sheets use a different row order, set `facingRows` to the row indices for those four directions. A one-row clip such as `sleep` ignores the facing mapping. The board does not flip a sprite automatically to create missing directions.
 
 Optional ground-shadow sheets go beside their matching clips: `<species-id>-idle-shadow-32x40.png`, `<species-id>-attack-shadow-80x88.png`, and so on. Each must have the **same frame size, columns, and rows** as its clip. The renderer tints these sheets black at low opacity. Missing shadow clips use the first Idle shadow frame for the facing; if the whole set has no shadow sheets, the board still has its simple ground shadow. Flying and swimming use separate ground-projection and ripple overlays.
 
@@ -91,7 +91,7 @@ The battle board plays this sound when the engine emits an ability feedback even
 
 ## Before using replacement assets
 
-- Check each PNG's transparency, exact frame size, sheet width/height, row order, and stable ground point. Preview all frames and facings, then inspect idle, walking, attacking, and hurt states on the isometric board. Check silhouettes against grass, water, and elevation.
+- Check each PNG's transparency, exact frame size, sheet width/height, row order, and stable ground point. Preview all frames and facings, then inspect idle, walking, attacking, and hurt states on the top-down board. Check silhouettes against grass, water, and elevation.
 - Check effect art at its actual 32×32 game scale, including the projectile in transit and any area tiles. Keep important pixels inside each frame.
 - Check the sound's start/end for clicks and compare its loudness with existing cues. Keep the audio manifest URL and file extension in sync.
 - Record the source or creator and usage rights for any asset that will ship. Preserve editable source files outside `dist/`.

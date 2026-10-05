@@ -14,11 +14,13 @@ For the planned run-wide artifact catalog, rarity tiers, example effects, and im
 
 For the proposed conditional starter unlocks, achievement requirements, and persistence plan, see the [party builder guide](PARTY_BUILDER.md). These unlock rules are not implemented yet.
 
+The [enemy ranks and initial movesets](#proposed-enemy-ranks-and-automatic-latest-four-movesets) are implemented: encounter counts scale with level, and new Pokémon use their latest four eligible moves. Owned Pokémon retain player-selected moves, manual level-up choices, and TM teaching.
+
 ## First playable run
 
 1. Build a starting roster from the available starter and recruit species using six party points. Most Pokémon cost two points, so the default budget buys three. A run can own up to 20 Pokémon total; choose up to six to deploy before each battle.
 2. Choose a path through a branching route with ten columns; the boss is always in column ten. See the [route and deployment overhaul](ROUTE_OVERHAUL.md).
-3. Before each battle, choose up to six available Pokémon from the run roster and place them on the isometric map. Normal battles, elite battles, full-party healing, stores, and simple special encounters appear along the route.
+3. Before each battle, choose up to six available Pokémon from the run roster and place them on the top-down map. Normal battles, elite battles, full-party healing, stores, and simple special encounters appear along the route.
 4. After each battle victory, award XP only to Pokémon deployed in that battle, including deployed battlers that faint. Reserves do not gain battle XP. Offer moves unlocked by participant level gains before the next encounter.
 5. Fight the column-ten boss encounter with a distinct map and capture objective.
 6. See a win or loss screen. A successful run is intended to save a permanent unlock that changes a future run.
@@ -67,7 +69,7 @@ For future implementation, use stable content IDs, authored encounter definition
 
 ### Run party and deployment
 
-The run party holds at most 20 Pokémon total, including deployed members and reserves. Build the initial roster with six points; species cost two by default, with optional per-species overrides in content. Before each encounter, show the full roster and let the player select up to six with current HP above zero. They may enter with fewer than six; if none are available for a battle, the run ends. Place the selected Pokémon on the rendered isometric map in the ally zone. Reserves take no turns or terrain and weather damage. There is no midbattle swapping in the early build.
+The run party holds at most 20 Pokémon total, including deployed members and reserves. Build the initial roster with six points; species cost two by default, with optional per-species overrides in content. Before each encounter, show the full roster and let the player select up to six with current HP above zero. They may enter with fewer than six; if none are available for a battle, the run ends. Place the selected Pokémon on the rendered top-down map in the ally zone. Reserves take no turns or terrain and weather damage. There is no midbattle swapping in the early build.
 
 On the top-down deployment grid, allies choose starting tiles in the bottom two rows and enemies use the top two rows. The center four rows are neutral on the initial 8×8 campaign maps. Default allies enter from the bottom edge facing north; default enemies enter from the top edge facing south. Each team may reposition within its own zone before battle when deployment selection is available.
 
@@ -192,7 +194,7 @@ Target shapes for the early build are single unit, small area, and self. The cur
 
 Thunder Shock's chain selects one adjacent enemy of the first target after a successful, non-fainting hit and a 30% effect roll. The chained target receives a separate damage-only hit with its own evasion check, absorption and type immunity check, critical roll, damage variance, defensive stats, held-item modifiers, and weather modifiers. Its calculated damage is halved and rounded up. A chained hit does not apply the move's other on-hit effects, contact reactions, or another chain. An immune or missed chain still uses that one chain opportunity.
 
-Tail Whip, Harden, and Howl each change the relevant stat by one stage. Stat stages are capped between −6 and +6 and multiply the affected stat as follows (negative values are rounded to two decimals):
+Stat stages support Attack, Defense, Special Attack, Special Defense, and Speed; HP and Movement cannot receive stages. Tail Whip, Harden, and Howl each change the relevant stat by one stage. The current move catalog has no Speed-stage move yet, but a `stage` effect can now target `speed`. Stat stages are capped between −6 and +6 and multiply the affected stat as follows (negative values are rounded to two decimals):
 
 | Stage | Multiplier | Stage | Multiplier |
 | ---: | ---: | ---: | ---: |
@@ -204,7 +206,9 @@ Tail Whip, Harden, and Howl each change the relevant stat by one stage. Stat sta
 | +1 | 1.5× | −6 | 0.25× |
 | 0 | 1× |  |  |
 
-A stage change lasts five cycles on the AV clock, equal to five turns at reference Speed 65. Reapplying a change adds its delta to the current net stage and refreshes that stat's full five-cycle timer, including at the cap; an opposing change can reduce or cancel the net stage. For example, Harden gives Defense +1 for five turns; using it again on the fourth turn raises Defense to +2 and restarts the five-turn duration. A stat returns to zero at the first cycle boundary after expiry. Show the stage and cycles remaining on its buff or debuff icon, and show the affected allies and enemies before confirming an area Status move.
+A stage change lasts five cycles on the AV clock, equal to five turns at reference Speed 65. Reapplying a change adds its delta to the current net stage and refreshes that stat's full five-cycle timer, including at the cap; an opposing change can reduce or cancel the net stage. For example, Harden gives Defense +1 for five turns; using it again on the fourth turn raises Defense to +2 and restarts the five-turn duration. A stat returns to zero when its expiry is processed on the AV clock. Show the stage and cycles remaining on its buff or debuff icon, and show the affected allies and enemies before confirming an area Status move.
+
+Speed stages multiply the stored base Speed before weather/ability and paralysis modifiers; fractional effective Speed is retained for AV timing. They proportionally reschedule a waiting unit's remaining AV and determine the acting unit's next interval. Speed expiry is an explicit timeline event, including between cycle boundaries. Trick Room inverts the resulting effective Speed, so a positive Speed stage makes the unit wait longer while that field is active. Stage changes never alter HP, maximum HP, or the stored base stats.
 
 Each Pokémon should begin with a reliable low-cost move and a stronger or more tactical move. It can learn more moves as it levels and equips four for a battle. An off-type move gives useful coverage, while the same-type bonus rewards the Pokémon's main identity.
 
@@ -268,9 +272,96 @@ The AV timeline gives turns according to Speed rather than waiting for every dep
 
 Resolve XP and level gains after the battle, then show the growth report. At the following route choice, an eligible Pokémon can evolve from the party panel or defer until another route choice. Evolution changes its species form, stats, and any defined type or ability; it remains evolved for the rest of that run. The current route control names the next form; a before-and-after stat preview is still planned. Evolution keeps its held item and preserves its battle damage: an unfainted Pokémon gains only the increase in maximum HP, while a fainted Pokémon stays at 0 HP. Mega Evolution remains a separate temporary battle form. Include at least one ordinary evolution line with a threshold reachable during the early run.
 
-After XP gains, check deployed participants that gained a level against their current form's level-based learnset. Newly eligible moves create saved choices on the XP screen: replace one of the four active moves or keep the current set. Resolve every choice before leaving that screen. The Party panel displays active moves but cannot rearrange or replace them. A skipped move remains in the learned history to prevent the same level offer repeating after every battle; a later TM may teach it if that species is compatible. Recruits arrive knowing all moves available to their form at their starting level and equip four by default, favoring their first two signature moves and recent level unlocks. Ordinary evolution preserves the exact active move slots and learned history; the new form's base and eligible level moves join the history without replacing slots. For the early build, arrange XP thresholds and learnsets so at least one deployed participant receives a move choice after a regular encounter.
+After XP gains, check deployed participants that gained a level against their current form's level-based learnset. Newly eligible moves create saved choices on the XP screen: replace one of the four active moves or keep the current set. Resolve every choice before leaving that screen. The Party panel displays active moves but cannot rearrange or replace them. A skipped move remains in the learned history to prevent the same level offer repeating after every battle; a later TM may teach it if that species is compatible. Recruits arrive knowing all moves available to their form at their starting level and equip their latest four distinct eligible moves by default, with fewer slots when unavailable. Ordinary evolution preserves the exact active move slots and learned history; the new form's base and eligible level moves join the history without replacing slots. For the early build, arrange XP thresholds and learnsets so at least one deployed participant receives a move choice after a regular encounter.
 
 Technical Machines are a separate **acquisition category**, independent of Physical, Special, and Status battle move categories. A species lists compatible TM move IDs in `tmMoves`; the item identifies the move it teaches. From the route Bag, select a compatible Pokémon and the active move to replace. TMs are single-use and cannot be held. The initial TM-only move is Swift; TM Swift starts in the bag and is also sold in stores, alongside TM Thunderbolt. A TM does not change active moves until the player confirms its recipient and slot.
+
+## Proposed enemy ranks and automatic latest-four movesets
+
+Status: **implemented 2026-10-05**, including the clarification that latest-four loadouts apply at creation while owned Pokémon retain manual progression. `src/game/enemyRanks.ts` owns rank multipliers, count thresholds, and the independent composition stream; `src/game/movesets.ts` owns initial move selection. Save schema v27 preserves ranks and restarts active older battles at preparation. Related current contracts are in [balance](BALANCE.md), [route/deployment](ROUTE_OVERHAUL.md), and [content/save authoring](SCALING.md). The section heading retains its proposal name so existing links remain stable.
+
+### Requested rules and working assumptions
+
+Give each enemy its own rank, separate from the route node's battle category. A normal enemy accompanying an Elite or Boss retains normal stats.
+
+| Enemy rank | HP, Attack, Defense, Special Attack, Special Defense, Speed | Movement |
+| --- | --- | --- |
+| Normal | 1× level-derived stats | Unchanged |
+| Elite | 2× (+100%) | Unchanged |
+| Boss | 3× (+200%) | Unchanged |
+
+Apply the multiplier **after** `statsAtLevel`, including the level-derived HP offset. For example, a normal stat tuple of `[40, 20, 30, 25, 35, 60, 3]` becomes `[80, 40, 60, 50, 70, 120, 3]` for an Elite and `[120, 60, 90, 75, 105, 180, 3]` for a Boss. Enemy current HP starts at the multiplied maximum. Species catalog stats and owned Pokémon do not acquire rank bonuses.
+
+The rank bonus is an intrinsic battle-stat multiplier, independent of temporary +/- stages: stages begin at zero, retain their normal caps and expiry, and buffs/debuffs apply on top of the ranked stats. Stage removal, expiry, and critical-hit stage handling must never remove the rank multiplier. Rank does not grant extra AP per turn; multiplied Speed changes turn frequency through the existing scheduler. Weather, paralysis, abilities, and Trick Room then operate on that Speed normally. Rank must survive an enemy's temporary form change, with stats recalculated once from the new species rather than multiplied again.
+
+Confirmed by the user: Speed is included in the listed six boosted stats, separate from temporary stages; Movement is excluded. The user clarified that “latest four” initializes newly created Pokémon, especially high-level wild Pokémon and recruits, rather than automatically replacing an owned Pokémon's moves after leveling. A level-15 recruit immediately receives the latest eligible level-15 moveset, without replaying earlier level-up prompts. After joining, it retains player-selected slots and offers future level-up moves through the existing replacement/keep-current choices. Initialize from distinct starting/level-up moves, including Status moves; do not equip future unlocks or choose by power. TM teaching remains available.
+
+| Battle category | Normal enemies | Elite enemies | Boss enemies | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Normal | 3–8 | 0 | 0 | 3–8 |
+| Elite | 3–5 | 1–3 | 0 | 4–8 |
+| Boss | 2–5 | 0–2 | Exactly 1 | 3–8 |
+
+Keep the current ten-column route, six-ally deployment cap, maps, node rewards, and defeat/capture objectives as the starting integration baseline. Preserve the existing normal-level formula, Elite +3 level offset, and level-21 Boss initially; applying rank bonuses as well is a deliberate additional difficulty increase and requires play tuning. The separate higher-floor/over-100 proposal remains future work.
+
+### Preimplementation snapshot (historical)
+
+- `encounterDefinition` in `src/game/engine.ts` returns three enemies for normal nodes, appends one enemy for Elite nodes, and overrides the Boss to four level-21 enemies. `Encounter.enemies` in `src/game/types.ts` stores species IDs only; there is no unit-rank field.
+- `makeUnit` uses ordinary `statsAtLevel` for both sides. `effectiveSpeed` combines the unit's stored Speed, temporary Speed stage, weather/ability, and paralysis effects for the scheduler. `useSpecial` replaces stats during Mega Evolution and therefore needs rank-aware recalculation.
+- `defaultLoadoutAtLevel` preserves the first two starting moves before selecting recent unlocks. Drafted units, recruits, wild opponents, and Battle Lab use this default at creation; owned battle units copy `PartyMon.equipped`.
+- `completeBattle` queues manual level-up choices; `resolveLevelMove`, `advanceRoute`, `IntermissionScreen`, and `App` manage those choices. `teachTm` and `RouteScreen` allow manual TM slot replacement. Ordinary/item evolution retains equipped slots, and Mega Evolution currently retains battle moves.
+- `validateCatalog` requires exactly four starting moves. Deployment can fall back to legal zone cells beyond authored defaults, but existing capacity checks use template lengths and the old Elite +1 rule. `edgeSpawns` in `src/content/maps.ts` authors at most six default starts, so eight-enemy support needs explicit validation.
+- Saves currently write schema v26; restoration fills slots from starting/learned history and can preserve manual moves. Active battle snapshots include stats, HP, moves, and action scheduling. These need a deliberate migration to the new contracts.
+
+### Level-based compositions (implemented initial curve)
+
+`enemyCounts` calculates rank counts from the encounter's resolved enemy level. `COMPOSITION_LEVELS` names the level-9 start and level-21 saturation point so the curve can be tuned without altering battle rules. The implemented initial curve is:
+
+```text
+progress = clamp((enemyLevel - 9) / 12, 0, 1)
+Normal: normal = 3 + floor(5 * progress)
+Elite:  elite = 1 + floor(2 * progress), normal = 3 + floor(2 * progress)
+Boss:   boss = 1, elite = floor(2 * progress), normal = 2 + floor(3 * progress)
+```
+
+Examples: Normal levels 9/15/21 produce 3/5/8 Normals; Elite levels 12/15/21 produce 1+3 / 2+4 / 3+5 Elite+Normal teams; Boss levels 9/15/21 produce 1+0+2 / 1+1+3 / 1+2+5 Boss+Elite+Normal teams. Current floor-1 levels use only part of these ranges for normal and Elite encounters. The level-21 Boss fields eight enemies. These thresholds are implemented tuning defaults, not a claim of tested difficulty.
+
+Resolved enemies are ordered `{ species, rank }` entries. Templates have explicit Normal and Elite species pools; the final template's Boss is Charmander, with Geodude/Pikachu Elites and Lapras/Geodude/Pikachu Normal escorts. A pool is drawn without repeats until exhausted, then refilled if more units are required; each unit has its own ID. Temporary Mega forms cannot spawn directly.
+
+Resolve the roster deterministically using the run seed, stable node ID, category, and resolved level through a separate encounter stream. Reading preparation details, changing ally placement, canceling/re-entering preparation, refreshing, and computing rewards must produce the same roster without advancing combat RNG. All enemies initially share the encounter's resolved level; rank supplies the stat difference. Use this same resolved definition for preparation counts, deployment, battle creation, and rewards.
+
+### Latest-four initial movesets; manual progression after joining
+
+1. Normalize the current species' starting moves into ordered baseline entries, then append level-up entries sorted by required level and a stable authored tie order. With current catalogs, `Species.moves` array order is the baseline chronology; it is a fallback convention because starting moves lack authored unlock levels. Future imported learnsets must provide explicit level/order metadata.
+2. Filter level-up entries to `requiredLevel <= currentLevel`. Scan eligible entries from newest to oldest and keep the first occurrence of each distinct move ID; take up to four. Display the retained slots in chronological order, oldest retained to newest. Fewer than four eligible distinct moves means fewer equipped moves; never fabricate padding or future unlocks. Invalid move IDs should fail catalog validation.
+3. Use one shared selector to initialize starter/draft Pokémon, new recruits and full-roster replacements, every wild/enemy rank, and fresh Battle Lab Pokémon on both sides. Species IDs plus encounter/recruit level determine the initial moveset, avoiding hand-authored encounter loadouts. Once a Pokémon joins the owned roster, stop applying this selector to it.
+4. Preserve the existing XP flow: newly eligible moves create saved offers to replace an equipped slot, fill an open slot, or keep the current set. Multi-level gains offer each newly eligible distinct move under the existing learned-history rules. Keep replacement/skip controls, pending-choice persistence, and the unresolved-choice navigation gate. Do not replace moves automatically during XP awards.
+5. Treat `PartyMon.equipped` as the authoritative player-chosen moveset after creation. Owned battle units copy those slots; starting a battle, returning to the route, refreshing/loading a save, ordinary/item evolution, and Mega form changes must not reset them to the latest-four default. Preserve current evolution/form move behavior and learned history. Rank-aware form changes recalculate enemy stats without discarding current battle moves.
+
+Current-catalog initial-loadout examples: a newly recruited or wild level-11 Pikachu equips Tackle, Quick Attack, Tail Whip, Thunderbolt; a newly created level-13 Geodude equips Tackle, Harden, Stealth Rock, Sandstorm. The first two starting moves receive no special protection during initialization. By contrast, an already-owned Pikachu reaching level 11 keeps its previous slots until the player decides whether and where to equip Thunderbolt. Owned Pokémon of the same species and level can therefore have different chosen movesets.
+
+Keep existing TM compatibility, recipient/slot selection, consumption, shop stock, and starting-bag items. The latest-four selector uses only starting and level-up moves to generate an initial default; it must not erase subsequently taught TM moves or override player choices. No TM disablement or inventory conversion is part of this plan.
+
+When fewer than four moves are eligible, the Attack menu shows only available choices. Catalog validation accepts one or more distinct starting moves and positive integer unlock levels; initialization and save validation limit equipped moves to four distinct IDs. For imported data, define an authoritative game/version learnset before ordering unlocks: the current reference CSV merges levels across versions and is not an authoritative single-game chronology.
+
+### Implemented integration and main files
+
+1. **Contracts/helpers:** `types.ts` defines ranked enemies and pool-based encounter templates; `enemyRanks.ts` resolves counts, seeded pools, and intrinsic multipliers; `movesets.ts` selects eligible initial moves. Catalog validation checks categories, species pools, Boss identity, learnset references/levels, and short starting lists.
+2. **Combat:** `engine.ts` uses the resolved roster for preparation, deployment, rewards, and battle creation. Ranked stats are derived once at creation and again from fresh species stats during Mega Evolution. The existing damage, stat-stage, AP, and AV rules remain in use. Battle Lab's opponent rank selector defaults to Normal.
+3. **Deployment/UI:** catalog checks cover every template on every campaign arena at maximum size, all pool species' reachability, and at least eight legal enemy cells per pool species. Existing zone fallback supports enemies seven/eight without changing maps or default spawn arrays. Preparation exposes actual species, rank counts, and initial moves; board labels distinguish Elite/Boss, HUD badges identify ranks, and inspection shows multiplied stats.
+4. **Progression:** `defaultLoadoutAtLevel` delegates to the latest-four selector only for fresh Pokémon. Level-up offers, replacement/skip controls, TMs, evolution/form moves, and owned battle slots remain player-controlled. Existing Attack rendering already handles fewer moves.
+5. **Persistence:** v27 stores and validates rank and intrinsic stats. Active pre-v27 battles restart once at preparation with a report; owned party data and valid pending offers are retained. New-schema battles resume HP, stats, moves, RNG, and AV scheduling without reranking. Valid owned open slots also survive refresh; repair only fills malformed or legacy loadouts. Current/backup IndexedDB recovery is retained.
+6. **Verification:** `scripts/ranked-encounters-checks.ts` runs inside the existing playthrough and covers ranks/counts, seeded previews, maximum deployment, Speed/Mega interactions, initial moves, manual progression/TMs/evolution, and v25/v26/v27 saves. Effect smoke cases use levels where their requested test moves remain equipped. The project record reports executed checks and remaining balance limits.
+
+### Acceptance checks and tuning evidence
+
+- Check count boundaries at levels 1, 9, 12, 15, 18, 21, 100 and just before/after each threshold. Every composition stays within the requested rank ranges; every Boss battle has exactly one Boss. Repeated reads/reloads preserve species, ranks, count, and combat RNG.
+- Compare same-species/same-level Normal, Elite, and Boss units: the first six stats and maximum HP are exactly 1×/2×/3×; Movement and AP gain stay constant. Buffs, debuffs, their expiry, critical damage, and form changes preserve the intrinsic multiplier without stacking it twice. Check weather, paralysis, Trick Room, and scheduled turns using multiplied Speed.
+- Check initial defaults at one level below/at/above unlocks, duplicate moves, ties, short learnsets, level-15 recruitment, full-roster replacement, every enemy rank, and fresh Battle Lab Pokémon. All creation paths produce the same selector result for the same species/level; no future or unsupported move appears. Separately verify owned single/multi-level gains offer replacement/open-slot/keep-current choices, declined moves stay declined, pending offers block Continue until resolved, and selected/TM moves survive deployment, evolution/items, temporary forms, and refresh.
+- Check maximum eight-enemy deployments on every normal map, the Elite lake, and the 8×8 Boss arena, including mixed swimming/flying species, occupied-cell rejection, and capture connectivity. Never silently reduce an encounter to fit a map.
+- Round-trip new preparation, active battle, and intermission saves; migrate representative v26 and older fixtures, pending move choices, manually/TM-equipped Pokémon, active battles, and backup fallback. Migration must retain valid owned moves and pending offers. New-schema refreshes must not heal enemies, reroll the roster, reset moves to initial defaults, or multiply stats a second time.
+- When code ships, run `npm run build`, `npm run playthrough`, `npm run verify:targeting`, `npm run verify:forest`, `npm run measure:save`, and `git diff --check`, updating assumptions in existing scripts to the new rules. Visually review rank labels, short Attack menus, retained level-up/TM choices, and save reloads.
+- Play early three-ally drafts through normal/Elite/Boss paths and six-ally late encounters. Record win rate, cycles, fainted allies, damage taken, AP banking, and turns per rank. Doubling/tripling both offense and Speed can substantially raise pressure; tune the proposed count thresholds and existing level offsets from that evidence while retaining the requested rank multipliers and count limits. Balance is not verified by deterministic smoke checks alone.
 
 ## Run artifacts
 
@@ -287,7 +378,7 @@ Permanent unlocks should add variety, such as a new starter, recruit, map, or it
 | Start                    | New run, continue run, settings                                                                                                                                             |
 | Starter choice           | Searchable, six-point party draft, selected roster, point costs, and hovered/focused species stats                                                                           |
 | Route map                | Ten connected columns, visible node types, current path, coins, the column-ten boss, read-only active moves, held items, active run artifacts, and eligible evolution |
-| Battle preparation       | Full party, HP and status, six deployment slots on the rendered isometric map, terrain, and weather                                                                            |
+| Battle preparation       | Full party, HP and status, six deployment slots on the rendered top-down map, terrain, and weather                                                                            |
 | Battle                   | Grid, terrain height and hazards, weather effects and remaining cycles, next Sandstorm tick, Trick Room cycles, level and status-stage details, upcoming AV queue, current cycle and AV, objective, selected Pokémon and action readiness, Attack / Move / Special commands, range preview, effectiveness, and action log |
 | XP and moves             | XP gained by deployed battle participants, level increases, saved choices for each eligible level-up move, and an evolution prompt at the next route choice                                  |
 | Reward / recruit         | Clear comparison of available choices                                                                                                                                       |

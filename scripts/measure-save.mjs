@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
 const bundle = await build({
-  stdin: { contents: "export { newRun, startBattle } from './src/game/engine.ts'; export { snapshotRun } from './src/persistence/save.ts'; export { cloneBattleForCommand } from './src/game/clone.ts'; export { AttackPositionSearch } from './src/game/grid.ts'; export { MAPS } from './src/content/maps.ts'; export { createRoute } from './src/game/route.ts';", resolveDir: process.cwd(), sourcefile: 'measure-entry.ts' },
+  stdin: { contents: "export { newRun, startBattle } from './src/game/engine.ts'; export { snapshotRun, restoreRun } from './src/persistence/save.ts'; export { cloneBattleForCommand } from './src/game/clone.ts'; export { AttackPositionSearch } from './src/game/grid.ts'; export { MAPS } from './src/content/maps.ts'; export { ENCOUNTERS } from './src/content/encounters.ts'; export { createRoute } from './src/game/route.ts';", resolveDir: process.cwd(), sourcefile: 'measure-entry.ts' },
   bundle: true,
   platform: 'node',
   format: 'esm',
@@ -27,7 +27,7 @@ await writeFile(bundlePath, bundle.outputFiles[0].contents);
 let game;
 try { game = await import(pathToFileURL(bundlePath).href); }
 finally { await unlink(bundlePath); }
-const { newRun, startBattle, snapshotRun, cloneBattleForCommand, AttackPositionSearch, MAPS, createRoute } = game;
+const { newRun, startBattle, snapshotRun, restoreRun, cloneBattleForCommand, AttackPositionSearch, MAPS, ENCOUNTERS, createRoute } = game;
 
 function measure(label, fn, iterations) {
   for (let i = 0; i < 20; i++) fn();
@@ -64,7 +64,9 @@ for (const size of [8, 32]) {
   assert.equal(run.battle.map.tiles.length, size);
   assert.equal(run.battle.map.tiles[0].length, size);
   assert.deepEqual(snapshot.run.battle.map.changes, []);
+  assert.equal(restoreRun(snapshot).phase, 'battle');
   console.log(`${size}×${size}: full-map ${bytes} bytes; ${schema} ${Buffer.byteLength(compact, 'utf8')} bytes; ${measure('full clone', () => structuredClone(run.battle), 100)}; ${measure('command clone', () => cloneBattleForCommand(run.battle), iterations)}; ${measure('full-map stringify', () => JSON.stringify({ savedAt: '', run }), iterations)}; ${measure(`${schema} stringify`, () => JSON.stringify(snapshotRun(run)), iterations)}`);
+  console.log(`${size}×${size} + ${run.battle.units.length} units: ${measure(`${schema} restore`, () => restoreRun(snapshot), 500)}`);
 
   const authored = MAPS[run.battle.map.id];
   run.battle.map.tiles[1][1].coverUntil = run.battle.time + 100;
@@ -103,4 +105,24 @@ let batches = 0, result;
 const searchStart = performance.now();
 do { result = search.advance(32); batches++; } while (!result.done);
 console.log(`32×32 open-grid far pursuit: ${batches} planner batches at 32 nodes/batch; ${(performance.now() - searchStart).toFixed(2)} ms search CPU; ${result.path.length} path tiles`);
-console.log('PASS: authored fingerprints, transient tile deltas, and same-ID content replacement.');
+
+// Actual current campaign cap: six deployed allies, eight ranked Boss-room enemies.
+const boss = newRun(['bulbasaur']);
+boss.seed = boss.rngState = 13579;
+boss.route = createRoute(boss.seed);
+const bossNode = boss.route.nodes.find(node => node.kind === 'boss');
+const path = [bossNode.id];
+while (boss.route.nodes.find(node => node.id === path[0]).column > 1) path.unshift(boss.route.links.find(link => link.to === path[0]).from);
+boss.route.visited = path;
+boss.currentNodeId = bossNode.id;
+boss.encounter = bossNode.column - 1;
+boss.encounterId = ENCOUNTERS.at(-1).id;
+boss.party = Array.from({ length: 20 }, (_, i) => ({ ...structuredClone(boss.party[0]), id: `restore-party-${i}` }));
+boss.selected = boss.party.slice(0, 6).map(mon => mon.id);
+const bossRun = startBattle(boss), bossSnapshot = snapshotRun(bossRun);
+assert.equal(bossRun.battle.units.length, 14);
+const restoredBoss = restoreRun(bossSnapshot);
+assert.equal(restoredBoss.phase, 'battle');
+assert.deepEqual(restoredBoss.battle.units, bossRun.battle.units);
+console.log(`Boss room + 14 units + 20 owned: ${measure(`v${bossSnapshot.schemaVersion} restore`, () => restoreRun(bossSnapshot), 1000)}`);
+console.log('PASS: authored fingerprints, transient tile deltas, same-ID content replacement, and ranked battle restore.');

@@ -1,7 +1,7 @@
-import { useId, useMemo } from 'react';
+import { useMemo } from 'react';
 import { unitSet } from '../battle/unitAnimations';
-import { ISO_HALF_HEIGHT, ISO_HALF_WIDTH, isoTileCenter, isoTileDepth, isoWorldSize } from '../battle/isometric';
-import { forestCliffArt, forestCliffFaces, terrainArt, TILE_TOP_POLYGON } from '../battle/terrainArt';
+import { tileCenter, tileOrigin, tileTopPoints, worldSize } from '../battle/topDown';
+import { terrainAssets, terrainArt, terrainEdges } from '../battle/terrainArt';
 import { canDeploy } from '../game/deployment';
 import { mobilityFor } from '../game/mobility';
 import { TERRAIN_OBJECTS } from '../content/terrainObjects';
@@ -9,23 +9,22 @@ import { SPECIES } from '../content/species';
 import type { BattleMap, GridPoint, PartyMon } from '../game/types';
 
 type Props = { map: BattleMap; selected: PartyMon[]; focused?: PartyMon; placements: Record<string, GridPoint>; onPlace: (point: GridPoint) => void };
-const asset = (name: string) => `/assets/environment/isometric/iso-${name}.svg`;
 const cellKey = (x: number, y: number) => `${x},${y}`;
-const UNIT_SCALE = 1.95;
+const UNIT_SCALE = 1.65;
 const ALLY_FACING_NORTH = 3;
 
 export default function DeploymentBoard({ map, selected, focused, placements, onPlace }: Props) {
-  const artId = useId();
-  const world = useMemo(() => isoWorldSize(map), [map]);
-  const cells = useMemo(() => map.tiles.flatMap((row, y) => row.map((tile, x) => ({ tile, x, y, center: isoTileCenter(map, x, y) }))), [map]);
-  const depth = useMemo(() => [...cells].sort((a, b) => a.center.y - b.center.y || a.x + a.y - b.x - b.y), [cells]);
-  const terrain = useMemo(() => [...cells].sort((a, b) => a.x + a.y - b.x - b.y).map(({ tile, x, y, center }) => {
+  const world = useMemo(() => worldSize(map), [map]);
+  const cells = useMemo(() => map.tiles.flatMap((row, y) => row.map((tile, x) => ({ tile, x, y, center: tileCenter(map, x, y) }))), [map]);
+  const depth = useMemo(() => [...cells].sort((a, b) => a.y - b.y || a.x - b.x), [cells]);
+  const terrain = useMemo(() => cells.map(({ tile, x, y }) => {
     const art = terrainArt(tile, x, y);
+    const origin = tileOrigin(map, x, y);
     return <g key={`ground-${x}-${y}`}>
-      <image href={art.url} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height={art.height} />
-      {tile.slope && <image href={asset(`slope-${tile.slope}-96px`)} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height="48" />}
+      <image href={art.url} x={origin.x} y={origin.y} width="64" height={art.height} />
+      {terrainEdges(map, x, y).map(edge => <image key={edge.texture} href={edge.url} x={origin.x} y={origin.y} width="64" height="64" />)}
     </g>;
-  }), [cells]);
+  }), [cells, map]);
   const occupants = useMemo(() => {
     const byCell = new Map<string, { mon: PartyMon; index: number }>();
     selected.forEach((mon, index) => {
@@ -38,30 +37,14 @@ export default function DeploymentBoard({ map, selected, focused, placements, on
     if (!focused) return new Set<string>();
     return new Set(cells.filter(({ x, y }) => canDeploy(map, focused.species, [x, y], 'ally')).map(({ x, y }) => cellKey(x, y)));
   }, [cells, focused?.species, map]);
-  const actorLayers = depth.flatMap(cell => [
-    ...(cell.tile.kind === 'plain' && cell.tile.height > 0 ? [
-      { ...cell, layer: 'terrace' as const, depth: isoTileDepth(map, cell.x, cell.y) },
-      ...(forestCliffFaces(map, cell.x, cell.y).polygons.length ? [{ ...cell, layer: 'cliff' as const, depth: isoTileDepth(map, cell.x, cell.y) + ISO_HALF_HEIGHT }] : []),
-    ] : []),
-    ...(cell.tile.object || occupants.has(cellKey(cell.x, cell.y)) ? [{ ...cell, layer: 'actor' as const, depth: isoTileDepth(map, cell.x, cell.y) + 5 }] : []),
-  ]).sort((a, b) => a.depth - b.depth || a.x + a.y - b.x - b.y);
+  const actorLayers = depth.filter(cell => cell.tile.object || occupants.has(cellKey(cell.x, cell.y)));
 
   return <div className="deploy-map-wrap">
     <span className="deploy-zone-tag deploy-zone-tag-enemy" aria-hidden="true">ENEMY ENTRY ↑</span>
     <span className="deploy-zone-tag deploy-zone-tag-ally" aria-hidden="true">YOUR ZONE ↓</span>
-    <svg className="deploy-map" viewBox={`76 68 ${world.width - 152} ${world.height - 140}`} aria-label={`${map.name} isometric deployment map`}>
+    <svg className="deploy-map" viewBox={`44 44 ${world.width - 88} ${world.height - 88}`} aria-label={`${map.name} top-down deployment map`}>
       <g className="deploy-terrain">{terrain}</g>
-      <g className="deploy-actors">{actorLayers.map(({ tile, x, y, center, layer }) => {
-        if (layer !== 'actor') {
-          const art = layer === 'cliff' ? forestCliffArt(tile) : terrainArt(tile, x, y);
-          const polygons = layer === 'cliff' ? forestCliffFaces(map, x, y).polygons : [TILE_TOP_POLYGON];
-          const clipId = `${artId}-${layer}-${x}-${y}`;
-          return <g key={`${layer}-${x}-${y}`}>
-            <defs><clipPath id={clipId}>{polygons.map((points, index) => <polygon key={index} points={points.map(point => `${point.x + center.x - ISO_HALF_WIDTH},${point.y + center.y - ISO_HALF_HEIGHT}`).join(' ')} />)}</clipPath></defs>
-            <image href={art.url} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height={art.height} clipPath={`url(#${clipId})`} />
-            {layer === 'terrace' && tile.slope && <image href={asset(`slope-${tile.slope}-96px`)} x={center.x - ISO_HALF_WIDTH} y={center.y - ISO_HALF_HEIGHT} width="96" height="48" />}
-          </g>;
-        }
+      <g className="deploy-actors">{actorLayers.map(({ tile, x, y, center }) => {
         const occupant = occupants.get(cellKey(x, y));
         const object = tile.object && TERRAIN_OBJECTS[tile.object];
         const set = occupant && unitSet(occupant.mon.species);
@@ -72,24 +55,24 @@ export default function DeploymentBoard({ map, selected, focused, placements, on
         const state = occupant && mobilityFor(SPECIES[occupant.mon.species], tile).state;
         const lift = state === 'flying' ? -10 : state === 'swimming' ? 4 : 0;
         return <g key={`actor-${x}-${y}`}>
-          {object && <image href={asset(`${object.asset}-${object.width}px`)} x={center.x - object.width / 2} y={center.y + 5 - object.height} width={object.width} height={object.height} />}
+          {object && <image href={terrainAssets.decorations[object.asset as keyof typeof terrainAssets.decorations]} x={center.x - 32} y={center.y - 32} width="64" height="64" />}
           {occupant && idle && <g className={`deploy-unit${occupant.mon.id === focused?.id ? ' focused' : ''}`}>
-            <ellipse cx={center.x} cy={center.y + 5} rx="21" ry="7" fill="#092432" opacity={state === 'flying' ? '.4' : '.52'} />
-            {state === 'swimming' && <ellipse cx={center.x} cy={center.y + 5} rx="25" ry="9" fill="none" stroke="#c5f0ff" strokeWidth="3" opacity=".8" />}
-            <svg className="deploy-unit-sprite" x={center.x - spriteWidth / 2} y={center.y - 12 + lift - spriteHeight / 2}
+            <ellipse cx={center.x} cy={center.y + 17} rx="21" ry="7" fill="#092432" opacity={state === 'flying' ? '.4' : '.52'} />
+            {state === 'swimming' && <ellipse cx={center.x} cy={center.y + 17} rx="25" ry="9" fill="none" stroke="#c5f0ff" strokeWidth="3" opacity=".8" />}
+            <svg className="deploy-unit-sprite" x={center.x - spriteWidth / 2} y={center.y + lift - spriteHeight / 2}
               width={spriteWidth} height={spriteHeight} viewBox={`0 ${row * idle.frameHeight} ${idle.frameWidth} ${idle.frameHeight}`} overflow="hidden" aria-hidden="true">
               <image href={idle.url} x="0" y="0" width={idle.frameWidth * idle.frames} height={idle.frameHeight * idle.rows} />
             </svg>
-            <circle cx={center.x + 31} cy={center.y - 34 + lift} r="10" fill="#ffd13c" stroke="#132c36" strokeWidth="2" />
-            <text x={center.x + 31} y={center.y - 30 + lift} textAnchor="middle" fontSize="11" fontWeight="900" fill="#132c36">{occupant.index + 1}</text>
+            <rect x={center.x + 21} y={center.y - 44 + lift} width="20" height="20" fill="#ffd13c" stroke="#132c36" strokeWidth="2" />
+            <text x={center.x + 31} y={center.y - 30 + lift} textAnchor="middle" fontFamily="var(--pixel-font)" fontSize="10" fill="#132c36">{occupant.index + 1}</text>
           </g>}
         </g>;
       })}</g>
-      <g className="deploy-hit-area">{cells.map(({ x, y, center }) => {
+      <g className="deploy-hit-area">{cells.map(({ x, y }) => {
         const zone = map.zones[y][x];
         const legal = legalCells.has(cellKey(x, y));
         const occupant = occupants.get(cellKey(x, y));
-        const points = `${center.x},${center.y - ISO_HALF_HEIGHT} ${center.x + ISO_HALF_WIDTH},${center.y} ${center.x},${center.y + ISO_HALF_HEIGHT} ${center.x - ISO_HALF_WIDTH},${center.y}`;
+        const points = tileTopPoints(map, x, y).map(point => `${point.x},${point.y}`).join(' ');
         return <polygon key={`hit-${x}-${y}`} points={points} className={`deploy-cell zone-${zone}${legal ? ' legal' : ''}${occupant ? ' occupied' : ''}${occupant?.mon.id === focused?.id ? ' current' : ''}`}
           role={legal ? 'button' : undefined} tabIndex={legal ? 0 : -1} aria-label={legal ? `Place ${SPECIES[focused!.species].name} at column ${x + 1}, row ${y + 1}${occupant?.mon.id === focused?.id ? ', current position' : occupant ? `, swap with ${SPECIES[occupant.mon.species].name}` : ''}` : undefined}
           onClick={() => { if (legal) onPlace([x, y]); }} onKeyDown={event => { if (legal && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onPlace([x, y]); } }} />;

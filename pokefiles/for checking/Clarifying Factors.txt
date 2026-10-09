@@ -1,0 +1,1 @@
+Poison Type Pokemon are inherently immune to the poison status

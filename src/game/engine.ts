@@ -1,6 +1,7 @@
-import { abilityAbsorption, abilityContactReaction, abilityDamageMultiplier, abilityHitChance, abilitySpeedMultiplier, ELITE_MAP_ID, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemEvolutionFor, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MAX_EQUIPPED_MOVES, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS, tmMoveFor } from '../content/data';
+import { ABILITY_IDS, abilityFor, abilityAbsorption, abilityContactReactions, abilityDamageEffects, abilityEvasionEffects, abilityHitChance, abilitySpeedEffects, abilitySpeedMultiplier, ELITE_MAP_ID, ENCOUNTERS, itemBlocksMove, itemCanEquip, itemEvolutionFor, itemFor, itemPeriodicHeal, itemSpecial, itemThresholdHeal, MAPS, mapHeight, mapWidth, MAX_EQUIPPED_MOVES, megaFormFor, MOVES, RECRUITS, SPECIES, STARTING_BAG, STARTING_HELD_ITEMS, tmMoveFor } from '../content/data';
 import { MAX_RUN_POKEMON, STARTING_PARTY_POINTS, partyDraftCost } from '../content/roster';
-import type { AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
+import type { AbilitySlot, AttackVisualEvent, Battle, BattleMap, GridPoint, PartyMon, Run, Tile, Unit, Weather } from './types';
+import type { AbilityId } from '../content/abilities';
 import type { ItemId } from '../content/items';
 import { canEnter, hasLineOfSight, routeTo } from './grid';
 import { newSeed, random } from './rng';
@@ -55,7 +56,7 @@ export const statsAtLevel = (species: string, level: number) => scaleStats(SPECI
 export const xpForLevel = (level: number) => (level - 1) * 65;
 export const learnedAtLevel = (species: string, level: number) => [...new Set(eligibleMovesAtLevel(SPECIES[species], level))];
 export const defaultLoadoutAtLevel = (species: string, level: number) => latestMovesAtLevel(SPECIES[species], level);
-const makePartyMon = (species: string, level = RUN_START_LEVEL, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: defaultLoadoutAtLevel(species, level), item });
+const makePartyMon = (species: string, level = RUN_START_LEVEL, item: ItemId = 'None'): PartyMon => ({ id: crypto.randomUUID(), species, givenAbility: SPECIES[species].ability, hiddenAbility: SPECIES[species].hiddenAbility, hiddenAbilityUnlocked: false, level, xp: xpForLevel(level), hp: statsAtLevel(species, level)[0], learned: learnedAtLevel(species, level), equipped: defaultLoadoutAtLevel(species, level), item });
 const recruitLevel = (run: Run) => Math.max(RUN_START_LEVEL, ...run.party.map(mon => mon.level));
 export function newRun(selectedSpecies: string[], unlocks = 0): Run {
   const draft = [...new Set(selectedSpecies)];
@@ -68,9 +69,10 @@ export function newRun(selectedSpecies: string[], unlocks = 0): Run {
 function makeUnit(mon: PartyMon, side: Unit['side'], x: number, y: number, tile: Tile, rank: EnemyRank = 'normal'): Unit {
   const species = SPECIES[mon.species];
   const stats = rankedStats(statsAtLevel(mon.species, mon.level), rank);
-  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, rank, species: mon.species, name: species.name, level: mon.level, types: species.types, moves: [...mon.equipped], mobility: mobilityFor(species, tile), ability: species.ability, stats, hp: side === 'enemy' ? stats[0] : Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, movedThisTurn: false, attackedThisTurn: false, nextAction: 0, nextActionShift: 0, scheduledSpeed: stats[5], status: {}, stages: emptyStages(), stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
+  return { id: crypto.randomUUID(), partyId: side === 'player' ? mon.id : undefined, side, rank, species: mon.species, name: species.name, level: mon.level, types: species.types, moves: [...mon.equipped], mobility: mobilityFor(species, tile), ability: mon.givenAbility, hiddenAbility: mon.hiddenAbilityUnlocked ? mon.hiddenAbility : undefined, stats, hp: side === 'enemy' ? stats[0] : Math.min(mon.hp, stats[0]), maxHp: stats[0], x, y, facing: side === 'player' ? 3 : 0, ap: 0, maxAp: 0, movedThisTurn: false, attackedThisTurn: false, nextAction: 0, nextActionShift: 0, scheduledSpeed: stats[5], status: {}, stages: emptyStages(), stageUntil: emptyStageExpiry(), item: mon.item, itemAttackMultiplier: 1 };
 }
 export function startBattle(run: Run, enemyDeployment?: GridPoint[]): Run {
+  if (run.pendingAbilityChange) return run;
   const next = { ...run };
   const definition = encounterDefinition(next);
   const map = structuredClone(MAPS[definition.mapId]);
@@ -207,7 +209,7 @@ function activateNext(battle: Battle, initial = false) {
     battle.turnIndex = 0;
     battle.current = unit.id;
     unit.maxAp = apGain(unit, battle);
-    if (abilitySpeedMultiplier(unit, battle.weather) > 1) feedback(battle, 'ability', unit.ability, unit);
+    for (const effect of abilitySpeedEffects(unit, battle.weather)) feedback(battle, 'ability', effect.ability, unit);
     const bankedAp = unit.ap;
     unit.ap = Math.min(Number.MAX_SAFE_INTEGER, bankedAp + unit.maxAp);
     unit.movedThisTurn = false;
@@ -366,20 +368,21 @@ export function canUseMove(battle: Battle, unit: Unit, moveId: string, x = unit.
 }
 function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string, visual: AttackVisualEvent, secondary?: { damageFraction: number }) {
   const move = MOVES[moveId];
-  const hitChance = abilityHitChance(target.ability, battle.weather);
+  const hitChance = abilityHitChance(target, battle.weather);
   const miss = hitChance < 1 && random(battle) >= hitChance;
-  if (miss) { feedback(battle, 'ability', target.ability, target); log(battle, `${source.name}'s ${move.name} missed ${target.name}.`); return; }
-  const absorption = abilityAbsorption(target.ability, move.type);
-  if (absorption?.kind === 'heal') { feedback(battle, 'ability', target.ability, target); heal(battle, target, max(target.maxHp * (absorption.healFraction ?? 0)), target.ability, visual); return; }
-  if (absorption?.kind === 'charge') { feedback(battle, 'ability', target.ability, target); if (absorption.status) target.status[absorption.status] = 1; log(battle, `${target.name} absorbed ${move.type} with ${target.ability}.`); return; }
+  if (miss) { for (const effect of abilityEvasionEffects(target, battle.weather)) feedback(battle, 'ability', effect.ability, target); log(battle, `${source.name}'s ${move.name} missed ${target.name}.`); return; }
+  const absorption = abilityAbsorption(target, move.type);
+  if (absorption?.kind === 'heal') { feedback(battle, 'ability', absorption.ability, target); heal(battle, target, max(target.maxHp * (absorption.healFraction ?? 0)), absorption.ability, visual); return; }
+  if (absorption?.kind === 'charge') { feedback(battle, 'ability', absorption.ability, target); if (absorption.status) target.status[absorption.status] = 1; log(battle, `${target.name} absorbed ${move.type} with ${absorption.ability}.`); return; }
   const preview = damagePreview(battle, source, target, moveId);
   if (!preview.type) { log(battle, `${target.name} is immune to ${move.type}.`); return; }
   const critical = random(battle) < 1 / 24;
   const randomPercent = 85 + Math.floor(random(battle) * 16);
   const baseDamage = calculateDamage(battle, source, target, move, { critical, randomPercent });
   const damage = secondary ? max(baseDamage * secondary.damageFraction) : baseDamage;
-  if (!visual.abilityTriggered && abilityDamageMultiplier(source, move) > 1) {
-    feedback(battle, 'ability', source.ability, source);
+  const damageEffects = abilityDamageEffects(source, move);
+  if (!visual.abilityTriggered && damageEffects.length) {
+    for (const effect of damageEffects) feedback(battle, 'ability', effect.ability, source);
     visual.abilityTriggered = true;
   }
   visual.targetIds.push(target.id);
@@ -388,8 +391,9 @@ function applyDamage(battle: Battle, source: Unit, target: Unit, moveId: string,
   // repeat the primary hit's contact reactions, status effects, or further chains.
   if (secondary) return;
   if (!alive(target)) return;
-  const reaction = hasMoveTag(move, 'contact') && abilityContactReaction(target.ability);
-  if (reaction && random(battle) < reaction.chance) { feedback(battle, 'ability', target.ability, target); source.status[reaction.status] = battle.time + toActionValueDuration(reaction.duration); log(battle, `${source.name} was ${reaction.status} by ${target.ability}.`); }
+  if (hasMoveTag(move, 'contact')) for (const reaction of abilityContactReactions(target)) {
+    if (random(battle) < reaction.chance) { feedback(battle, 'ability', reaction.ability, target); source.status[reaction.status] = battle.time + toActionValueDuration(reaction.duration); log(battle, `${source.name} was ${reaction.status} by ${reaction.ability}.`); }
+  }
   resolveMoveEffects('hit', move.effects, { battle, source, target, move, moveId, tiles: visual.tiles, visual,
     log: message => log(battle, message), enterTile: unit => applyTileEntry(battle, unit, visual),
     chainHit: (unit, fraction) => applyDamage(battle, source, unit, moveId, visual, { damageFraction: fraction }) });
@@ -430,6 +434,7 @@ export function useSpecial(battle: Battle): string | undefined {
   else if (form) {
     const oldMax = unit.maxHp;
     unit.species = form.id; unit.name = form.species.name; unit.types = [...form.species.types]; unit.ability = form.species.ability;
+    unit.hiddenAbility = unit.hiddenAbility ? form.species.hiddenAbility : undefined;
     unit.mobility = mobilityFor(form.species, battle.map.tiles[unit.y][unit.x]);
     unit.stats = rankedStats(statsAtLevel(form.id, unit.level), unit.rank); unit.maxHp = unit.stats[0]; unit.hp += unit.maxHp - oldMax;
     log(battle, `${unit.name} Mega Evolved!`);
@@ -501,7 +506,7 @@ export function completeBattle(run: Run): Run {
   return next;
 }
 export function evolve(run: Run, id: string) {
-  if (run.phase !== 'route') return run;
+  if (run.phase !== 'route' || run.pendingAbilityChange) return run;
   const next = structuredClone(run), mon = next.party.find(p => p.id === id);
   if (!mon) return next;
   const evolution = SPECIES[mon.species].evolves;
@@ -515,7 +520,7 @@ export function evolve(run: Run, id: string) {
 }
 /** Evolution stones are single-use Bag items and only work on their authored source species. */
 export function useEvolutionItem(run: Run, item: ItemId, monId: string): Run {
-  if (run.phase !== 'route' || !run.bag.includes(item)) return run;
+  if (run.phase !== 'route' || run.pendingAbilityChange || !run.bag.includes(item)) return run;
   const evolution = itemEvolutionFor(item);
   const mon = run.party.find(candidate => candidate.id === monId);
   if (!evolution || !mon || mon.species !== evolution.from || !SPECIES[evolution.into]) return run;
@@ -542,9 +547,52 @@ export function resolveLevelMove(run: Run, monId: string, moveId: string, replac
   next.report.push(replaceSlot === undefined ? `${SPECIES[recipient.species].name} kept its current moves.` : `${SPECIES[recipient.species].name} equipped ${MOVES[moveId].name}.`);
   return next;
 }
+/** Roll once and save the offer. Closing the dialog does not create another roll. */
+export function startAbilityCapsule(run: Run, monId: string, slot: AbilitySlot): Run {
+  if (run.phase !== 'route' || run.pendingAbilityChange || !run.bag.includes('Ability Capsule') || (slot !== 'given' && slot !== 'hidden')) return run;
+  const mon = run.party.find(candidate => candidate.id === monId);
+  if (!mon || typeof mon.hiddenAbilityUnlocked !== 'boolean' || (slot === 'hidden' && !mon.hiddenAbilityUnlocked) || !abilityFor(mon.givenAbility) || !abilityFor(mon.hiddenAbility) || mon.givenAbility === mon.hiddenAbility) return run;
+  const pool = ABILITY_IDS.filter(id => id !== mon.givenAbility && id !== mon.hiddenAbility);
+  if (pool.length < 3) return run;
+  const next = structuredClone(run), choices: AbilityId[] = [];
+  for (let i = 0; i < 3; i++) choices.push(pool.splice(Math.floor(random(next) * pool.length), 1)[0]);
+  next.pendingAbilityChange = { monId, slot, choices };
+  return next;
+}
+
+/** Consume a Capsule and replace just the saved slot as one validated transaction. */
+export function chooseCapsuleAbility(run: Run, ability: AbilityId): Run {
+  const offer = run.pendingAbilityChange;
+  if (run.phase !== 'route' || !offer || !run.bag.includes('Ability Capsule') || (offer.slot !== 'given' && offer.slot !== 'hidden')) return run;
+  const mon = run.party.find(candidate => candidate.id === offer.monId);
+  if (!mon || typeof mon.hiddenAbilityUnlocked !== 'boolean' || !abilityFor(mon.givenAbility) || !abilityFor(mon.hiddenAbility)
+    || mon.givenAbility === mon.hiddenAbility || !abilityFor(ability) || (offer.slot === 'hidden' && !mon.hiddenAbilityUnlocked) || !Array.isArray(offer.choices)
+    || offer.choices.length !== 3 || new Set(offer.choices).size !== 3 || !offer.choices.includes(ability)
+    || !Array.from(offer.choices).every(id => !!abilityFor(id) && id !== mon.givenAbility && id !== mon.hiddenAbility)) return run;
+  const next = structuredClone(run), recipient = next.party.find(candidate => candidate.id === offer.monId)!;
+  const previous = offer.slot === 'given' ? recipient.givenAbility : recipient.hiddenAbility;
+  if (offer.slot === 'given') recipient.givenAbility = ability;
+  else recipient.hiddenAbility = ability;
+  next.bag.splice(next.bag.indexOf('Ability Capsule'), 1);
+  delete next.pendingAbilityChange;
+  next.report.push(`${SPECIES[recipient.species].name}'s ${offer.slot} ability changed from ${previous} to ${ability}.`);
+  return next;
+}
+
+export function useAbilityPatch(run: Run, monId: string): Run {
+  if (run.phase !== 'route' || run.pendingAbilityChange || !run.bag.includes('Ability Patch')) return run;
+  const mon = run.party.find(candidate => candidate.id === monId);
+  if (!mon || mon.hiddenAbilityUnlocked !== false || !abilityFor(mon.givenAbility) || !abilityFor(mon.hiddenAbility) || mon.givenAbility === mon.hiddenAbility) return run;
+  const next = structuredClone(run), recipient = next.party.find(candidate => candidate.id === monId)!;
+  recipient.hiddenAbilityUnlocked = true;
+  next.bag.splice(next.bag.indexOf('Ability Patch'), 1);
+  next.report.push(`${SPECIES[recipient.species].name} unlocked ${recipient.hiddenAbility}. Both abilities are now active.`);
+  return next;
+}
+
 /** TMs are single-use Bag items; their compatible species and replacement slot are validated here. */
 export function teachTm(run: Run, item: ItemId, monId: string, replaceSlot?: number): Run {
-  if (run.phase !== 'route' || !run.bag.includes(item)) return run;
+  if (run.phase !== 'route' || run.pendingAbilityChange || !run.bag.includes(item)) return run;
   const moveId = tmMoveFor(item);
   const mon = run.party.find(candidate => candidate.id === monId);
   if (!moveId || !MOVES[moveId] || !mon || !SPECIES[mon.species].tmMoves?.includes(moveId) || mon.equipped.includes(moveId)) return run;
@@ -572,6 +620,7 @@ export function offerRecruits(run: Run) {
   return [...unowned, ...rotated.filter(id => !unowned.includes(id))].slice(0, 3);
 }
 export function advanceRoute(run: Run): Run {
+  if (run.pendingAbilityChange) return run;
   if (run.phase === 'intermission' && run.pendingMoves.length) return run;
   const next = structuredClone(run);
   const node = routeNode(next.route, next.currentNodeId);
@@ -587,7 +636,7 @@ export function advanceRoute(run: Run): Run {
 export function nextEncounter(run: Run): Run { return run.phase === 'intermission' ? advanceRoute(run) : run; }
 
 export function selectRouteNode(run: Run, id: string): Run {
-  if (run.phase !== 'route') return run;
+  if (run.phase !== 'route' || run.pendingAbilityChange) return run;
   const node = availableRouteNodes(run.route).find(candidate => candidate.id === id);
   if (!node) return run;
   const next = structuredClone(run);

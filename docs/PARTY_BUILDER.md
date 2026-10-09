@@ -1,5 +1,9 @@
 # Point-budget party builder
 
+## Pixel interface update (2026-10-06)
+
+The draft uses species-specific pixel portraits from `src/ui/SpeciesPortrait.tsx`, square frames, pixel point segments and larger remove/page controls. Selection changes announce remaining points; unavailable species remain inspectable, empty filters offer a reset, and keyboard focus takes priority over hover in the stat inspector. The six-point budget and selection rules are unchanged. Shared styling and the isolated review page are documented in [UI overhaul](UI_OVERHAUL_PLAN.md).
+
 ## Purpose and visual reference
 
 The New Run selection screen uses the supplied 3.png layout as its broad guide: an aqua grid background, a raspberry-bordered frame, a removable **Your Party** column at left, and a light Pokémon catalog at right. The frame now uses the game's paper and aqua palette, with a shared header and a persistent stat inspector. Current content IDs, stats, and game rules remain authoritative.
@@ -36,41 +40,83 @@ On narrow screens, the party list moves above the catalog and scrolls horizontal
 - src/content/species.ts defines the eligible species and may set optional partyCost.
 - src/ui/PartyBuilder.tsx renders the draft without mutating the run until Begin Run. Its layout is isolated in src/styles/party-builder.css rather than the title menu stylesheet.
 - src/game/engine.ts validates draft points and enforces the 20-owned cap during creation/recruitment.
-- src/persistence/save.ts writes schema v26 and migrates valid existing saves without dropping their Pokémon. Existing v14 and v15 rosters were already below the new cap.
+- src/persistence/save.ts writes schema v27 and migrates valid existing saves without dropping their Pokémon. Existing v14 and v15 rosters were already below the new cap.
 
-The current initial catalog combines unique starter and recruit IDs and excludes temporary Mega forms. Ordinary evolutions appear later through progression rather than as separate initial draft choices. To add an immediately available choice under the current implementation, add species content and register its ID in `STARTERS` or `RECRUITS`; set a positive integer `partyCost` only when its cost should differ from two. Conditional choices should use the proposed unlock registry below.
+The current initial catalog combines unique starter and recruit IDs and excludes temporary Mega forms. Ordinary evolutions appear later through progression rather than as separate initial draft choices. Under the current implementation, registering a species in either `STARTERS` or `RECRUITS` makes it immediately draftable; set a positive integer `partyCost` only when its cost should differ from two. The recruitment-based proposal below replaces this catalog rule when implemented.
 
-## Conditional starter unlocks (proposal)
+## Recruitment-based starter unlocks (proposal)
 
-**Design only; no conditional starter unlocks are implemented yet.** The current draft catalog is the de-duplicated union of `STARTERS` and `RECRUITS`: Bulbasaur, Squirtle, Lapras, Geodude, Pikachu, Meowth, Vulpix, and Charmander are all available from the first run. A successful boss clear increments `Run.unlocks`, but that number does not currently change the catalog. Preserve these eight choices as the baseline; future conditions add choices and never take an already available starter away.
+**Status: planned, updated 2026-10-06; no starter gating or recruitment unlocks are implemented.** The player starts with a fixed starter set. After each finished run, Pokémon successfully recruited during that run become permanent starter choices for future runs. This replaces the earlier first-clear/diverse-team/deployed-recruit achievement proposal.
 
-### First unlock batch
+### Current implementation checked
 
-Add three new starter choices in a later content pass, each attached to one stable unlock ID. Check requirements only after the final boss objective is complete (all enemies defeated and the capture point claimed). Award every newly satisfied unlock on that clear; repeated clears cannot award the same ID twice.
+- `src/content/species.ts` defines six `STARTERS`; `RECRUITS` adds Vulpix and Charmander. `src/ui/PartyBuilder.tsx` merges both lists, so all eight are currently available immediately.
+- `newRun` in `src/game/engine.ts` checks known species, temporary forms, and draft cost, but does not enforce starter eligibility. An engine guard is needed alongside the UI change.
+- `resolveSpecial` validates recruit offers and full-roster replacements. Evolution changes a party member's species and release removes the member; there is no saved recruitment history.
+- `Run.unlocks` is a numeric win count. `freshRun` and `newRun` carry it between runs; save v27 stores one run without a separate profile. Losses reach results through `completeBattle` or a no-usable-deployment `startBattle`; wins reach results through final `advanceRoute`, after the boss intermission.
 
-| Unlock ID | Requirement | Notes |
-| --- | --- | --- |
-| `starter.first_clear` | Complete any run successfully. | Guaranteed first reward; provides a clear baseline for players who do not pursue a challenge. |
-| `starter.diverse_team` | Complete the boss battle with at least three distinct Pokémon types represented in the player deployment. | Count both types for dual-type Pokémon. Check the deployed team, not the full owned roster. |
-| `starter.route_recruit` | Complete the boss battle with at least one Pokémon recruited during that run in the deployment. | Save recruit provenance for the current run; a species that was already drafted does not satisfy this condition. |
+### Starter availability and reward rules
 
-The three reward species are intentionally not assigned here: select them when their species records, moves, abilities, and required assets are ready. Do not register a reward against an unknown species ID, a temporary Mega form, or a species already available in the initial catalog. A no-knockout boss clear is a suitable later challenge condition, after the first batch has been tuned.
+Use the existing `STARTERS` as the proposed fixed set for new profiles:
 
-### Availability, presentation, and persistence
+| Always available | Species ID |
+| --- | --- |
+| Bulbasaur | `bulbasaur` |
+| Squirtle | `squirtle` |
+| Lapras | `lapras` |
+| Geodude | `geodude` |
+| Pikachu | `pikachu` |
+| Meowth | `meowth` |
 
-- Keep starter selection separate from route recruitment. `RECRUITS` currently also contributes draft choices because `PartyBuilder` merges both lists; future additions should enter the draft only through the initial starter set or the unlock registry. Being recruitable on the route must not silently make a species draftable.
-- Define unlocks as content data with a stable ID, reward species ID, player-facing condition, and a typed condition rule. Derive the available draft catalog from the initial choices plus persistently earned unlock IDs. Validate each reward against `SPECIES` and reject duplicate reward IDs at startup.
-- Show locked future choices with a short requirement and current progress where it can be calculated. Keep them visible but unselectable, including for keyboard users; search and type filters should continue to work. Unaffordable-but-unlocked choices remain inspectable under the existing point-budget behavior.
-- Store earned unlock IDs in profile-level saved progression so they survive a loss, New Run, and save refresh. Keep any facts needed to evaluate an in-progress run with that run. The current save envelope contains one `Run` and its numeric `unlocks` field, so this needs a versioned save migration.
-- Migrate an old `unlocks` value of at least one to the guaranteed `starter.first_clear` reward. Older saves do not record team types or recruit provenance, so do not infer the other challenge rewards from the win count. Keep already-earned IDs permanently earned if a later balance pass changes a requirement.
+- Future draft availability is the unique union of the fixed starter set and the profile's earned species IDs. Route recruitment remains independent: locked starters must still be recruitable during a run. Adding a species to `RECRUITS` must no longer grant immediate starter access.
+- Interpret **each finished run** as both victory and defeat. A boss clear or deployment of the recruit is not required. Returning to the title or refreshing an unfinished run does not finish it. Proposed restart policy: replacing an unfinished run discards that run's pending unlocks; already earned choices remain available.
+- Record the exact species ID when a Pokémon successfully joins the campaign roster, including a valid full-roster replacement. An offer, rejected selection, or canceled replacement gives no credit. Duplicate recruits, fixed starters, and already earned species produce no duplicate reward.
+- Keep this history even if the recruit remains in reserve, faints, evolves, or is later released. Recruiting Vulpix and evolving it into Ninetales unlocks Vulpix; evolution alone does not unlock Ninetales. An evolved species explicitly recruited by future content would unlock that exact ordinary species. Temporary Mega forms are excluded.
+- Drafted Pokémon, opposing Pokémon, and Battle Lab Pokémon give no recruitment credit. Future quest recruits should use the same successful-acquisition contract once their content exists.
+- Starting an unlocked species creates a fresh Pokémon at the normal run start level, with its initial moves and normal draft cost. Prior level, XP, held item, HP, and chosen moves do not carry over. The six-point budget, duplicate prevention, 20-owned cap, and six-deployed cap remain unchanged.
 
-### Implementation order and acceptance checks
+Example: a new profile drafts Bulbasaur, Pikachu, and Squirtle, then recruits Vulpix. On victory or defeat, Vulpix becomes a starter choice. The next draft offers the six fixed starters plus Vulpix; Charmander stays locked until recruited in a finished run.
 
-1. Add the typed unlock definitions and initial-choice catalog rule; keep the existing eight draft choices available.
-2. Track recruit provenance for Pokémon added during the active run and evaluate achievement conditions only on successful boss completion.
-3. Persist earned unlock IDs outside the replaceable run state, migrate the numeric legacy win count, and validate IDs during load.
-4. Show locked species and their requirements in the draft while preserving search, filters, point costs, duplicate prevention, and keyboard access.
-5. Confirm a loss, an ordinary node win, and an incomplete boss objective award nothing; a completed boss win awards each satisfied reward once; New Run and refresh retain earned choices; legacy saves with prior wins receive only the first-clear reward.
+### Progression data and save migration
+
+Proposed state separates permanent progress from the replaceable run:
+
+| State | Proposed fields and purpose |
+| --- | --- |
+| Profile | `unlockedStarterSpeciesIds`: unique permanent non-base choices; `wins`: existing victory count, migrated from `Run.unlocks`; `lastFinalizedRun`: receipt containing run ID, outcome, and newly unlocked IDs for recovery. |
+| Run | `runId`: stable attempt identity; `recruitedSpeciesIds`: unique species captured at successful acquisition; `newlyUnlockedStarterSpeciesIds`: saved result reward list; `progressionApplied`: local finalization guard. |
+| Save envelope | `{ schemaVersion, savedAt, profile, run }`, with profile and result written in the same IndexedDB transaction. |
+
+At every valid terminal transition, finalize progression once: subtract base/already earned IDs from the recorded recruits, merge the new choices into the profile, save the result list and profile receipt, and mark the run finalized. Check both the run guard and profile receipt before granting rewards or incrementing profile wins. Increment wins only for a victory. A normal encounter win or boss win still awaiting its intermission/route completion does not finalize the run. Apply this as a pure state transition, rather than a reward side effect of rendering the result screen.
+
+Keep profile and run together in application state so result finalization, queued saves, and both New Run entry points use the same committed profile. Reset run history for a new attempt while retaining permanent choices. Request an immediate save for finalization; preserve ordered writes and the existing save-failure feedback. Returning to results after refresh must show the saved reward list without granting it again.
+
+Ship with the next available save schema (currently v28), preserving existing run, battle, route, move, and backup migrations. Validate and deduplicate species IDs against known ordinary species. Load valid profile data independently of the run: restarting or rejecting a malformed run must not erase its valid profile. During current/backup recovery, retain the union of valid earned starter IDs and the highest valid win count. Preserve the latest valid finalization receipt and reconcile it with a recovered run's ID: an older snapshot of the same completed attempt must restore its recorded outcome/reward list rather than finalize it again. A run-only flag is insufficient when the newer profile survives but its newer run snapshot does not.
+
+For a valid legacy save, migrate its numeric win count and grandfather the old immediately draftable extras, Vulpix and Charmander, as earned choices. New profiles begin with only the six fixed starters. This preserves existing players' available choices without making the two recruits defaults for new players. Freeze this legacy species list in migration code rather than consulting a future expanded `RECRUITS` list. Assign and persist a run ID during migration; mark an existing legacy result already finalized, with an empty new-reward list, so its victory is not counted again. Legacy saves lack recruitment provenance, so initialize run history empty and record subsequent acquisitions; do not infer other rewards from the final party or win count.
+
+### Player presentation
+
+- The party builder shows available starters plus locked recruitment candidates from the authored recruitment pool. Use **Recruit in a run to unlock for future runs** on locked cards. Cards remain focusable and inspectable but cannot be selected; preserve search, type filters, paging, stats, and affordability feedback. Future quest-only candidates need an authored acquisition source before they are shown.
+- Recruitment confirmation explains that the chosen species will become a starter when the run ends. Already available species should say **Starter already available**. The unfinished-run restart dialog explains that pending recruit unlocks will be discarded.
+- Both win and loss results show **New starters unlocked**, with portraits and names for only the new rewards, or **No new starters this run**. Keep this separate from the final-team display, since a credited recruit may have evolved or been released.
+
+### Implementation sequence
+
+1. Add profile/run types and a shared starter-availability/finalization helper (proposed `src/game/starterUnlocks.ts`); validate base/recruit content through `src/content/catalog.ts`. Use stable species IDs rather than achievement IDs.
+2. Add profile-aware snapshot/load/save support and legacy migration in `src/persistence/save.ts`; adapt `src/main.tsx` and `src/app/App.tsx` to load, retain, and save profile with run. Update `freshRun` and both title/result New Run paths.
+3. Record successful campaign recruitment in `src/game/engine.ts`, including replacement and the exported `recruit` helper's campaign contract. Cover every terminal loss/win path with the same finalizer. Require shared starter eligibility in `newRun`, including rejection of stale or manually supplied locked IDs.
+4. Replace the module-level merged catalog in `src/ui/PartyBuilder.tsx` with profile-derived availability. Add recruitment/restart explanations and result rewards in `RouteStopScreen.tsx`, `App.tsx`, and `ResultScreen.tsx`, with matching styles.
+5. Update scripted drafts and the isolated UI gallery to supply explicit earned profiles where they use Vulpix/Charmander. Add focused progression and migration checks, then mark this proposal implemented only after those checks pass.
+
+### Acceptance checks for implementation
+
+- A fresh profile offers six selectable starters; Vulpix/Charmander remain recruitable but locked in the draft. Direct `newRun` calls cannot bypass locks. An earned choice uses normal initial level/moves/cost and still respects points and duplicate rules.
+- Recruiting Vulpix then winning or losing unlocks it exactly once. Cover battle defeat, no usable deployment, and final boss route completion. Nonterminal wins, title visits, offers, invalid/canceled recruitment, drafting, evolution, opponents, and Lab sessions do not bank rewards.
+- Refresh after recruitment retains pending credit; refresh after results retains availability and the reward list. Reserves, fainting, evolution, release, repeated recruits, and full-roster replacement all follow the acquisition-time rule.
+- New Run from title/results retains earned choices. Replacing an unfinished run drops only its pending credit. Returning to or repeatedly finalizing results cannot reaward species or increment wins twice.
+- Legacy migration preserves the existing eight choices and win count without inferring undocumented recruits or recounting a completed result. A new profile still starts with six. Invalid species/form IDs, malformed runs, current/backup fallback, and save failures do not silently discard a valid profile. Pairing a newer profile with an older snapshot of the same run retains its original result rewards and cannot increment wins twice.
+- Run `npm run build`, `npm run playthrough`, `npm run measure:save`, and `git diff --check` after implementation. Review locked cards, both result outcomes, restart explanation, keyboard navigation, and mobile layouts. These are planned checks; this documentation update does not implement or test runtime behavior.
 
 ## Review checklist
 

@@ -10,9 +10,11 @@ For the current level, HP, move-power, and encounter tuning, see [the early-run 
 
 For the staged import of Pokémon, moves, abilities, and items from `pokefiles/`, see the [Pokefile content implementation plan](POKEFILE_CONTENT_IMPLEMENTATION_PLAN.md).
 
+For the implemented given and hidden ability slots, Ability Capsule, Ability Patch, temporary hidden assignments, and starting test items, see the [ability overhaul](ABILITY_OVERHAUL_PLAN.md).
+
 For the planned run-wide artifact catalog, rarity tiers, example effects, and implementation decisions, see the [artifacts plan](ARTIFACTS_PLAN.md).
 
-For the proposed conditional starter unlocks, achievement requirements, and persistence plan, see the [party builder guide](PARTY_BUILDER.md). These unlock rules are not implemented yet.
+For the proposed fixed starter set, recruitment-based unlocks after wins or losses, and persistence plan, see the [party builder guide](PARTY_BUILDER.md#recruitment-based-starter-unlocks-proposal). These unlock rules are not implemented yet.
 
 The [enemy ranks and initial movesets](#proposed-enemy-ranks-and-automatic-latest-four-movesets) are implemented: encounter counts scale with level, and new Pokémon use their latest four eligible moves. Owned Pokémon retain player-selected moves, manual level-up choices, and TM teaching.
 
@@ -23,7 +25,7 @@ The [enemy ranks and initial movesets](#proposed-enemy-ranks-and-automatic-lates
 3. Before each battle, choose up to six available Pokémon from the run roster and place them on the top-down map. Normal battles, elite battles, full-party healing, stores, and simple special encounters appear along the route.
 4. After each battle victory, award XP only to Pokémon deployed in that battle, including deployed battlers that faint. Reserves do not gain battle XP. Offer moves unlocked by participant level gains before the next encounter.
 5. Fight the column-ten boss encounter with a distinct map and capture objective.
-6. See a win or loss screen. A successful run is intended to save a permanent unlock that changes a future run.
+6. See a win or loss screen. Planned starter progression banks the species recruited during either outcome as permanent choices for future drafts; runtime currently only carries a win count.
 
 Target run length for the ten-column route needs play-session measurement.
 
@@ -36,7 +38,8 @@ Target run length for the ten-column route needs play-session measurement.
 | Maps                 | Three regular map templates and one boss map, reused by route nodes                                                                  |
 | Roster               | Six named starting Pokémon and at least two recruitable Pokémon, including a Fire user and a Mega-compatible species                |
 | Types in encounters  | Normal, Fire, Water, Grass, Electric, Ground, Rock, and Ice                                                                         |
-| Moves                | A growing pool of learned moves, with four equipped for battle, one passive ability, and a 1-in-24 critical chance on damaging moves |
+| Moves                | A growing pool of learned moves, with four equipped for battle and a 1-in-24 critical chance on damaging moves |
+| Abilities            | Given ability plus a hidden passive unlocked by Ability Patch; Capsule changes either eligible slot from three saved random choices |
 | Growth               | Encounter XP for deployed participants, level-based move learning, and at least one evolution available during a run                |
 | Held items           | One slot per Pokémon; Leftovers, Sitrus Berry, Assault Vest, X Attack, and one compatible Mega Stone                                |
 | Artifacts            | Planned run-wide collection, separate from held items and the Bag; up to 20 definitions (10 standard and 10 cursed), five rarity tiers, legendary artifacts only from question-mark event nodes; see [artifact plan](ARTIFACTS_PLAN.md) |
@@ -171,6 +174,8 @@ Launch types should also have a tactical character: Fire creates damage and Burn
 
 These six Pokémon are the initial starter choices. Each current species and form starts with four distinct learned and equipped moves; further moves unlock through its level-based learnset and can replace an equipped move on the post-battle XP screen.
 
+The table lists the default given abilities. Each species/form also has a distinct hidden ability, currently selected from the existing catalog as a placeholder. An Ability Patch unlocks the second passive; an Ability Capsule can change the given slot or the unlocked hidden slot. Both chosen abilities persist with the owned Pokémon through ordinary evolution. See [the full assignment table and dual-passive rules](ABILITY_OVERHAUL_PLAN.md).
+
 | Pokémon   | Type          | Ability                                                                                                                          | Starting moves                                    |
 | --------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | Bulbasaur | Grass         | **Chlorophyll:** effective Speed ×2 while sun is active.                                                                         | Vine Whip, Tackle, Razor Leaf, Tail Whip          |
@@ -254,13 +259,15 @@ Use level-based learnsets to introduce the stronger and utility moves during the
 
 Each Pokémon may hold one item. The run also has a small bag for unequipped items; the player assigns or swaps held items from the party panel while choosing a route node. A consumed item leaves its slot empty and is removed from the run. Passive and automatic items work only while their holder is deployed and alive.
 
+New runs also receive one Ability Capsule and one Ability Patch for testing. Use them from the route Bag's Ability items group; neither can be held. Patch unlocks the hidden passive, while Capsule rolls three distinct replacements for the selected eligible slot and consumes only after a choice. Generated choices persist until resolved and block route progression.
+
 | Item                  | Trigger and effect                                                                                         | Use                                                   |
 | --------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | Leftovers             | Heals 1/16 of maximum HP, rounded up, at each cycle boundary while deployed.                                 | Passive; remains held.                                |
 | Sitrus Berry          | When HP falls to 50% or below but stays above 0, immediately heals 25% of maximum HP, rounded up.          | Automatic; consumed after one trigger.                |
 | Assault Vest          | Multiplies Special Defense by 1.5 while held. The holder cannot choose Status-category moves.              | Passive; remains held.                                |
 | X Attack              | Doubles the holder's Attack until the current battle ends.                                                 | Choose **Special → Use X Attack**; consumed on use.   |
-| Compatible Mega Stone | Changes its holder into its defined Mega form, replacing its ability and applying that form's stat values. | Choose **Special → Mega Evolve**; stone remains held. |
+| Compatible Mega Stone | Changes its holder into its defined Mega form, replacing its active ability profile and applying that form's stat values. | Choose **Special → Mega Evolve**; stone remains held. |
 
 The battle action UI has three primary commands: **Attack**, **Move**, and **Special**, plus **Pass**. Attack opens the Pokémon's four equipped moves around a central Back button, including Status-category moves unless an item such as Assault Vest blocks them. Hover or keyboard focus shows a move description; selecting a move highlights its range and type matchups on the board. Move previews tiles within Movement range and shows its fixed 1 AP cost. Special shows an available held-item action, such as X Attack (2 AP) or Mega Evolve (3 AP). Passive and automatic held items display their effects here but do not require a command. Attack and Move each become unavailable after one use in the turn; Special can still spend remaining AP.
 
@@ -270,7 +277,7 @@ A Mega Stone can be equipped only by its compatible Pokémon. Each Mega form is 
 
 The AV timeline gives turns according to Speed rather than waiting for every deployed Pokémon to take one turn. After a battle victory, award the encounter XP to each Pokémon deployed in that battle, including deployed Pokémon that faint. Reserves do not gain XP from that battle. Each Pokémon tracks its own level and accumulated XP. Level gains update its stats, and a newly recruited Pokémon starts near the current party level so it is useful in the next battle.
 
-Resolve XP and level gains after the battle, then show the growth report. At the following route choice, an eligible Pokémon can evolve from the party panel or defer until another route choice. Evolution changes its species form, stats, and any defined type or ability; it remains evolved for the rest of that run. The current route control names the next form; a before-and-after stat preview is still planned. Evolution keeps its held item and preserves its battle damage: an unfainted Pokémon gains only the increase in maximum HP, while a fainted Pokémon stays at 0 HP. Mega Evolution remains a separate temporary battle form. Include at least one ordinary evolution line with a threshold reachable during the early run.
+Resolve XP and level gains after the battle, then show the growth report. At the following route choice, an eligible Pokémon can evolve from the party panel or defer until another route choice. Evolution changes its species form, stats, and defined types while preserving both selected ability IDs and the hidden unlock; it remains evolved for the rest of that run. The current route control names the next form; a before-and-after stat preview is still planned. Evolution keeps its held item and preserves its battle damage: an unfainted Pokémon gains only the increase in maximum HP, while a fainted Pokémon stays at 0 HP. Mega Evolution remains a separate temporary battle form that supplies its own ability profile and follows the Pokémon's hidden unlock. Include at least one ordinary evolution line with a threshold reachable during the early run.
 
 After XP gains, check deployed participants that gained a level against their current form's level-based learnset. Newly eligible moves create saved choices on the XP screen: replace one of the four active moves or keep the current set. Resolve every choice before leaving that screen. The Party panel displays active moves but cannot rearrange or replace them. A skipped move remains in the learned history to prevent the same level offer repeating after every battle; a later TM may teach it if that species is compatible. Recruits arrive knowing all moves available to their form at their starting level and equip their latest four distinct eligible moves by default, with fewer slots when unavailable. Ordinary evolution preserves the exact active move slots and learned history; the new form's base and eligible level moves join the history without replacing slots. For the early build, arrange XP thresholds and learnsets so at least one deployed participant receives a move choice after a regular encounter.
 
@@ -367,9 +374,9 @@ When fewer than four moves are eligible, the Attack menu shows only available ch
 
 Artifacts are planned as powerful, global run modifiers collected in a dedicated artifact collection, separate from Pokémon-held items and the Bag. The catalog is capped at 20 unique definitions: 10 standard and 10 cursed. Every artifact has a common, uncommon, rare, epic, or legendary rarity; legendary artifacts are only obtainable from question-mark event nodes. Acquired artifacts are intended to remain active for that run and may affect progression, the roster, battle rules, or resources. The sample concepts and open effect decisions are documented in the [artifacts plan](ARTIFACTS_PLAN.md). Exp Share could extend XP to reserves and apply its proposed bonus to that shared XP.
 
-Generate a ten-column route from seeded node templates so each run offers different choices while every branch reaches the column-ten boss. Normal battles award XP to deployed participants and coins; elites have stronger teams and larger rewards. Healing nodes fully restore and revive the whole owned party. Stores sell held items for coins. The initial special encounter offers one of two free recruits while under the 20-owned cap or a coin cache. The boss rewards completion and a permanent unlock. See [route behavior and prices](ROUTE_OVERHAUL.md).
+Generate a ten-column route from seeded node templates so each run offers different choices while every branch reaches the column-ten boss. Normal battles award XP to deployed participants and coins; elites have stronger teams and larger rewards. Healing nodes fully restore and revive the whole owned party. Stores sell held items for coins. Recruitment nodes offer three Pokémon and require a valid roster replacement at the 20-owned cap; special nodes resolve separate weighted events. Boss completion currently increments the win count. The proposed starter rewards would bank recruitment history when a run ends in victory or defeat. See [route behavior and prices](ROUTE_OVERHAUL.md).
 
-Permanent unlocks should add variety, such as a new starter, recruit, map, or item. The proposed conditional starter requirements, catalog behavior, and migration plan are in the [party builder guide](PARTY_BUILDER.md); runtime currently records a numeric victory count without changing available content. The first release needs only a few unlocks and one region. Store the current run and unlocks locally so a browser refresh does not erase progress.
+Planned starter progression begins with six fixed choices and adds species successfully recruited during each finished run, whether won or lost. The catalog, recruitment-history, profile-save, restart, and legacy-migration rules are in the [party builder guide](PARTY_BUILDER.md#recruitment-based-starter-unlocks-proposal); runtime currently records a numeric victory count without changing available content. Other permanent rewards, such as maps or items, remain later scope. Store profile progression separately from the replaceable run so New Run and browser refresh retain earned starter choices.
 
 ## Screens and interaction
 

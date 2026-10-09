@@ -7,7 +7,7 @@ import {
   advanceRoute, buyShopItem, cancelPreparation, completeBattle, defaultLoadoutAtLevel,
   evolve, learnedAtLevel, newRun, nextEncounter, recruit, resolveLevelMove,
   resolveSpecial, selectRouteNode, startBattle, statsAtLevel, teachTm,
-  useEvolutionItem, xpForLevel, type LabConfig,
+  useEvolutionItem, startAbilityCapsule, chooseCapsuleAbility, useAbilityPatch, xpForLevel, type LabConfig,
 } from '../src/game/engine';
 import { createRoute, ROUTE_COLUMNS, type RouteNode, type RoutePlan } from '../src/game/route';
 import type { Run } from '../src/game/types';
@@ -64,7 +64,7 @@ function baseRun(count = 8): Run {
   });
   return { ...run, seed, rngState: seed, route: createRoute(seed), coins: 32,
     selected: run.party.slice(0, 6).map(mon => mon.id),
-    bag: ['TM Swift', 'TM Thunderbolt', 'Fire Stone', 'Sitrus Berry', 'Sitrus Berry', 'X Attack', 'Leftovers', 'Charizardite X'],
+    bag: ['Ability Capsule', 'Ability Patch', 'TM Swift', 'TM Thunderbolt', 'Fire Stone', 'Sitrus Berry', 'Sitrus Berry', 'X Attack', 'Leftovers', 'Charizardite X'],
   };
 }
 
@@ -149,7 +149,7 @@ function Preview() {
     recipient.item = item as ItemId;
     return next;
   });
-  const route = (backdropOnly = false) => <RouteScreen run={run} backdropOnly={backdropOnly} onBack={() => navigate('title')} onChoose={id => setRun(previous => selectRouteNode(previous, id))} onEquipItem={equip} onEvolve={id => setRun(previous => evolve(previous, id))} onTeachTm={(item, id, slot) => setRun(previous => teachTm(previous, item, id, slot))} onUseEvolutionItem={(item, id) => setRun(previous => useEvolutionItem(previous, item, id))} />;
+  const route = (backdropOnly = false) => <RouteScreen run={run} backdropOnly={backdropOnly} onBack={() => navigate('title')} onChoose={id => setRun(previous => selectRouteNode(previous, id))} onEquipItem={equip} onEvolve={id => setRun(previous => evolve(previous, id))} onTeachTm={(item, id, slot) => setRun(previous => teachTm(previous, item, id, slot))} onUseEvolutionItem={(item, id) => setRun(previous => useEvolutionItem(previous, item, id))} onStartAbilityCapsule={(id, slot) => setRun(previous => startAbilityCapsule(previous, id, slot))} onChooseCapsuleAbility={ability => setRun(previous => chooseCapsuleAbility(previous, ability))} onUseAbilityPatch={id => setRun(previous => useAbilityPatch(previous, id))} />;
   const isTitle = titleScreens.has(screen), isDraft = screen === 'draft' || screen === 'draft-full';
   const topbar = !isTitle && !isDraft && ['shop', 'event', 'result'].includes(run.phase);
 

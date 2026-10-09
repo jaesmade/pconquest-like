@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RECRUITS, SPECIES, STARTERS } from '../content/data';
+import { abilityFor, RECRUITS, SPECIES, STARTERS } from '../content/data';
 import { MAX_RUN_POKEMON, STARTING_PARTY_POINTS, partyCost, partyDraftCost } from '../content/roster';
 import { RUN_START_LEVEL, statsAtLevel } from '../game/engine';
 import SpeciesPortrait from './SpeciesPortrait';
@@ -30,7 +30,7 @@ export default function PartyBuilder({ selection, onSelectionChange, onStart, on
     const species = SPECIES[id];
     const query = search.trim().toLocaleLowerCase();
     return (typeFilter === 'all' || species.types.includes(typeFilter))
-      && (!query || `${species.name} ${species.types.join(' ')} ${species.ability}`.toLocaleLowerCase().includes(query));
+      && (!query || `${species.name} ${species.types.join(' ')} ${species.ability} ${species.hiddenAbility}`.toLocaleLowerCase().includes(query));
   }), [search, typeFilter]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visibleSpecies = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -88,7 +88,7 @@ export default function PartyBuilder({ selection, onSelectionChange, onStart, on
 
           <section className="party-hover-stats" data-type={preview?.types[0]} aria-label="Pokémon stats preview">
             {preview && previewStats ? <>
-              <div className="party-hover-identity"><span className="party-hover-portrait"><SpeciesPortrait id={previewId!} /></span><span><small>LEVEL {RUN_START_LEVEL} · {partyCost(previewId!)} POINTS</small><b>{preview.name}</b><em>{preview.types.join(' / ')} · {preview.ability}</em></span></div>
+              <div className="party-hover-identity"><span className="party-hover-portrait"><SpeciesPortrait id={previewId!} /></span><span><small>LEVEL {RUN_START_LEVEL} · {partyCost(previewId!)} POINTS</small><b>{preview.name}</b><em>{preview.types.join(' / ')}</em><small title={abilityFor(preview.ability)?.description}>Given: {preview.ability}</small><small title={abilityFor(preview.hiddenAbility)?.description}>Hidden: {preview.hiddenAbility} · locked</small></span></div>
               <div className="party-hover-stat-grid">{previewStats.map((value, index) => <span key={statNames[index]}><small>{statNames[index]}</small><b>{value}</b></span>)}</div>
             </> : <p>Choose a Pokémon to see its stats.</p>}
           </section>

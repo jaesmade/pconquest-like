@@ -9,6 +9,7 @@ import { reachable } from '../src/game/grid';
 import { availableRouteNodes, createRoute } from '../src/game/route';
 import type { Battle, Unit } from '../src/game/types';
 import { verifyRankedEncounters } from './ranked-encounters-checks';
+import { verifyAbilityOverhaul } from './ability-overhaul-checks';
 
 const note = (message: string) => console.log(message);
 const distance = (a: Unit, b: Unit) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -70,6 +71,7 @@ function choosePlayerAction(battle: Battle): string {
 
 assert.deepEqual(validateCatalog(), [], 'content catalog should load');
 verifyRankedEncounters();
+verifyAbilityOverhaul();
 let run = newRun(['lapras', 'pikachu', 'geodude']);
 run.party.push({ ...run.party[0], id: 'smoke-test-reserve', species: 'vulpix' });
 const xpBeforeBattle = new Map(run.party.map(mon => [mon.id, mon.xp]));

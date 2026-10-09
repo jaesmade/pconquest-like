@@ -4,6 +4,8 @@ Static review of the early build on 2026-09-27. Compared `PLAN.md` and `BALANCE.
 
 ## Resolved since the review
 
+- **Ability overhaul follow-up (2026-10-06):** New Capsule offers now save before random names are revealed, with retry and failed-use cancellation. Simultaneous ability callouts are grouped, battle saves reject Bag-only held items, and engine evolution/TM actions wait for pending Capsule choices. See the [ability gap review](ABILITY_OVERHAUL_PLAN.md#2026-10-06-implementation-gap-review) for corrected gaps, regression checks, and remaining content/testing work.
+
 - **Participation-based battle XP:** Victory rewards now go only to player Pokémon deployed in the battle, including deployed Pokémon that faint. Reserves keep their XP and cannot gain levels or level-up move offers from that battle. The growth screen shows zero XP for reserves. See `src/game/engine.ts` and `src/ui/IntermissionScreen.tsx`.
 
 - **Full-roster special recruitment:** At 20 owned Pokémon, the special screen now asks which roster member to replace and requires confirmation. Resolution checks the offered species and replacement ID, returns the leaving Pokémon's held item to the bag, and transfers its selected party slot to the recruit. See `src/game/engine.ts` and `src/ui/RouteStopScreen.tsx`.
@@ -28,7 +30,7 @@ Mega HP conversion is deferred by the user. Future Mega forms are intended to re
 
 | Priority | Gap | Evidence and next step |
 | --- | --- | --- |
-| P2 | **The ten-column route has limited event variety and unlock effects.** Seeded battle, elite, heal, store, special, and boss nodes now branch, but the special event has one script and a win increments `unlocks` without changing future available content. | `src/game/route.ts`; `src/game/engine.ts`; `src/ui/RouteStopScreen.tsx`. Add data-driven special encounter variants and implement the conditional starter unlock proposal in [Party Builder](PARTY_BUILDER.md), so at least one unlock changes a later run. |
+| P2 | **The ten-column route has limited event variety and unlock effects.** Seeded battle, elite, heal, store, special, and boss nodes now branch, but the special event has one script and a win increments `unlocks` without changing future available content. | `src/game/route.ts`; `src/game/engine.ts`; `src/ui/RouteStopScreen.tsx`. Add data-driven special encounter variants and implement the [recruitment-based starter plan](PARTY_BUILDER.md#recruitment-based-starter-unlocks-proposal): fixed initial choices, successful recruitment history, and permanent choices banked after wins or losses. |
 | P2 | **Movement previews omit hazard damage.** Move preview shows AP and destination height but not hazard damage along the route. Weather duration, weather move effects, and the next Sandstorm tick are now exposed in the battle HUD. | `src/ui/BattleScreen.tsx` path preview; `docs/PLAN.md` battle rules. Derive hazard forecasts from the selected path and current battle state; do not consume RNG. |
 | Future target | **20 owned Pokémon and six deployed are supported locally; competitive 8v8 is not implemented.** Local AI has no authoritative match ownership or turn deadline. Competitive 8v8 remains future scope. | `docs/SCALABILITY_TARGETS.md`; `src/game/engine.ts`; `src/app/App.tsx`. Keep this as a separate multiplayer milestone, including server validation, replayable IDs, reconnect, AP-bank policy, and timeout rules. |
 

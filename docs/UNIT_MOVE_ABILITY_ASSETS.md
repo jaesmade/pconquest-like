@@ -79,7 +79,7 @@ For a brand-new move, add its rules to [moves.ts](../src/content/moves.ts) and t
 
 ## 3. Make or replace an ability
 
-Ability rules live in [abilities.ts](../src/content/abilities.ts); a species selects one with its `ability` field. The ability ID is currently a display string such as `Static` or `Water Absorb`. These IDs are also stored on battle units, so keep them stable.
+Ability rules live in [abilities.ts](../src/content/abilities.ts); a species assigns its default given ID in `ability` and a distinct hidden ID in `hiddenAbility`. Owned Pokémon save their chosen IDs and hidden unlock independently; Capsules can replace either eligible slot, and Patches unlock the second passive. The ability ID is currently a display string such as `Static` or `Water Absorb`. These IDs are saved on owned Pokémon and battle units, so keep them stable. Existing sounds and feedback apply to either active slot; use the matching triggered ID. See [the ability overhaul](ABILITY_OVERHAUL_PLAN.md) for the temporary assignments and combat ordering.
 
 Ability activation currently has **a text callout and a sound**, with no per-ability sprite or icon manifest. For a unique trigger sound, export `public/assets/audio/abilities/ability-<ability-id-in-kebab-case>.wav` and map the exact ability ID under `abilities` in [audio-manifest.json](../public/assets/audio/audio-manifest.json):
 

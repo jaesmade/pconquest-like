@@ -7,8 +7,8 @@ type Props = { battle: Battle; attacker: Unit; moveId: string; target?: [number,
 function matchup(battle: Battle, attacker: Unit, defender: Unit, moveId: string) {
   const move = MOVES[moveId];
   if (!move.power) return 'Status move';
-  const absorption = abilityAbsorption(defender.ability, move.type);
-  if (absorption) return absorption.kind === 'heal' ? 'Absorbed · heals target' : 'Absorbed · boosts target';
+  const absorption = abilityAbsorption(defender, move.type);
+  if (absorption) return `Absorbed by ${absorption.ability} · ${absorption.kind === 'heal' ? 'heals target' : 'boosts target'}`;
   const value = effectiveness(move.type, defender.types);
   const label = value === 0 ? 'Immune' : value === 0.25 || value === 0.5 ? 'Not very effective' : value >= 4 ? 'Extremely effective' : value >= 2 ? 'Super effective' : 'Neutral';
   const preview = damagePreview(battle, attacker, defender, moveId);
@@ -27,7 +27,7 @@ export default function MovePreview({ battle, attacker, moveId, target }: Props)
     {move.power ? <>
       <span className="eyebrow">TYPE EFFECTIVENESS IN REACH</span>
       {inRange.length ? inRange.map(unit => <div className="matchup" key={unit.id}><strong>{unit.name}</strong><span>{matchup(battle, attacker, unit, moveId)}</span></div>) : <p className="hint">No enemy in range yet.</p>}
-      {target && <div className="selected-preview"><b>Selected area</b>{!selectedValid ? <span>Target tile is blocked or out of range.</span> : selectedTargets.length ? selectedTargets.map(unit => <span key={unit.id}>{unit.name}: {matchup(battle, attacker, unit, moveId)} · Hit {Math.round(abilityHitChance(unit.ability, battle.weather) * 100)}%</span>) : <span>No visible enemy in the selected area.</span>}<small>Critical chance: 1 in 24 per hit.</small></div>}
+      {target && <div className="selected-preview"><b>Selected area</b>{!selectedValid ? <span>Target tile is blocked or out of range.</span> : selectedTargets.length ? selectedTargets.map(unit => <span key={unit.id}>{unit.name}: {matchup(battle, attacker, unit, moveId)} · Hit {Math.round(abilityHitChance(unit, battle.weather) * 100)}%</span>) : <span>No visible enemy in the selected area.</span>}<small>Critical chance: 1 in 24 per hit.</small></div>}
     </> : <p className="hint">Support move: no type damage. The highlighted cells show its target or affected area.</p>}
   </div>;
 }

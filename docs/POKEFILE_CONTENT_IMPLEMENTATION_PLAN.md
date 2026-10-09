@@ -18,6 +18,10 @@ The checked [Pokemon reference CSV](../pokefiles/for%20checking/Pokemon%20Refere
 
 Regenerate the checked copy with [the reference CSV generator](../scripts/generate_pokemon_reference_csv.py), passing `--output "pokefiles/for checking/Pokemon Reference.csv"`. It fetches the pinned PokeAPI tables when no local source folder is passed.
 
+## Ability review CSV
+
+The checked [Abilities CSV](../pokefiles/for%20checking/Abilities.csv) is sorted A-Z by `Name` for review. All 314 rows retain their descriptions, proposals, and game implementation notes, including repeated names. This reference-file change does not register abilities in the runtime catalog.
+
 ## Item reference export
 
 The generated [Pokemon Items Reference CSV](../pokefiles/output/Pokemon%20Items%20Reference.csv) covers every row in [Items.csv](../pokefiles/Items.csv) and appends the current runtime-only item definitions. It is descriptive reference data; it does not register items or change game behavior.

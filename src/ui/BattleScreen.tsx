@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Board from '../battle/Board';
 import type { BoardView, CameraCommand } from '../battle/Board';
 import { TILE_SIZE, gridAtWorld, tileCenter, worldSize } from '../battle/topDown';
-import { abilityAbsorption, itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES, SPECIES } from '../content/data';
+import { abilityAbsorption, abilityFor, itemBlocksMove, itemFor, itemSpecial, mapHeight, mapWidth, MOVES, SPECIES } from '../content/data';
 import { TERRAIN_OBJECTS } from '../content/terrainObjects';
 import { active, apGain, effectiveSpeed, upcoming, unitAt } from '../game/engine';
 import { reachable } from '../game/grid';
@@ -104,7 +104,7 @@ export default function BattleScreen(props: Props) {
   const routes = useMemo(() => current && (current.side === 'player' || props.controlBoth) ? reachable(battle, current) : new Map(), [battle, current, props.controlBoth]);
   const labTarget = props.controlBoth && current ? battle.units.find(unit => unit.side !== current.side) : undefined;
   const labDamage = current && labTarget && move && move.category !== 'Status' ? damageRange(battle, current, labTarget, move) : undefined;
-  const labAbsorption = labTarget && move ? abilityAbsorption(labTarget.ability, move.type) : undefined;
+  const labAbsorption = labTarget && move ? abilityAbsorption(labTarget, move.type) : undefined;
   const selectedRoute = target && mode === 'move' ? routes.get(`${target[0]},${target[1]}`) : undefined;
   const inspectedUnit = inspected ? unitAt(battle, inspected[0], inspected[1]) : undefined;
   const inspectedTile = inspected ? battle.map.tiles[inspected[1]]?.[inspected[0]] : undefined;
@@ -371,7 +371,7 @@ export default function BattleScreen(props: Props) {
       <small>{MOVES[hoveredMove].type} · {MOVES[hoveredMove].category} · Power {MOVES[hoveredMove].power} · Range {MOVES[hoveredMove].range} · {MOVES[hoveredMove].apCost} AP</small>
     </aside>}
     {playerTurn && mode === 'inspect' && inspected && !open && <aside className="inspect-card" aria-label="Tile inspection">
-      {inspectedUnit && <div className="inspect-unit"><SpeciesPortrait id={inspectedUnit.species} /><div><b>{inspectedUnit.name} <small className="unit-level">Lv {inspectedUnit.level}</small> <RankBadge unit={inspectedUnit} /></b><small>{inspectedUnit.side === 'player' ? 'Ally' : 'Opponent'} · {inspectedUnit.types.join(' / ')}</small><small>{inspectedUnit.hp}/{inspectedUnit.maxHp} HP · {inspectedUnit.ap} AP · {inspectedUnit.ability}</small><small>{statsLabel(inspectedUnit)}</small><StatusIcons unit={inspectedUnit} time={battle.time} /></div></div>}
+      {inspectedUnit && <div className="inspect-unit"><SpeciesPortrait id={inspectedUnit.species} /><div><b>{inspectedUnit.name} <small className="unit-level">Lv {inspectedUnit.level}</small> <RankBadge unit={inspectedUnit} /></b><small>{inspectedUnit.side === 'player' ? 'Ally' : 'Opponent'} · {inspectedUnit.types.join(' / ')}</small><small>{inspectedUnit.hp}/{inspectedUnit.maxHp} HP · {inspectedUnit.ap} AP</small><small title={abilityFor(inspectedUnit.ability)?.description}>Given: {inspectedUnit.ability}</small><small title={inspectedUnit.hiddenAbility ? abilityFor(inspectedUnit.hiddenAbility)?.description : undefined}>Hidden: {inspectedUnit.hiddenAbility ?? 'locked'}</small><small>{statsLabel(inspectedUnit)}</small><StatusIcons unit={inspectedUnit} time={battle.time} /></div></div>}
       <p className="inspect-tile-readout">Tile {inspected[0] + 1}, {inspected[1] + 1} · {inspectedTile?.object ? `${inspectedTileKind} · ${inspectedTile.object}` : inspectedTileKind ?? 'Unknown'} · Height {inspectedHeight ?? '—'}{inspectedHazard ? ' · Hazard' : ''}{inspectedCover ? ' · Cover' : ''}{inspectedMud ? ' · Slowing ground' : ''}</p>
       {notice && <small className="inspect-tile-notice">{notice}</small>}
       <button onClick={() => { setInspected(undefined); setOpen(true); }}>Return to actions</button>
@@ -380,7 +380,7 @@ export default function BattleScreen(props: Props) {
     {props.controlBoth && <aside className="lab-diagnostics" aria-label="Battle Lab diagnostics"><div className="lab-diagnostics-head"><b>Damage lab</b><button onClick={props.onLabReset}>Replay seed {props.labSeed}</button></div>
       <p>{battle.units.map(unit => `${unit.side === 'player' ? 'Ally' : 'Opponent'} ${unit.name}: ${unit.hp}/${unit.maxHp} HP`).join(' · ')}</p>
       <p>{current ? `${current.name} acting · ${current.ap} AP` : 'Battle ended'}{weatherCycles > 0 ? ` · ${weatherLabels[battle.weather]}` : ''}</p>
-      {move && labTarget && <p>{move.name} → {labTarget.name}: {labAbsorption ? `Absorbed by ${labTarget.ability} · 0 HP damage` : labDamage ? `${labDamage.min}–${labDamage.max} HP (${labDamage.type}×); critical ${labDamage.critMin}–${labDamage.critMax} HP · 1/24 critical chance` : 'Status move · no direct damage'}</p>}
+      {move && labTarget && <p>{move.name} → {labTarget.name}: {labAbsorption ? `Absorbed by ${labAbsorption.ability} · 0 HP damage` : labDamage ? `${labDamage.min}–${labDamage.max} HP (${labDamage.type}×); critical ${labDamage.critMin}–${labDamage.critMax} HP · 1/24 critical chance` : 'Status move · no direct damage'}</p>}
       <details open><summary>Combat log</summary>{battle.log.map((entry, index) => <p key={index}>{entry}</p>)}</details>
     </aside>}
     {!props.controlBoth && <details className="battle-log"><summary>Action log</summary>{battle.log.slice(0, 8).map((entry, index) => <p key={index}>{entry}</p>)}</details>}

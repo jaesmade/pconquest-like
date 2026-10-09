@@ -44,7 +44,7 @@ function applyType(value: number, multiplier: number): number {
 /** Pure damage calculation: callers supply the critical result and one of 85–100 random rolls. */
 export function calculateDamage(battle: Battle, source: Unit, target: Unit, move: Move, roll: DamageRoll): number {
   const type = effectiveness(move.type, target.types);
-  if (move.category === 'Status' || move.power <= 0 || type === 0 || abilityAbsorption(target.ability, move.type)) return 0;
+  if (move.category === 'Status' || move.power <= 0 || type === 0 || abilityAbsorption(target, move.type)) return 0;
   const power = Math.max(1, modify(move.power, abilityDamageMultiplier(source, move)));
   const attack = attackStat(source, move, roll.critical);
   const defense = defenseStat(target, move, battle, roll.critical);

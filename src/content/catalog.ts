@@ -33,7 +33,9 @@ export function validateCatalog(): string[] {
       errors.push(`Species ${id}: learnset levels must be positive integers`);
     if (species.partyCost !== undefined && (!Number.isInteger(species.partyCost) || species.partyCost < 1 || species.partyCost > STARTING_PARTY_POINTS))
       errors.push(`Species ${id}: party cost must be an integer from 1 to ${STARTING_PARTY_POINTS}`);
-    if (!ABILITIES[species.ability]) errors.push(`Species ${id}: unknown ability ${species.ability}`);
+    if (!Object.hasOwn(ABILITIES, species.ability)) errors.push(`Species ${id}: unknown ability ${species.ability}`);
+    if (!Object.hasOwn(ABILITIES, species.hiddenAbility)) errors.push(`Species ${id}: unknown hidden ability ${species.hiddenAbility}`);
+    if (species.hiddenAbility === species.ability) errors.push(`Species ${id}: given and hidden abilities must differ`);
     for (const type of species.types) if (!TYPES.includes(type)) errors.push(`Species ${id}: unknown type ${type}`);
     for (const move of [...species.moves, ...Object.values(species.learn), ...(species.tmMoves ?? [])]) if (!MOVES[move]) errors.push(`Species ${id}: unknown move ${move}`);
     if (species.tmMoves && new Set(species.tmMoves).size !== species.tmMoves.length) errors.push(`Species ${id}: duplicate TM move`);

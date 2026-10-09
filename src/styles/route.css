@@ -71,17 +71,16 @@
 .route-links line.cleared { stroke: #258ca3; stroke-width: 4; opacity: .9; }
 .route-links line.reachable { stroke: #27afce; stroke-width: 5; opacity: 1; }
 .route-links line.cleared { stroke: #c79c4c; opacity: .9; }
-.route-tile-art,
-.route-glyph { shape-rendering: crispEdges; }
+.route-tile-art { shape-rendering: crispEdges; }
 .route-start,
-.route-node { --tile-top: #986b37; --tile-inset: #b98c4c; --tile-edge: #604126; }
+.route-node { --tile-top: #986b37; --tile-inset: #b98c4c; --tile-edge: #604126; --tile-surface: var(--tile-inset); --glyph-ink: var(--tile-edge); --glyph-light: #f0cb91; }
 .route-node.battle,
-.route-node.special { --tile-top: #a9793e; --tile-inset: #c79754; --tile-edge: #684526; }
-.route-node.elite { --tile-top: #a71f42; --tile-inset: #dd4165; --tile-edge: #67182f; }
-.route-node.boss { --tile-top: #77354f; --tile-inset: #ae5b77; --tile-edge: #472438; }
-.route-node.heal { --tile-top: #2d856d; --tile-inset: #50b394; --tile-edge: #1d574d; }
-.route-node.recruit { --tile-top: #386b85; --tile-inset: #5a9bb2; --tile-edge: #23495c; }
-.route-node.store { --tile-top: #84744a; --tile-inset: #b4a069; --tile-edge: #5b4c31; }
+.route-node.special { --tile-top: #a9793e; --tile-inset: #c79754; --tile-edge: #684526; --glyph-ink: #61401f; --glyph-light: #f0c885; }
+.route-node.elite { --tile-top: #a71f42; --tile-inset: #dd4165; --tile-edge: #67182f; --glyph-ink: #65162d; --glyph-light: #f391a8; }
+.route-node.boss { --tile-top: #77354f; --tile-inset: #ae5b77; --tile-edge: #472438; --glyph-ink: #452336; --glyph-light: #dc9eb3; }
+.route-node.heal { --tile-top: #2d856d; --tile-inset: #50b394; --tile-edge: #1d574d; --glyph-ink: #174e42; --glyph-light: #8bd4b7; }
+.route-node.recruit { --tile-top: #386b85; --tile-inset: #5a9bb2; --tile-edge: #23495c; --glyph-ink: #203f50; --glyph-light: #9dc6d2; }
+.route-node.store { --tile-top: #84744a; --tile-inset: #b4a069; --tile-edge: #5b4c31; --glyph-ink: #514428; --glyph-light: #dbcd9a; }
 .route-start { --tile-top: #365470; --tile-inset: #52799b; --tile-edge: #1b344d; }
 .route-node-shadow { fill: #15202a; stroke: #101923; stroke-width: 3; stroke-linejoin: miter; }
 .route-node-side { fill: #e5e0d4; stroke: #403a32; stroke-width: 3; stroke-linejoin: miter; }
@@ -90,29 +89,43 @@
 .route-node-rim { fill: #ddd9cf; stroke: #403a32; stroke-width: 3.5; stroke-linejoin: miter; }
 .route-node-top { fill: var(--tile-edge); stroke: #302417; stroke-width: 3.5; stroke-linejoin: miter; }
 .route-node-top-light { fill: none; stroke: #ffe6aa88; stroke-width: 2; pointer-events: none; }
-.route-node-inset { fill: var(--tile-inset); stroke: var(--tile-top); stroke-width: 4; stroke-linejoin: miter; }
+.route-node-inset { fill: var(--tile-surface); stroke: var(--tile-top); stroke-width: 4; stroke-linejoin: miter; }
 .route-node-bevel { fill: #ffe6ac28; pointer-events: none; }
 .route-node-inset-shade { fill: #3d241f35; pointer-events: none; }
 .route-node-texture { fill: url(#route-stone-grain); pointer-events: none; }
 .route-node-inlay { fill: none; stroke: #ffe5ac88; stroke-width: 2; pointer-events: none; }
-.route-glyph { filter: drop-shadow(1px 3px 0 #332416a8); }
-.route-glyph path,
-.route-glyph text,
-.route-glyph circle { fill: #f7e8c5; stroke: #765a35; stroke-width: 2; paint-order: stroke; }
-.route-glyph g[fill='none'] path { fill: none; stroke: #f7e8c5; stroke-width: 6; }
-.route-glyph .route-glyph-cutout { fill: #4c253d; stroke: none; }
-.route-glyph .route-sword-line { fill: none; stroke: #b89f71; stroke-width: 2; }
-.route-glyph .route-sword-glint { fill: none; stroke: #fff8df; stroke-width: 2; }
-.route-node.elite .route-glyph path { fill: #fff1d8; stroke: #f9b1c3; stroke-width: 2; }
-.route-node.elite .route-glyph .route-spark-shine { fill: #fff8ef; stroke: none; }
-.route-node.heal .route-glyph path { fill: #f7e8c5; stroke: #61704f; }
+.route-glyph { filter: none; shape-rendering: geometricPrecision; pointer-events: none; }
+.route-glyph-face path,
+.route-glyph-face circle {
+  fill: var(--glyph-ink);
+  stroke: var(--glyph-ink);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+.route-glyph-etch-light path,
+.route-glyph-etch-light circle {
+  fill: var(--glyph-light);
+  stroke: var(--glyph-light);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+}
+.route-glyph-etch-light { opacity: .65; }
+.route-glyph-face .route-glyph-detail { fill: var(--tile-surface); stroke: none; }
+.route-glyph-face .route-glyph-line { fill: none; stroke: var(--tile-surface); stroke-width: 3; stroke-linecap: square; }
+.route-glyph-etch-light .route-glyph-detail,
+.route-glyph-etch-light .route-glyph-line { fill: none; stroke: none; }
+.route-node.visited:not(.current) { --tile-surface: #718381; --glyph-ink: #263d3a; --glyph-light: #b4c8bc; }
+.route-node.visited:not(.current) .route-node-inset { fill: var(--tile-surface); }
+.route-node.available:hover,
+.route-node.available:focus-visible { --tile-surface: #e7ae62; --glyph-ink: #694324; --glyph-light: #ffdda0; }
 .route-node:not(.available):not(.visited) { opacity: 1; filter: none; }
 .route-node.available { filter: url(#route-cyan-glow); }
 .route-node.available .route-node-rim { stroke: #b9ffff; stroke-width: 7; }
 .route-node.available:hover,
 .route-node.available:focus-visible { filter: url(#route-cyan-glow) brightness(1.18); }
 .route-node.available:hover .route-node-inset,
-.route-node.available:focus-visible .route-node-inset { fill: #e7ae62; }
+.route-node.available:focus-visible .route-node-inset { fill: var(--tile-surface); }
 .route-choice-marker path { fill: #f4ad35; stroke: #251b18; stroke-width: 5; }
 .route-choice-marker .route-choice-shine { fill: #ffda55; stroke: #fff3aa; stroke-width: 2; }
 .route-player-bob { transform-box: fill-box; transform-origin: center; animation: route-player-bob 1.8s ease-in-out infinite; }
@@ -329,7 +342,8 @@
 .route-screen .route-node.available .route-node-rim { stroke: #137289; stroke-width: 7; }
 .route-screen .route-node.available:hover .route-node-rim,
 .route-screen .route-node.available:focus-visible .route-node-rim { stroke: #fff9d2; stroke-width: 10; }
-.route-screen .route-node.available:focus-visible .route-node-inset { fill: #ffd465; stroke: #8a5226; }
+.route-screen .route-node.available:focus-visible { --tile-surface: #ffd465; --glyph-ink: #694324; --glyph-light: #ffedb3; }
+.route-screen .route-node.available:focus-visible .route-node-inset { fill: var(--tile-surface); stroke: #8a5226; }
 .route-screen .route-node.available .route-node-top { stroke: #18323f; }
 .route-links line,
 .route-start-link { stroke-linecap: square; }

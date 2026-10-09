@@ -12,9 +12,10 @@ For every future task that changes code, assets, behavior, or project documentat
 | --- | --- |
 | Player-facing game description | [Detailed game description](GAME_DESCRIPTION.md) |
 | Game scope and rules | [Early build plan](PLAN.md) |
+| Given and hidden abilities, Capsule and Patch | [Ability overhaul guide](ABILITY_OVERHAUL_PLAN.md) |
 | Run-wide artifacts | [Artifacts plan](ARTIFACTS_PLAN.md) |
 | Route, rewards, recruitment, deployment | [Route overhaul](ROUTE_OVERHAUL.md), [node and event authoring](ROUTE_NODE_EVENTS.md) |
-| Party drafting and conditional starter unlocks | [Party builder](PARTY_BUILDER.md) |
+| Party drafting and recruitment-based starter unlocks | [Party builder](PARTY_BUILDER.md) |
 | Battle balance | [Balance baseline](BALANCE.md) |
 | Enemy ranks, compositions, and initial moves | [Implemented enemy-rank rules](PLAN.md#proposed-enemy-ranks-and-automatic-latest-four-movesets) |
 | Gameplay gaps and decisions | [Mechanics audit](GAMEPLAY_MECHANICS_AUDIT.md) |
@@ -29,6 +30,87 @@ For every future task that changes code, assets, behavior, or project documentat
 | Controlled combat sandbox | [Battle Lab](BATTLE_LAB.md) |
 
 ## Recent changes
+
+### 2026-10-06 - Reviewed and closed ability overhaul gaps
+
+- Corrected four gaps found in the follow-up audit: Capsule names appearing before the offer save completed, overlapping/truncated battle feedback, Bag-only items accepted as saved battle equipment, and direct evolution/TM calls bypassing pending offers. New offers save immediately before display; failed writes retain the same hidden offer for retry or allow cancellation without consuming an item. Main files: `src/app/App.tsx`, `src/ui/RouteScreen.tsx`, `src/styles/route-overlays.css`, `src/battle/Board.tsx`, `src/persistence/save.ts`, and `src/game/engine.ts`.
+- Added focused engine/save/dialog regressions in `scripts/ability-overhaul-checks.ts`; the playthrough runner now supports Node's server-rendering dependencies. Converted route SVG titles to one string to avoid React rendering warnings exposed by these checks. Updated the [ability guide and gap review](ABILITY_OVERHAUL_PLAN.md#2026-10-06-implementation-gap-review), [mechanics audit](GAMEPLAY_MECHANICS_AUDIT.md), and persistence guidance.
+- Checked production build, campaign/Battle Lab playthrough, save restoration measurements, static saving/failed/ready dialog rendering, ordinary/Mega equipment validation, and whitespace. Reviewed async save gating and callout grouping in code; browser termination and the new battle callouts were not exercised in this follow-up. Remaining scope: acquisition/pricing, official hidden data, Lab ability controls, and combination balance. Existing Phaser chunk warning and ordinary autosave loss window remain.
+
+### 2026-10-06 - Implemented two ability slots, Capsule, and Patch
+
+- Added persistent given/hidden ability slots and Patch unlocks. Both unlocked passives affect damage, Speed, evasion, absorption, and contact reactions with matching ability feedback, previews, and AI evaluation. Used existing abilities as temporary hidden assignments for all 12 species/forms; ordinary evolution retains chosen IDs, while Mega Evolution uses its temporary form profile with the same unlock.
+- Added single-use Ability Capsule and Ability Patch Bag flows and pixel icons. New runs start with one of each for testing. Capsules save three distinct seeded replacements for the selected eligible slot, excluding both assigned IDs; dismiss/resume and reload keep the same offer. Successful use consumes once, and pending offers block route progression. Updated the isolated UI gallery and the [ability guide and preview](ABILITY_OVERHAUL_PLAN.md).
+- Saves now write v28, migrate old parties with hidden abilities locked, retain active v27 battle queues/RNG, and validate ability profiles and pending offers. Main code: `src/content/{abilities,species,items,catalog}.ts`, `src/game/{types,engine,damage,enemyPlanner}.ts`, `src/persistence/save.ts`, `src/app/App.tsx`, `src/ui/{RouteScreen,PartyBuilder,BattleScreen,MovePreview}.tsx`, `src/battle/Board.tsx`, and `src/styles/route-overlays.css`. Updated the scope, player description, extension/asset guides, Battle Lab guide, and README.
+- Checked production build, focused ability/save regression checks in `scripts/ability-overhaul-checks.ts`, the campaign/Battle Lab playthrough, targeting and forest verification, save measurement, and whitespace. Reviewed Bag selection, locked/unlocked slots, Patch consumption, saved Capsule dismissal/resume, replacement, and Party results at desktop/390px phone sizes using the isolated gallery. Existing Phaser bundle-size warning remains; dual-ability balance has not been measured through player sessions.
+
+### 2026-10-06 - Planned given and hidden abilities and ability items
+
+- Added the [ability overhaul plan](ABILITY_OVERHAUL_PLAN.md) before implementation to define per-species given/hidden ability data, hidden-ability unlocks, Ability Capsule choice flow, simultaneous passive rules, Bag use, ability displays, evolution/Mega behavior, and migration from save v27. Marked random-pool, item-source, and multi-trigger behavior as proposed defaults or open decisions.
+- Linked the proposal from the [early build plan](PLAN.md) and [game description](GAME_DESCRIPTION.md). No runtime behavior or code changed.
+- Checked the plan against the current single-ability species/unit model, route Bag flows, and save migration; checked new documentation links and scoped whitespace.
+
+### 2026-10-06 - Alphabetized the ability review CSV
+
+- Sorted `pokefiles/for checking/Abilities.csv` A-Z by `Name` to make ability review easier. Preserved all 314 rows, duplicate names, associated values, header, quoting, encoding, and record separators.
+- Updated the [Pokefile implementation plan](POKEFILE_CONTENT_IMPLEMENTATION_PLAN.md#ability-review-csv). Checked alphabetical order, exact original row-text preservation, parsed values, row count, and the saved file; checked scoped documentation whitespace. Game code and runtime ability rules were not changed.
+
+### 2026-10-06 - Blended route symbols into the tile surfaces
+
+- Replaced bright cream emblems and heavy outlines with dark category-tinted carvings and a subtle lit lower edge so the symbols look embedded in their tiles. Gently foreshortened the upright artwork; preserved diamond geometry and the seven existing silhouettes.
+- Shared the actual surface color between node insets and symbol cutouts, including visited-gray, hover, and focus-gold states. Darkened visited marks for readability. Main files: `src/ui/RouteScreen.tsx` and `src/styles/route.css`; updated [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details), [UI progress](UI_OVERHAUL_PLAN.md), and the [preview](ROUTE_NODE_PREVIEW.jpg).
+- Checked production build, all seven symbols at desktop and 390px phone widths, visited contrast, and keyboard-focus rendering. A second agent reviewed fitting and the CSS state cascade; checked documentation links and whitespace. Gameplay tests were not repeated for this visual-only change. The existing large Phaser bundle warning remains.
+
+### 2026-10-06 - Undid the angled square route-node design
+
+- Reversed the latest square-face design at the user's request. Restored the previous diamond tile layers, upright 90% emblem scale, and amber-pointer offset in `src/ui/RouteScreen.tsx`, preserving the earlier seven-symbol improvements.
+- Restored the current treatment in [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details) and [UI progress](UI_OVERHAUL_PLAN.md), and refreshed the [route-node preview](ROUTE_NODE_PREVIEW.jpg).
+- Checked restored geometry against the pre-change source, verified the isolated route visually, rebuilt production output, and checked documentation links and whitespace. Gameplay tests were not repeated for this presentation reversal.
+
+### 2026-10-06 - Squared route nodes while retaining angled depth
+
+- Replaced diamond node faces with nearly square faces at a mild oblique tilt. Added diagonal front/right extrusion, matching inset layers and shadows so the tokens retain the requested isometric feel. Enlarged the upright emblems to fit the new faces and raised available-node pointers to keep a clear gap.
+- Main file: `src/ui/RouteScreen.tsx`. Updated [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details), [UI progress](UI_OVERHAUL_PLAN.md), and the [route-node preview](ROUTE_NODE_PREVIEW.jpg).
+- Checked production build, desktop and 390px phone rendering of all seven symbols, visited tiles, icon margins, pointer clearance, and keyboard-focus contrast. Reviewed geometry with a second agent and checked documentation links and whitespace. Route rules and activation code were not changed; gameplay smoke checks were not repeated for this visual edit. The existing large Phaser bundle warning remains.
+
+### 2026-10-06 - Undid the square route-node trial
+
+- Reverted the in-progress square-node geometry at the user's request. Restored the previous diamond tile layers, 90% upright emblem size, and selection-pointer position in `src/ui/RouteScreen.tsx`.
+- Clarified the current shape and icon treatment in [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details). The existing preview already depicts the restored design.
+- Checked the reversal against the prior tile paths, emblem transform and pointer offset; visually verified the restored isolated route, rebuilt production output, and checked `git diff --check`. No new gameplay tests were needed for restoring the previously verified presentation.
+
+### 2026-10-06 - Made route-node icons upright
+
+- Replaced the diagonal icon projection with uniform `scale(.9)` so all seven symbols read upright at 90% size, matching the user's preferred orientation. Kept the shared tile center, clearer silhouettes, dark outlines, and shallow relief.
+- Main file: `src/ui/RouteScreen.tsx`. Updated [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details), [UI progress](UI_OVERHAUL_PLAN.md), and the [route-node preview](ROUTE_NODE_PREVIEW.jpg) to show the current treatment.
+- Checked production build, desktop and 390px phone icon readability/fit, shared SVG geometry with a second agent, documentation references, and `git diff --check`. This transform-only follow-up did not rerun the previous pass's gameplay smoke checks.
+
+### 2026-10-06 - Fitted route-node icons to their isometric tiles
+
+- Replaced the small upright route glyphs with clearer sword, elite shield/star, medical cross, shopfront, question mark, Poké Ball/plus, and crown silhouettes. Matched every icon to the diamond top's 2:1 perspective and center, with consistent margins, dark outlines and a shallow raised edge so the artwork belongs to the node.
+- Main files: `src/ui/RouteScreen.tsx` and `src/styles/route.css`. Updated [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details) and [UI progress](UI_OVERHAUL_PLAN.md); saved the isolated [route-node preview](ROUTE_NODE_PREVIEW.jpg). This is a presentation change; route generation, availability and rewards retain their existing rules.
+- Checked production build, campaign/Battle Lab smoke playthrough, desktop and 390px phone rendering of all seven icons, visited/focus contrast, and Tab/Enter node activation in the isolated fixture. Reviewed SVG/CSS geometry and accessibility with a second agent; checked updated documentation links and `git diff --check`. The existing large Phaser bundle warning remains.
+
+### 2026-10-06 - Proposed enemy-based EXP pools and participant sharing
+
+- Expanded the [experience plan](EXP_GROWTH_PLAN.md#proposed-battle-reward-formulas) with shared-pool formulas that increase rewards with defeated enemies and reduce each Pokémon's reward with deployed participants. Recommended provisional Normal/Elite/Boss weights of 1/1.5/2; documented species-yield, catch-up, and gentler-sharing alternatives, example awards, and the solo-training/recruitment tradeoff.
+- Kept the proposal separate from implemented behavior and species growth thresholds. Recorded fainted/reserve/cap rules, reward-screen/save requirements, and corrected the plan's current save baseline to v27. Main files: `docs/EXP_GROWTH_PLAN.md` and this record. Runtime rewards and assets are unchanged.
+- Checked current award/level-up code, participant selection, ranked rosters, highest-level recruitment, reward UI, save schema, and the reference CSV header; verified Emerald's basic yield/level/division rule against reconstructed source. Checked formula examples, monotonicity before integer rounding, documentation links, and scoped whitespace. No runtime tests or gameplay balance validation were performed for this documentation-only proposal.
+
+### 2026-10-06 - Planned permanent starter unlocks from recruitment
+
+- Replaced the achievement-based starter proposal with the requested loop: six fixed starters for new profiles, then permanent draft access to species successfully recruited during finished runs. Planned rewards apply to both wins and losses; acquisition history survives evolution/release, while restarting an unfinished run discards pending credit.
+- Defined shared UI/engine eligibility, profile state outside the replaceable run, terminal-transition finalization, result rewards, ordered profile/run saves, current/backup recovery, and legacy preservation of the eight previously available choices. This is documentation only; current draft and unlock behavior are unchanged.
+- Main documents: [party builder plan](PARTY_BUILDER.md#recruitment-based-starter-unlocks-proposal), [early build plan](PLAN.md), [game description](GAME_DESCRIPTION.md), [mechanics audit](GAMEPLAY_MECHANICS_AUDIT.md), `README.md`, and this record. Corrected the party-builder guide's current save schema to v27.
+- Checked current starter/recruit definitions, draft rendering and engine validation, recruitment/replacement/evolution paths, all terminal transitions, New Run wiring, result UI, and IndexedDB schema/recovery. Reviewed updated topic links, new plan anchors, the new record entry, and Markdown table columns; ran `git diff --check`. Runtime tests were not run for this documentation-only change.
+
+### 2026-10-06 - Pixel interface and usability pass from splash to run results
+
+- Unified menus, route/Party/Bag, shops/events/recruitment, deployment, battle controls, XP choices, loading/pause and results with local pixel fonts, square frames, hard shadows and discrete states. Added original species portraits, shared command icons and pixel item/status sprites; preserved existing gameplay and working-tree changes.
+- Improved point/coin feedback, touch controls, keyboard focus containment and restoration, unfinished-run confirmation, mobile turn portraits and reward scrolling, battle camera resizing and clear win/loss summaries with replay/title actions. Added an isolated development UI gallery that does not write the saved run.
+- Main files: `src/ui/`, `src/styles/`, `src/app/App.tsx`, `src/main.tsx`, `src/battle/Board.tsx`, `public/assets/{fonts,ui/icons}/`, `scripts/generate_placeholder_ui.py` and `scripts/ui-preview.{html,tsx}`. Updated [UI progress](UI_OVERHAUL_PLAN.md), [title flow](START_SCREEN_OVERHAUL.md), [party builder](PARTY_BUILDER.md) and [interface assets](ANIMATION_ASSETS.md).
+- Saved the [phone run-result preview](PIXEL_UI_PREVIEW.jpg) from a development fixture; the existing campaign save was retained.
+- Checked production build, scripted campaign/Battle Lab playthrough and scoped whitespace. Reviewed desktop/phone screens and interactions, including store purchase feedback, pending move choices and win/loss fixtures. Fixed phone reward-card collapse and hidden turn portraits found during review. A complete ten-column campaign was not manually played; the existing Phaser chunk-size warning remains.
 
 ### 2026-10-06 - Optimized ranked encounter derivation and startup validation
 

@@ -93,4 +93,18 @@ Route availability and visited-node membership are cached by route reference. In
 
 ### Route node art details
 
-The selector uses code-native isometric cube tokens in `RouteScreen.tsx`, shaped to the supplied route-map reference: broad, flat diamond tops, pale stone side faces, a thin dark lower shadow, dark outlines, warm inset bevels, and restrained pixel-grain detail. The tops use caramel gold for battles and stores, rose red for elite encounters, green for healing, and blue for recruitment; the start is navy. Smaller cream emblems sit centered on each tile. The sword, healing cross, cart, question mark, recruit group, and boss mark are replaceable inside `Glyph`. A future icon asset should fit roughly 75×75 SVG units around its center and keep high contrast against its token. Turquoise route links stay visible behind nodes; available nodes receive a cyan rim and amber pointer. Locked future nodes remain fully colored so the route is readable, while their click and keyboard activation stay disabled. The number and placement of choices still come from the saved route graph, so a generated four-choice column may be denser than the visual reference.
+The selector uses code-native isometric cube tokens in `RouteScreen.tsx`, shaped to the supplied route-map reference: broad, flat diamond tops, pale stone side faces, a thin dark lower shadow, dark outlines, warm inset bevels, and restrained pixel-grain detail. The tops use caramel gold for battles and stores, rose red for elite encounters, green for healing, and blue for recruitment; the start is navy. Turquoise route links stay visible behind nodes; available nodes receive a cyan rim and amber pointer. Locked future nodes remain fully colored so the route is readable, while their click and keyboard activation stay disabled. The number and placement of choices still come from the saved route graph, so a generated four-choice column may be denser than the visual reference.
+
+**Current icon treatment (2026-10-06):** The diamond faces carry dark, category-tinted marks that read as shallow carvings. `NodeEmblem` centers the artwork at `(0, -28)` and applies `scale(1.15 .78)` to broaden and gently foreshorten the upright silhouettes without diagonal rotation. The former cream fill and heavy outline are replaced by surface-related ink and a thin 1.1-unit outline. A tinted lower-edge silhouette sits 1.2 SVG units below the mark at 65% opacity to suggest light catching an incised edge. Symbol cutouts share `--tile-surface` with the inset so their color follows ordinary, visited-gray, hover, and keyboard-focus gold tiles. Visited marks use darker neutral ink to preserve readability. Decorative groups do not capture pointer input or repeat the node's accessible label.
+
+| Node | Emblem |
+| --- | --- |
+| Battle | Sword with a broad blade and guard |
+| Elite | Shield with an inset star |
+| Healing | Medical cross |
+| Store | Shopfront with a striped awning |
+| Special | Question mark with a separate dot |
+| Recruitment | Poké Ball with a plus |
+| Boss | Three-point crown |
+
+Replace symbols inside `Glyph`, authoring around `(0, 0)` within roughly 60×60 logical SVG units. Keep thick silhouettes and generous detail gaps so they remain readable when the route scales down on phones; retain the shared foreshortening and incised edge in `NodeEmblem`, checking wide corners against the diamond inset. Configure ink and edge-light colors with `--glyph-ink` and `--glyph-light` in `route.css`; keep cutout fills tied to the actual `--tile-surface`. The current-position pyramid replaces the emblem on its occupied node as before. See the [route-node preview](ROUTE_NODE_PREVIEW.jpg) for the carved treatment. This follow-up passed production build, desktop/390px review of all seven symbols and visited marks, and keyboard-focus contrast review. The original symbol pass also included campaign/Battle Lab smoke and keyboard-activation checks.

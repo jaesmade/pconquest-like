@@ -61,34 +61,71 @@ export const ABILITIES = {
 } as const satisfies Record<string, AbilityDefinition>;
 
 export type AbilityId = keyof typeof ABILITIES;
+export const ABILITY_IDS = Object.keys(ABILITIES) as AbilityId[];
 
 const definitions: Record<string, AbilityDefinition> = ABILITIES;
-export const abilityFor = (id: string): AbilityDefinition | undefined => definitions[id];
+export const abilityFor = (id: string): AbilityDefinition | undefined => Object.hasOwn(definitions, id) ? definitions[id] : undefined;
+type AbilitySubject = Pick<Unit, 'ability' | 'hiddenAbility'> | string;
+
+/** Given first, then unlocked hidden. A legacy string still denotes one passive. */
+export function activeAbilities(subject: AbilitySubject): AbilityId[] {
+  const ids = typeof subject === 'string' ? [subject] : [subject.ability, subject.hiddenAbility];
+  return [...new Set(ids.filter((id): id is AbilityId => !!id && !!abilityFor(id)))];
+}
+
+export function abilitySpeedEffects(unit: AbilitySubject, weather: Weather) {
+  return activeAbilities(unit).flatMap(ability => {
+    const bonus = abilityFor(ability)?.speed;
+    return bonus?.weather === weather ? [{ ability, multiplier: bonus.multiplier }] : [];
+  });
+}
 
 export function abilitySpeedMultiplier(unit: Unit, weather: Weather): number {
-  const bonus = abilityFor(unit.ability)?.speed;
-  return bonus && bonus.weather === weather ? bonus.multiplier : 1;
+  return abilitySpeedEffects(unit, weather).reduce((value, effect) => value * effect.multiplier, 1);
+}
+
+export function abilityDamageEffects(unit: Unit, move: Move) {
+  return activeAbilities(unit).flatMap(ability => {
+    const multiplier = (abilityFor(ability)?.damage ?? []).reduce((multiplier, bonus) => {
+      if (bonus.moveType && bonus.moveType !== move.type) return multiplier;
+      if (bonus.maxApCost !== undefined && move.apCost > bonus.maxApCost) return multiplier;
+      if (bonus.belowHpRatio !== undefined && unit.hp >= unit.maxHp * bonus.belowHpRatio) return multiplier;
+      if (bonus.requiresStatus && !unit.status[bonus.requiresStatus]) return multiplier;
+      if (bonus.requiredTag && !hasMoveTag(move, bonus.requiredTag)) return multiplier;
+      return multiplier * bonus.multiplier;
+    }, 1);
+    return multiplier !== 1 ? [{ ability, multiplier }] : [];
+  });
 }
 
 export function abilityDamageMultiplier(unit: Unit, move: Move): number {
-  return (abilityFor(unit.ability)?.damage ?? []).reduce((multiplier, bonus) => {
-    if (bonus.moveType && bonus.moveType !== move.type) return multiplier;
-    if (bonus.maxApCost !== undefined && move.apCost > bonus.maxApCost) return multiplier;
-    if (bonus.belowHpRatio !== undefined && unit.hp >= unit.maxHp * bonus.belowHpRatio) return multiplier;
-    if (bonus.requiresStatus && !unit.status[bonus.requiresStatus]) return multiplier;
-    if (bonus.requiredTag && !hasMoveTag(move, bonus.requiredTag)) return multiplier;
-    return multiplier * bonus.multiplier;
-  }, 1);
+  return abilityDamageEffects(unit, move).reduce((value, effect) => value * effect.multiplier, 1);
 }
 
-export function abilityAbsorption(id: string, moveType: string) {
-  const absorption = abilityFor(id)?.absorption;
-  return absorption?.moveType === moveType ? absorption : undefined;
+export function abilityAbsorption(subject: AbilitySubject, moveType: string) {
+  for (const ability of activeAbilities(subject)) {
+    const absorption = abilityFor(ability)?.absorption;
+    if (absorption?.moveType === moveType) return { ...absorption, ability };
+  }
+  return undefined;
 }
 
-export function abilityHitChance(id: string, weather: Weather): number {
-  const evasion = abilityFor(id)?.evasion;
-  return evasion?.weather === weather ? evasion.hitChance : 1;
+export function abilityEvasionEffects(subject: AbilitySubject, weather: Weather) {
+  return activeAbilities(subject).flatMap(ability => {
+    const evasion = abilityFor(ability)?.evasion;
+    return evasion?.weather === weather ? [{ ability, hitChance: evasion.hitChance }] : [];
+  });
+}
+
+export function abilityHitChance(subject: AbilitySubject, weather: Weather): number {
+  return abilityEvasionEffects(subject, weather).reduce((value, effect) => value * effect.hitChance, 1);
+}
+
+export function abilityContactReactions(subject: AbilitySubject) {
+  return activeAbilities(subject).flatMap(ability => {
+    const reaction = abilityFor(ability)?.contactReaction;
+    return reaction ? [{ ...reaction, ability }] : [];
+  });
 }
 
 export const abilityContactReaction = (id: string) => abilityFor(id)?.contactReaction;

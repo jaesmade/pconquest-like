@@ -9,9 +9,9 @@ import LoadingScreen from '../ui/LoadingScreen';
 import useDialogFocus from '../ui/useDialogFocus';
 import TitleScreen from '../ui/TitleScreen';
 import type { TitleView } from '../ui/TitleScreen';
-import { itemCanEquip, itemFor, MOVES } from '../content/data';
+import { activeAbilities, itemCanEquip, itemFor, MOVES } from '../content/data';
 import { MAX_RUN_POKEMON } from '../content/roster';
-import { active, advanceRoute, buyShopItem, cancelPreparation, commitEnemyAction, completeBattle, createLabBattle, evolve, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveLevelMove, resolveSpecial, selectRouteNode, startBattle, teachTm, useEvolutionItem, useMove, useSpecial, unitAt } from '../game/engine';
+import { active, advanceRoute, buyShopItem, cancelPreparation, chooseCapsuleAbility, commitEnemyAction, completeBattle, createLabBattle, evolve, finishTurn, moveUnit, newRun, nextEncounter, passTurn, resolveLevelMove, resolveSpecial, selectRouteNode, startAbilityCapsule, startBattle, teachTm, useAbilityPatch, useEvolutionItem, useMove, useSpecial, unitAt } from '../game/engine';
 import { ROUTE_COLUMNS } from '../game/route';
 import { EnemyPlanner } from '../game/enemyPlanner';
 import { cloneBattleForCommand } from '../game/clone';
@@ -41,6 +41,9 @@ export default function App({ initialRun }: { initialRun: Run }) {
   const [animating, setAnimating] = useState(false);
   const [boardReady, setBoardReady] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [savedAbilityOffer, setSavedAbilityOffer] = useState(initialRun.pendingAbilityChange);
+  const [failedAbilityOffer, setFailedAbilityOffer] = useState<Run['pendingAbilityChange']>();
+  const [abilityOfferSaveAttempt, setAbilityOfferSaveAttempt] = useState(0);
   const [soundMuted, setSoundMuted] = useState(gameAudio.isMuted());
   const enemyPlanner = useRef<EnemyPlanner>(new EnemyPlanner());
   const actionPending = useRef(false);
@@ -54,6 +57,9 @@ export default function App({ initialRun }: { initialRun: Run }) {
   }, []);
   useDialogFocus(confirmNewRun, newRunDialog, dismissNewRun);
   latestRun.current = run;
+  const abilityOfferStatus = run.pendingAbilityChange && savedAbilityOffer !== run.pendingAbilityChange
+    ? failedAbilityOffer === run.pendingAbilityChange ? 'failed' : 'saving'
+    : undefined;
   useEffect(() => {
     const unlock = (event: Event) => {
       if (event.target instanceof Element && event.target.closest('[data-audio-toggle]')) return;
@@ -80,11 +86,21 @@ export default function App({ initialRun }: { initialRun: Run }) {
     gameAudio.setMusic(screen === 'lab' ? 'battle' : screen !== 'game' ? 'menu' : run.phase === 'battle' ? 'battle' : run.phase === 'starter' || run.phase === 'result' ? 'menu' : 'route');
   }, [run.phase, screen]);
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void saveRun(run).then(ok => { if (latestRun.current === run) setSaveFailed(!ok); });
-    }, run.phase === 'battle' ? 700 : 150);
+    const offer = run.pendingAbilityChange;
+    const persist = () => {
+      void saveRun(run).then(ok => {
+        if (latestRun.current === run) setSaveFailed(!ok);
+        if (offer && latestRun.current.pendingAbilityChange === offer) {
+          if (ok) { setSavedAbilityOffer(offer); setFailedAbilityOffer(undefined); }
+          else if (savedAbilityOffer !== offer) setFailedAbilityOffer(offer);
+        }
+      });
+    };
+    // Reserve the offer and its RNG before revealing any random choices.
+    if (offer && savedAbilityOffer !== offer) { persist(); return; }
+    const timer = window.setTimeout(persist, run.phase === 'battle' ? 700 : 150);
     return () => window.clearTimeout(timer);
-  }, [run]);
+  }, [run, savedAbilityOffer, abilityOfferSaveAttempt]);
   useEffect(() => {
     const flush = () => { if (document.visibilityState === 'hidden') void saveRun(latestRun.current); };
     const pagehide = () => { void saveRun(latestRun.current); };
@@ -175,7 +191,7 @@ export default function App({ initialRun }: { initialRun: Run }) {
     if (!battle || battle.result || animating || paused || (current?.side !== 'player' && screen !== 'lab')) return;
     if (mode === 'move') { setTarget([x, y]); moveTo(x, y); }
     else if (mode === 'attack') { setTarget([x, y]); attackAt(x, y); }
-    else { const unit = unitAt(battle, x, y); if (unit) setNotice(`${unit.name} · ${unit.types.join('/')} · ${unit.hp}/${unit.maxHp} HP · ${unit.ability}`); else { const tile = battle.map.tiles[y][x]; setNotice(`${tile.object ?? tile.kind} · elevation ${tile.height}${tile.slope ? ` · ${tile.slope} slope` : ''}`); } }
+    else { const unit = unitAt(battle, x, y); if (unit) setNotice(`${unit.name} · ${unit.types.join('/')} · ${unit.hp}/${unit.maxHp} HP · ${activeAbilities(unit).join(' + ')}`); else { const tile = battle.map.tiles[y][x]; setNotice(`${tile.object ?? tile.kind} · elevation ${tile.height}${tile.slope ? ` · ${tile.slope} slope` : ''}`); } }
   };
   const special = () => {
     const success = battleAction(next => { const error = useSpecial(next); if (!error) finishTurn(next); return error; });
@@ -194,7 +210,7 @@ export default function App({ initialRun }: { initialRun: Run }) {
     else if (next.selected.length < 6) next.selected.push(id);
   });
   const equipItem = (monId: string, item: string) => patch(next => {
-    if (next.phase !== 'route') return;
+    if (next.phase !== 'route' || next.pendingAbilityChange) return;
     const mon = next.party.find(p => p.id === monId);
     if (!mon) return;
     if (!itemFor(item) || !itemCanEquip(item, mon.species)) return;
@@ -207,12 +223,26 @@ export default function App({ initialRun }: { initialRun: Run }) {
   });
 
   const chooseItem = (monId: string, item: string) => {
-    if (run.phase !== 'route') return;
+    if (run.phase !== 'route' || run.pendingAbilityChange) return;
     const mon = run.party.find(candidate => candidate.id === monId);
     if (!mon || item === mon.item || !itemFor(item) || !itemCanEquip(item, mon.species)) return;
     if (item !== 'None' && !run.bag.includes(item as ItemId)) return;
     equipItem(monId, item);
     if (item !== 'None') gameAudio.playItem(item);
+  };
+  const retryAbilityOffer = () => {
+    setFailedAbilityOffer(undefined);
+    setAbilityOfferSaveAttempt(attempt => attempt + 1);
+  };
+  const cancelUnsavedAbilityOffer = () => {
+    const offer = run.pendingAbilityChange;
+    if (!offer || failedAbilityOffer !== offer || savedAbilityOffer === offer) return;
+    setRun(previous => {
+      if (previous.pendingAbilityChange !== offer) return previous;
+      const next = { ...previous };
+      delete next.pendingAbilityChange;
+      return next;
+    });
   };
   const startLab = () => {
     setLabBattle(createLabBattle(labConfig));
@@ -226,10 +256,14 @@ export default function App({ initialRun }: { initialRun: Run }) {
     {confirmNewRun && <div ref={newRunDialog} className="pause-backdrop" role="dialog" aria-modal="true" aria-labelledby="new-run-heading" aria-describedby="new-run-description"><section className="pause-panel new-run-dialog"><h2 id="new-run-heading">Start fresh?</h2><p id="new-run-description">This replaces your current saved run: column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} of {ROUTE_COLUMNS}, {run.party.length} Pokémon, and {run.coins} coins.</p><button autoFocus onClick={dismissNewRun}>Keep current run</button><button className="primary" onClick={beginNewRun}>Start new run</button></section></div>}
     {screen === 'game' && saveFailed && <aside className="save-warning" role="alert">Progress could not be saved. Keep this tab open to continue your run.</aside>}
     {screen === 'game' && run.phase !== 'battle' && run.phase !== 'starter' && run.phase !== 'route' && run.phase !== 'prepare' && run.phase !== 'intermission' && <header className="topbar"><div><span className="eyebrow">TACTICAL ROGUELIKE · EARLY BUILD</span><h1>Pokémon Tactics</h1></div><div className="top-status">{saveFailed && <span role="alert">Progress could not be saved in this browser. </span>}<button className="reset-run" onClick={() => setScreen('title')}>Title</button> · Column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} / {ROUTE_COLUMNS} · {run.coins} coins · Pokémon {run.party.length} / {MAX_RUN_POKEMON}</div></header>}
-    {screen === 'game' && (run.phase === 'prepare' || run.phase === 'intermission') && <div className="route-scene-backdrop" aria-hidden="true"><RouteScreen backdropOnly run={run} onChoose={noRouteAction} onBack={noRouteAction} onEquipItem={noRouteAction} onEvolve={noRouteAction} onTeachTm={noRouteAction} onUseEvolutionItem={noRouteAction} /></div>}
+    {screen === 'game' && (run.phase === 'prepare' || run.phase === 'intermission') && <div className="route-scene-backdrop" aria-hidden="true"><RouteScreen backdropOnly run={run} onChoose={noRouteAction} onBack={noRouteAction} onEquipItem={noRouteAction} onEvolve={noRouteAction} onTeachTm={noRouteAction} onUseEvolutionItem={noRouteAction} onStartAbilityCapsule={noRouteAction} onChooseCapsuleAbility={noRouteAction} onUseAbilityPatch={noRouteAction} /></div>}
     {screen === 'game' && <>
     {run.phase === 'starter' && <PartyBuilder selection={starterDraft} onSelectionChange={setStarterDraft} onStart={selection => setRun(newRun(selection, run.unlocks))} onBack={() => setScreen('title')} />}
-    {run.phase === 'route' && <RouteScreen run={run} onChoose={id => setRun(previous => selectRouteNode(previous, id))} onBack={() => setScreen('title')} onEquipItem={chooseItem} onEvolve={id => setRun(previous => evolve(previous, id))} onTeachTm={(item, monId, slot) => { setRun(previous => teachTm(previous, item, monId, slot)); gameAudio.playItem(item); }} onUseEvolutionItem={(item, monId) => { setRun(previous => useEvolutionItem(previous, item, monId)); gameAudio.playItem(item); }} />}
+    {run.phase === 'route' && <RouteScreen run={run} abilityOfferStatus={abilityOfferStatus} onRetryAbilityOffer={retryAbilityOffer} onCancelUnsavedAbilityOffer={cancelUnsavedAbilityOffer} onChoose={id => setRun(previous => selectRouteNode(previous, id))} onBack={() => setScreen('title')} onEquipItem={chooseItem} onEvolve={id => setRun(previous => evolve(previous, id))} onTeachTm={(item, monId, slot) => { setRun(previous => teachTm(previous, item, monId, slot)); gameAudio.playItem(item); }} onUseEvolutionItem={(item, monId) => { setRun(previous => useEvolutionItem(previous, item, monId)); gameAudio.playItem(item); }} onStartAbilityCapsule={(monId, slot) => setRun(previous => startAbilityCapsule(previous, monId, slot))} onChooseCapsuleAbility={ability => {
+      if (!run.pendingAbilityChange || savedAbilityOffer !== run.pendingAbilityChange) return;
+      setRun(previous => previous.pendingAbilityChange === savedAbilityOffer ? chooseCapsuleAbility(previous, ability) : previous);
+      gameAudio.playItem('Ability Capsule');
+    }} onUseAbilityPatch={monId => { setRun(previous => useAbilityPatch(previous, monId)); gameAudio.playItem('Ability Patch'); }} />}
     {(run.phase === 'shop' || run.phase === 'event') && <RouteStopScreen run={run} onBuy={item => { setRun(previous => buyShopItem(previous, item)); gameAudio.playItem(item); }} onContinue={() => setRun(previous => advanceRoute(previous))} onRecruit={(species, replaceId) => setRun(previous => resolveSpecial(previous, { kind: 'recruit', species, replaceId }))} onClaim={() => setRun(previous => resolveSpecial(previous, { kind: 'claim' }))} />}
     {run.phase === 'prepare' && <PrepareScreen run={run} onToggle={toggleDeploy} onDeploymentChange={deployment => patch(next => { next.deployment = deployment; })} onStart={start} onBack={() => setRun(previous => cancelPreparation(previous))} />}
     {run.phase === 'battle' && battle && <Suspense fallback={<LoadingScreen label="Loading battle" detail="Preparing the battlefield…" />}><div inert={paused ? true : undefined}><BattleScreen run={run} battle={battle} mode={mode} chosenMove={chosenMove} target={target} notice={notice} paused={paused} onTile={selectTile} onHoverTile={previewTile} onAnimationState={playing => { setAnimating(playing); setBoardReady(true); }} onMode={nextMode => { setMode(nextMode); setTarget(undefined); setNotice(''); setChosenMove(''); }} onChooseMove={id => { setChosenMove(id); setTarget(MOVES[id].target === 'self' && current ? [current.x, current.y] : undefined); }} onSpecial={special} onPass={() => { if (battleAction(next => { passTurn(next); return undefined; })) resetSelection(); }} onComplete={() => { setRun(completeBattle(run)); resetSelection(); }} onPause={() => setPaused(true)} /></div></Suspense>}

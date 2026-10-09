@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { unitSet } from '../battle/unitAnimations';
-import { itemCanEquip, itemEvolutionFor, itemFor, ITEMS, MOVES, SPECIES, tmMoveFor } from '../content/data';
+import { abilityFor, abilityItemFor, itemCanEquip, itemEvolutionFor, itemFor, ITEMS, MOVES, SPECIES, tmMoveFor } from '../content/data';
+import type { AbilityId } from '../content/abilities';
 import type { ItemId } from '../content/items';
 import { MAX_RUN_POKEMON } from '../content/roster';
 import { statsAtLevel } from '../game/engine';
@@ -100,13 +101,48 @@ function EvolutionScene({ scene, onClose, onSkip }: { scene: EvolutionSceneState
 }
 
 function Glyph({ kind }: { kind: RouteNodeKind }) {
-  if (kind === 'heal') return <path d="M-9-29h18v20h20V9H9v20H-9V9h-20V-9h20z" />;
-  if (kind === 'special') return <path d="M-18-29h36v6h6v23h-6v6H6v11H-6V-6H6v-6h6v-12h-24v12h-12v-11h6ZM-6 23H6v12H-6Z" />;
-  if (kind === 'recruit') return <g><path d="M-30-19h16v16h-16ZM-9-30H9v18H-9ZM14-19h16v16H14ZM-34 3h24v21h-24ZM-13-4h26v31h-26ZM10 3h24v21H10Z" /></g>;
-  if (kind === 'store') return <g fill="none" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="square"><path d="M-30-23h9l7 34h34l7-25h-42M-9-3h31M-14 12h38M-10 20h8v8h-8ZM14 20h8v8h-8Z" /></g>;
-  if (kind === 'boss') return <g><path d="M0-30l23 7 10 16-7 23-11 2-4 12-11-9-11 9-4-12-11-2-7-23 10-16z" /><path className="route-glyph-cutout" d="M-20-1l14 4-8 9zM20-1L6 3l8 9z" /></g>;
-  if (kind === 'elite') return <g className="route-elite-spark"><path d="M0-37 8-10 36 0 8 9 0 35-8 9-36 0-8-10Z" /><path d="M-29-25v13m-6-6h13M29 17v13m-6-6h13" /><path className="route-spark-shine" d="M0-23 4-6 21 0 4 5 0 22-4 5-21 0-4-6Z" /></g>;
-  return <g className="route-sword"><path d="M-38-5h9v-5h6v5h8v-8h6v8h27L37 0 18 5H-9v8h-6V5h-8v5h-6V5h-9z" /><path className="route-sword-line" d="M-11 0h37" /><path className="route-sword-glint" d="M-30-1h7m8-5h6" /></g>;
+  if (kind === 'heal') return <path d="M-8-24H8V-8H24V8H8V24H-8V8H-24V-8H-8Z" />;
+  if (kind === 'special') return <g>
+    <path d="M-18-17-10-25H10L18-17V-4L5 7V13H-5V1L8-10V-15H-8V-8H-18Z" />
+    <path d="M-5 20H5V29H-5Z" />
+  </g>;
+  if (kind === 'recruit') return <g>
+    <circle cx="-5" cy="3" r="18" />
+    <path className="route-glyph-line" d="M-23 3H13" />
+    <circle className="route-glyph-detail" cx="-5" cy="3" r="6" />
+    <circle cx="-5" cy="3" r="2.5" />
+    <path d="M14-24H22V-16H30V-8H22V0H14V-8H6V-16H14Z" />
+  </g>;
+  if (kind === 'store') return <g>
+    <path d="M-18-7H18V22H-18Z" />
+    <path d="M-24-7-18-23H18L24-7V-1L16 3 8-1 0 3-8-1-16 3-24-1Z" />
+    <path className="route-glyph-line" d="M-8-20V-6M8-20V-6" />
+    <path className="route-glyph-detail" d="M-4 8H6V22H-4ZM-13 7H-8V13H-13Z" />
+  </g>;
+  if (kind === 'boss') return <g>
+    <path d="M-25-17-13-6 0-24 13-6 25-17 20 21H-20Z" />
+    <path className="route-glyph-line" d="M-20 13H20" />
+    <path className="route-glyph-detail" d="M0-5 5 1 0 7-5 1Z" />
+  </g>;
+  if (kind === 'elite') return <g>
+    <path d="M0-25 22-17V3L15 16 0 25-15 16-22 3V-17Z" />
+    <path className="route-glyph-detail" d="M0-14 4-5 14-4 7 3 9 13 0 8-9 13-7 3-14-4-4-5Z" />
+  </g>;
+  return <g>
+    <path d="M0-26 8-18V7H17V14H5V25H-5V14H-17V7H-8V-18Z" />
+    <path className="route-glyph-line" d="M0-16V5" />
+  </g>;
+}
+
+// Foreshorten upright marks so they sit within the diamond's surface.
+const GLYPH_SCALE = 'scale(1.15 .78)';
+function NodeEmblem({ kind }: { kind: RouteNodeKind }) {
+  return <g className="route-glyph" transform="translate(0 -28)" aria-hidden="true">
+    <g className="route-glyph-etch-light" transform="translate(0 1.2)">
+      <g transform={GLYPH_SCALE}><Glyph kind={kind} /></g>
+    </g>
+    <g className="route-glyph-face" transform={GLYPH_SCALE}><Glyph kind={kind} /></g>
+  </g>;
 }
 
 function TileLayers() {
@@ -168,20 +204,29 @@ const itemIcon = (item: string) => `/assets/ui/icons/item-${item.toLowerCase().r
 
 type TmFlowState = { item: ItemId; step: 'party' | 'moves'; monId?: string };
 type EvolutionItemFlowState = { item: ItemId };
-function BagItemCard({ item, count, party, onStartTm, onStartEvolutionItem }: { item: ItemId; count: number; party: PartyMon[]; onStartTm: (item: ItemId, trigger: HTMLButtonElement) => void; onStartEvolutionItem: (item: ItemId, trigger: HTMLButtonElement) => void }) {
+type AbilityFlowState = { item: ItemId; step: 'party' | 'slots' | 'choices' | 'confirm'; monId?: string };
+type AbilityOfferStatus = 'saving' | 'failed';
+function BagItemCard({ item, count, party, hasPendingAbilityChange, onStartTm, onStartEvolutionItem, onStartAbilityItem }: { item: ItemId; count: number; party: PartyMon[]; hasPendingAbilityChange: boolean; onStartTm: (item: ItemId, trigger: HTMLButtonElement) => void; onStartEvolutionItem: (item: ItemId, trigger: HTMLButtonElement) => void; onStartAbilityItem: (item: ItemId, trigger: HTMLButtonElement) => void }) {
   const moveId = tmMoveFor(item);
   const eligible = moveId ? party.filter(mon => SPECIES[mon.species].tmMoves?.includes(moveId) && !mon.equipped.includes(moveId)) : [];
   const evolution = itemEvolutionFor(item);
   const evolutionEligible = evolution ? party.filter(mon => mon.species === evolution.from) : [];
+  const abilityItem = abilityItemFor(item);
+  const abilityEligible = abilityItem === 'patch' ? party.some(mon => !mon.hiddenAbilityUnlocked) : party.length > 0;
   return <article className="route-inventory-item" key={item}>
     <img src={itemIcon(item)} alt="" /><div><strong>{item}</strong><p>{itemFor(item)?.description}</p></div><span aria-label={`${count} available`}>×{count}</span>
     {moveId && <div className="route-tm-teach">
-      <button type="button" disabled={!eligible.length} onClick={event => onStartTm(item, event.currentTarget)}>Use TM</button>
+      <button type="button" disabled={!eligible.length || hasPendingAbilityChange} onClick={event => onStartTm(item, event.currentTarget)}>Use TM</button>
       {!eligible.length && <small>No compatible Pokémon needs this move.</small>}
     </div>}
     {evolution && <div className="route-tm-teach">
-      <button type="button" disabled={!evolutionEligible.length} onClick={event => onStartEvolutionItem(item, event.currentTarget)}>Use item</button>
+      <button type="button" disabled={!evolutionEligible.length || hasPendingAbilityChange} onClick={event => onStartEvolutionItem(item, event.currentTarget)}>Use item</button>
       {!evolutionEligible.length && <small>No compatible Pokémon.</small>}
+    </div>}
+    {abilityItem && <div className="route-tm-teach">
+      <button type="button" disabled={!abilityEligible || (abilityItem === 'patch' && hasPendingAbilityChange)} onClick={event => onStartAbilityItem(item, event.currentTarget)}>{abilityItem === 'capsule' && hasPendingAbilityChange ? 'Resume choices' : `Use ${abilityItem === 'capsule' ? 'Capsule' : 'Patch'}`}</button>
+      {!abilityEligible && <small>{abilityItem === 'patch' ? 'Every hidden ability is already unlocked.' : 'No Pokémon in your party.'}</small>}
+      {abilityItem === 'patch' && hasPendingAbilityChange && <small>Finish the pending Capsule choice first.</small>}
     </div>}
   </article>;
 }
@@ -281,6 +326,68 @@ function EvolutionItemDialog({ item, evolution, eligible, onChooseParty, onClose
   </div>;
 }
 
+function AbilityItemDialog({ flow, party, recipient, pending, abilityOfferStatus, onRetryAbilityOffer, onCancelUnsavedAbilityOffer, onChooseParty, onChooseSlot, onChooseAbility, onUnlock, onBack, onClose }: {
+  flow: AbilityFlowState;
+  party: PartyMon[];
+  recipient?: PartyMon;
+  pending: Run['pendingAbilityChange'];
+  abilityOfferStatus?: AbilityOfferStatus;
+  onRetryAbilityOffer?: () => void;
+  onCancelUnsavedAbilityOffer?: () => void;
+  onChooseParty: (monId: string) => void;
+  onChooseSlot: (slot: 'given' | 'hidden') => void;
+  onChooseAbility: (ability: AbilityId) => void;
+  onUnlock: () => void;
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  const isCapsule = abilityItemFor(flow.item) === 'capsule';
+  const eligible = isCapsule ? party : party.filter(mon => !mon.hiddenAbilityUnlocked);
+  const monName = recipient ? SPECIES[recipient.species].name : 'This Pokémon';
+  const slotName = pending?.slot === 'hidden' ? 'hidden ability' : 'given ability';
+  return <div className="tm-flow-overlay" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section key={`${flow.item}-${flow.step}-${flow.monId ?? ''}`} className="tm-flow-dialog ability-flow-dialog" role="dialog" aria-modal="true" aria-labelledby="ability-flow-title" aria-describedby="ability-flow-description" onKeyDown={containDialogFocus}>
+      <header className="tm-flow-heading">
+        <div><small>{flow.step === 'party' ? 'CHOOSE A POKÉMON' : flow.step === 'slots' ? 'CHOOSE AN ABILITY SLOT' : flow.step === 'choices' ? abilityOfferStatus === 'saving' ? 'SAVING ABILITY CHOICES' : abilityOfferStatus === 'failed' ? 'SAVE REQUIRED' : 'CHOOSE ONE OF THREE ABILITIES' : 'UNLOCK HIDDEN ABILITY'}</small><h2 id="ability-flow-title">{flow.item}</h2></div>
+        <button type="button" className="tm-flow-close" aria-label={`Close ${flow.item} use`} onClick={onClose}><PixelIcon name="close" /></button>
+      </header>
+      <p id="ability-flow-description" className="tm-flow-description">{flow.step === 'party'
+        ? isCapsule ? 'Choose a Pokémon, then choose the ability slot you want to change.' : 'Choose a Pokémon whose hidden ability is locked.'
+        : flow.step === 'slots' ? `Choose which of ${monName}’s abilities to replace. Selecting a slot saves three random choices.`
+          : flow.step === 'choices' ? abilityOfferStatus
+            ? `${monName}’s ${slotName} will change after the choices are saved and you select a replacement.`
+            : `Choose ${monName}’s new ${slotName}. These choices stay saved until you finish, including after a reload.`
+            : `${monName} will gain a second active ability. Both abilities will work together in battle.`}</p>
+      {flow.step === 'party' && <div className="tm-party-choices">{eligible.map((mon, index) => <button key={mon.id} type="button" className="tm-party-choice" autoFocus={mon.id === flow.monId || (!flow.monId && index === 0)} onClick={() => onChooseParty(mon.id)}>
+        <span className="tm-party-choice-portrait"><SpeciesPortrait id={mon.species} /></span>
+        <span className="tm-party-choice-details"><strong>{SPECIES[mon.species].name}</strong><small>Lv {mon.level} · Given: {mon.givenAbility}</small><small>Hidden: {mon.hiddenAbility} · {mon.hiddenAbilityUnlocked ? 'Active' : 'Locked'}</small></span>
+        <span className="tm-party-choice-count">{isCapsule ? 'CHANGE' : 'UNLOCK'}</span>
+      </button>)}</div>}
+      {recipient && flow.step !== 'party' && <div className="tm-selected-recipient"><span className="tm-party-choice-portrait"><SpeciesPortrait id={recipient.species} /></span><span><strong>{monName}</strong><small>Lv {recipient.level} · {recipient.hiddenAbilityUnlocked ? 'Two active abilities' : 'One active ability'}</small></span></div>}
+      {flow.step === 'slots' && recipient && <div className="ability-slot-choices">
+        <button type="button" className="ability-choice" autoFocus onClick={() => onChooseSlot('given')}><small>GIVEN ABILITY · ACTIVE</small><strong>{recipient.givenAbility}</strong><span>{abilityFor(recipient.givenAbility)?.description}</span></button>
+        {recipient.hiddenAbilityUnlocked
+          ? <button type="button" className="ability-choice" onClick={() => onChooseSlot('hidden')}><small>HIDDEN ABILITY · ACTIVE</small><strong>{recipient.hiddenAbility}</strong><span>{abilityFor(recipient.hiddenAbility)?.description}</span></button>
+          : <p className="ability-locked-slot">Hidden ability: <strong>{recipient.hiddenAbility}</strong> · Locked. Use an Ability Patch to unlock this slot first.</p>}
+      </div>}
+      {flow.step === 'choices' && pending && recipient && <>
+        <p className="ability-current-slot">Replacing {slotName}: <strong>{pending.slot === 'given' ? recipient.givenAbility : recipient.hiddenAbility}</strong></p>
+        {abilityOfferStatus === 'saving'
+          ? <div className="ability-offer-save-status" role="status" aria-busy="true"><strong>Saving ability choices…</strong><p>The three choices will appear when saving finishes.</p></div>
+          : abilityOfferStatus === 'failed'
+            ? <div className="ability-offer-save-status ability-offer-save-failed" role="alert"><strong>Ability choices could not be saved.</strong><p>Retry saving to view the choices. Your Pokémon and Capsule have not changed.</p><div className="ability-offer-save-actions"><button type="button" autoFocus disabled={!onRetryAbilityOffer} onClick={onRetryAbilityOffer}>Retry saving</button>{onCancelUnsavedAbilityOffer && <button type="button" className="ability-offer-cancel" onClick={onCancelUnsavedAbilityOffer}>Cancel use</button>}</div></div>
+            : <div className="ability-slot-choices ability-random-choices">{pending.choices.map((ability, index) => <button key={ability} type="button" className="ability-choice" autoFocus={index === 0} onClick={() => onChooseAbility(ability)}><small>CHOICE {index + 1}</small><strong>{ability}</strong><span>{abilityFor(ability)?.description}</span><b>Choose ability</b></button>)}</div>}
+      </>}
+      {flow.step === 'confirm' && recipient && <div className="ability-unlock-preview"><small>HIDDEN ABILITY · WILL BECOME ACTIVE</small><strong>{recipient.hiddenAbility}</strong><p>{abilityFor(recipient.hiddenAbility)?.description}</p><span>Given ability: {recipient.givenAbility}</span><button type="button" className="ability-unlock-button" autoFocus onClick={onUnlock}>Unlock hidden ability</button></div>}
+      <div className="tm-flow-actions">
+        {(flow.step === 'slots' || flow.step === 'confirm') && <button type="button" className="tm-flow-back" onClick={onBack}><PixelIcon name="arrow-left" /> Choose another Pokémon</button>}
+        {(flow.step === 'party' || flow.step === 'choices') && <button type="button" className="tm-flow-cancel" autoFocus={flow.step === 'choices' && abilityOfferStatus === 'saving'} onClick={onClose}>{flow.step === 'choices' ? 'Choose later' : 'Cancel'}</button>}
+        <small>{flow.step === 'choices' ? 'Finish this choice before continuing the route. One Capsule is consumed after choosing.' : isCapsule ? 'One Capsule is consumed after choosing a replacement.' : 'One Patch is consumed after confirming the unlock.'}</small>
+      </div>
+    </section>
+  </div>;
+}
+
 type Props = {
   run: Run;
   onChoose: (id: string) => void;
@@ -289,10 +396,16 @@ type Props = {
   onEvolve: (id: string) => void;
   onTeachTm: (item: ItemId, monId: string, replaceSlot?: number) => void;
   onUseEvolutionItem: (item: ItemId, monId: string) => void;
+  onStartAbilityCapsule: (monId: string, slot: 'given' | 'hidden') => void;
+  onChooseCapsuleAbility: (ability: AbilityId) => void;
+  onUseAbilityPatch: (monId: string) => void;
+  abilityOfferStatus?: AbilityOfferStatus;
+  onRetryAbilityOffer?: () => void;
+  onCancelUnsavedAbilityOffer?: () => void;
   backdropOnly?: boolean;
 };
 
-export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvolve, onTeachTm, onUseEvolutionItem, backdropOnly = false }: Props) {
+export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvolve, onTeachTm, onUseEvolutionItem, onStartAbilityCapsule, onChooseCapsuleAbility, onUseAbilityPatch, abilityOfferStatus, onRetryAbilityOffer, onCancelUnsavedAbilityOffer, backdropOnly = false }: Props) {
   const scroll = useRef<HTMLDivElement>(null);
   const partyButton = useRef<HTMLButtonElement>(null);
   const inventoryButton = useRef<HTMLButtonElement>(null);
@@ -301,12 +414,14 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
   const evolutionCardTargets = useRef(new Map<string, HTMLElement>());
   const tmTriggerTargets = useRef(new Map<ItemId, HTMLButtonElement>());
   const evolutionItemTriggerTargets = useRef(new Map<ItemId, HTMLButtonElement>());
+  const abilityItemTriggerTargets = useRef(new Map<ItemId, HTMLButtonElement>());
   const drag = useRef<DragGesture | null>(null);
   const suppressClickUntil = useRef(0);
-  const [openPanel, setOpenPanel] = useState<'party' | 'inventory' | 'artifacts' | null>(null);
+  const [openPanel, setOpenPanel] = useState<'party' | 'inventory' | 'artifacts' | null>(run.pendingAbilityChange && !backdropOnly ? 'inventory' : null);
   const [evolutionScene, setEvolutionScene] = useState<EvolutionSceneState | null>(null);
   const [tmFlow, setTmFlow] = useState<TmFlowState | null>(null);
   const [evolutionItemFlow, setEvolutionItemFlow] = useState<EvolutionItemFlowState | null>(null);
+  const [abilityFlow, setAbilityFlow] = useState<AbilityFlowState | null>(run.pendingAbilityChange && !backdropOnly ? { item: 'Ability Capsule', step: 'choices', monId: run.pendingAbilityChange.monId } : null);
   const [inspectedNodeId, setInspectedNodeId] = useState<string>();
   const availableNodes = useMemo(() => availableRouteNodes(run.route), [run.route]);
   const available = useMemo(() => new Set(availableNodes.map(node => node.id)), [availableNodes]);
@@ -322,19 +437,21 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     for (const item of run.bag) counts.set(item, (counts.get(item) ?? 0) + 1);
     return counts;
   }, [run.bag]);
-  const { bagItems, tmBagItems, evolutionBagItems, heldBagItems } = useMemo(() => {
+  const { bagItems, tmBagItems, evolutionBagItems, abilityBagItems, heldBagItems } = useMemo(() => {
     const bagItems = ITEMS.filter(item => item !== 'None' && bagCounts.has(item)).map(item => ({ item, count: bagCounts.get(item)! }));
     return {
       bagItems,
       tmBagItems: bagItems.filter(({ item }) => !!tmMoveFor(item)),
       evolutionBagItems: bagItems.filter(({ item }) => !!itemEvolutionFor(item)),
-      heldBagItems: bagItems.filter(({ item }) => !tmMoveFor(item) && !itemEvolutionFor(item)),
+      abilityBagItems: bagItems.filter(({ item }) => !!abilityItemFor(item)),
+      heldBagItems: bagItems.filter(({ item }) => !tmMoveFor(item) && !itemEvolutionFor(item) && !abilityItemFor(item)),
     };
   }, [bagCounts]);
   const equippedItems = run.party.filter(mon => mon.item !== 'None');
   const tmFlowMove = tmFlow ? tmMoveFor(tmFlow.item) : undefined;
   const tmFlowEligible = tmFlowMove ? run.party.filter(mon => SPECIES[mon.species].tmMoves?.includes(tmFlowMove) && !mon.equipped.includes(tmFlowMove)) : [];
   const tmFlowRecipient = tmFlow?.monId ? run.party.find(mon => mon.id === tmFlow.monId) : undefined;
+  const abilityFlowRecipient = run.party.find(mon => mon.id === (abilityFlow?.step === 'choices' ? run.pendingAbilityChange?.monId : abilityFlow?.monId));
   const pan = (direction: -1 | 1) => scroll.current?.scrollBy({ top: direction * Math.max(300, scroll.current.clientHeight * .72), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   const closePanel = () => {
     const returnFocus = openPanel === 'party' ? partyButton : openPanel === 'artifacts' ? artifactButton : inventoryButton;
@@ -390,6 +507,49 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     setOpenPanel('party');
     setEvolutionScene({ monId: mon.id, fromSpecies: mon.species, intoSpecies: evolution.into, stage: 'charging' });
   };
+  const resumeAbilityChoice = () => {
+    if (!run.pendingAbilityChange) return;
+    setOpenPanel('inventory');
+    setAbilityFlow({ item: 'Ability Capsule', step: 'choices', monId: run.pendingAbilityChange.monId });
+  };
+  const startAbilityFlow = (item: ItemId, trigger: HTMLButtonElement) => {
+    abilityItemTriggerTargets.current.set(item, trigger);
+    if (run.pendingAbilityChange) { resumeAbilityChoice(); return; }
+    setAbilityFlow({ item, step: 'party' });
+  };
+  const closeAbilityFlow = () => {
+    const item = abilityFlow?.item;
+    setAbilityFlow(null);
+    requestAnimationFrame(() => {
+      const trigger = item ? abilityItemTriggerTargets.current.get(item) : undefined;
+      if (trigger?.isConnected) trigger.focus();
+      else inventoryModalCloseButton.current?.focus();
+    });
+  };
+  const chooseAbilityRecipient = (monId: string) => setAbilityFlow(current => current ? { ...current, monId, step: abilityItemFor(current.item) === 'capsule' ? 'slots' : 'confirm' } : current);
+  const chooseAbilitySlot = (slot: 'given' | 'hidden') => {
+    if (!abilityFlowRecipient) return;
+    onStartAbilityCapsule(abilityFlowRecipient.id, slot);
+  };
+  const chooseAbility = (ability: AbilityId) => {
+    if (abilityOfferStatus || !run.pendingAbilityChange?.choices.includes(ability)) return;
+    onChooseCapsuleAbility(ability);
+  };
+  const unlockHiddenAbility = () => {
+    if (!abilityFlowRecipient || abilityFlowRecipient.hiddenAbilityUnlocked) return;
+    onUseAbilityPatch(abilityFlowRecipient.id);
+    closeAbilityFlow();
+  };
+  useEffect(() => {
+    if (backdropOnly) return;
+    if (run.pendingAbilityChange) {
+      setOpenPanel('inventory');
+      setAbilityFlow({ item: 'Ability Capsule', step: 'choices', monId: run.pendingAbilityChange.monId });
+    } else {
+      setAbilityFlow(current => current?.step === 'choices' ? null : current);
+      requestAnimationFrame(() => inventoryModalCloseButton.current?.focus());
+    }
+  }, [run.pendingAbilityChange, backdropOnly]);
 
   useEffect(() => {
     const viewport = scroll.current;
@@ -411,6 +571,11 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     if (!openPanel) return;
     const close = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (abilityFlow) {
+        if (abilityFlow.step === 'slots' || abilityFlow.step === 'confirm') setAbilityFlow(current => current ? { ...current, step: 'party' } : current);
+        else closeAbilityFlow();
+        return;
+      }
       if (tmFlow) {
         if (tmFlow.step === 'moves') returnToTmRecipients();
         else closeTmFlow();
@@ -428,7 +593,7 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
-  }, [openPanel, evolutionScene, tmFlow, evolutionItemFlow]);
+  }, [openPanel, evolutionScene, tmFlow, evolutionItemFlow, abilityFlow]);
   useEffect(() => {
     if (!evolutionScene || evolutionScene.stage === 'complete') return;
     const currentStage = evolutionScene.stage;
@@ -483,6 +648,8 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       <small>Column {Math.min(run.encounter + 1, ROUTE_COLUMNS)} / {ROUTE_COLUMNS}</small>
     </header>
 
+    {!backdropOnly && run.pendingAbilityChange && !openPanel && <div className="route-ability-pending" role="status"><span>{abilityOfferStatus === 'saving' ? 'Saving ability choices… Complete the choice after saving to continue the route.' : abilityOfferStatus === 'failed' ? 'Ability choices could not be saved. Reopen the choices to retry saving.' : 'Finish your Ability Capsule choice to continue the route.'}</span><button type="button" onClick={resumeAbilityChoice}>Resume ability choices</button></div>}
+
     {!backdropOnly && <aside className="route-hud" aria-label="Route status" inert={!!openPanel}>
       <div className="route-coins" aria-label={`${run.coins} coins`}><PixelIcon name="coin" /><b>{run.coins}</b><span>COINS</span></div>
       <button className="route-party-button" ref={partyButton} type="button" aria-label={`Open travelling team, ${run.party.length} of ${MAX_RUN_POKEMON} Pokémon owned`} aria-expanded={openPanel === 'party'} onClick={() => setOpenPanel('party')}>
@@ -528,23 +695,23 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
         })}</g>
         <g className="route-start" transform={`translate(${START_X} ${START_Y})`}><TileLayers /></g>
         {run.route.nodes.map(node => {
-          const isAvailable = available.has(node.id), isVisited = visited.has(node.id), isCurrent = currentNode?.id === node.id;
+          const isAvailable = available.has(node.id) && !run.pendingAbilityChange, isVisited = visited.has(node.id), isCurrent = currentNode?.id === node.id;
           return <g key={node.id} className={`route-node ${node.kind}${isAvailable ? ' available' : ''}${isVisited ? ' visited' : ''}${isCurrent ? ' current' : ''}`} transform={`translate(${xOf(node)} ${yOf(node)})`}
             role={backdropOnly ? undefined : 'button'} tabIndex={backdropOnly ? -1 : isAvailable ? 0 : -1} aria-disabled={!isAvailable}
             aria-label={`Column ${node.column}: ${names[node.kind]}${isAvailable ? ', available' : isVisited ? ', completed' : ', locked'}`}
             onPointerEnter={() => setInspectedNodeId(node.id)} onPointerLeave={() => setInspectedNodeId(undefined)}
             onFocus={() => setInspectedNodeId(node.id)} onBlur={() => setInspectedNodeId(undefined)}
             onClick={() => { if (!backdropOnly && isAvailable) onChoose(node.id); }} onKeyDown={event => { if (!backdropOnly && isAvailable && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onChoose(node.id); } }}>
-            <title>{names[node.kind]} · column {node.column}</title>
+            <title>{`${names[node.kind]} · column ${node.column}`}</title>
             <TileLayers />
-            {!isCurrent && <g className="route-glyph" transform="translate(0 -26) scale(.9 .68)"><Glyph kind={node.kind} /></g>}
+            {!isCurrent && <NodeEmblem kind={node.kind} />}
             {isAvailable && <g className="route-choice-marker" transform="translate(0 -138)"><path d="M0 43-29-10 0-27 29-10Z" /><path className="route-choice-shine" d="M0-20-20-9 0 2 20-9Z" /></g>}
           </g>;
         })}
         <RoutePyramid x={markerX} y={markerY} />
       </svg>
     </div>
-    {!backdropOnly && <p className="route-instruction"><span>◆</span> Select a glowing connected node <b>·</b> paths can branch into up to four choices</p>}
+    {!backdropOnly && <p className="route-instruction"><span>◆</span> {run.pendingAbilityChange ? abilityOfferStatus === 'saving' ? 'Saving ability choices… · reopen the Bag for progress' : abilityOfferStatus === 'failed' ? 'Ability choices need saving · reopen the Bag to retry' : 'Ability Capsule choice pending · reopen the Bag to finish' : <>Select a glowing connected node <b>·</b> paths can branch into up to four choices</>}</p>}
 
     {!backdropOnly && openPanel === 'artifacts' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-artifact-title" onKeyDown={containDialogFocus} onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
       <div className="route-party-panel route-artifact-panel">
@@ -557,16 +724,18 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       </div>
     </section>}
 
-    {!backdropOnly && openPanel === 'inventory' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-inventory-title" inert={!!tmFlow || !!evolutionItemFlow || !!evolutionScene} onKeyDown={containDialogFocus} onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
+    {!backdropOnly && openPanel === 'inventory' && <section className="route-party-overlay" role="dialog" aria-modal="true" aria-labelledby="route-inventory-title" inert={!!tmFlow || !!evolutionItemFlow || !!evolutionScene || !!abilityFlow} onKeyDown={containDialogFocus} onMouseDown={event => { if (event.target === event.currentTarget) closePanel(); }}>
       <div className="route-party-panel route-inventory-panel">
         <div className="route-party-head">
           <div className="route-party-heading"><span className="route-party-heading-icon"><BagEmblem /></span><div><small>ROUTE · ITEMS</small><h2 id="route-inventory-title">Inventory</h2></div></div>
           <div className="route-party-head-actions"><button ref={inventoryModalCloseButton} type="button" autoFocus aria-label="Close inventory" onClick={closePanel}><PixelIcon name="close" /></button></div>
         </div>
         <div className="route-inventory-summary"><span><b>{run.bag.length}</b> in bag</span><span><b>{equippedItems.length}</b> held by team</span><button type="button" onClick={() => setOpenPanel('party')}>Manage team <PixelIcon name="arrow-right" /></button></div>
-        {heldBagItems.length > 0 && <><h3>Held items</h3><div className="route-inventory-grid">{heldBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
-        {evolutionBagItems.length > 0 && <><h3>Evolution items</h3><p className="route-tm-help">Use an evolution item to choose a compatible Pokémon. Each item is single-use.</p><div className="route-inventory-grid">{evolutionBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
-        {tmBagItems.length > 0 && <><h3>Technical Machines</h3><p className="route-tm-help">Use a TM to choose a compatible Pokémon, then select a move to replace. Each TM is single-use.</p><div className="route-inventory-grid">{tmBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} />)}</div></>}
+        {run.pendingAbilityChange && <div className="ability-pending-notice"><p>{abilityOfferStatus === 'saving' ? 'Saving ability choices… Finish saving and complete the choice to continue the route or use another item.' : abilityOfferStatus === 'failed' ? 'Your Capsule choices could not be saved. Resume the choices and retry saving to continue.' : 'Your Capsule choices are saved. Finish the choice to continue the route or use another item.'}</p><button type="button" onClick={resumeAbilityChoice}>Resume ability choices</button></div>}
+        {abilityBagItems.length > 0 && <><h3>Ability items</h3><p className="route-tm-help">Unlock a hidden ability with a Patch, or change an ability with a Capsule. Each item is single-use.</p><div className="route-inventory-grid">{abilityBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} hasPendingAbilityChange={!!run.pendingAbilityChange} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} onStartAbilityItem={startAbilityFlow} />)}</div></>}
+        {heldBagItems.length > 0 && <><h3>Held items</h3><div className="route-inventory-grid">{heldBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} hasPendingAbilityChange={!!run.pendingAbilityChange} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} onStartAbilityItem={startAbilityFlow} />)}</div></>}
+        {evolutionBagItems.length > 0 && <><h3>Evolution items</h3><p className="route-tm-help">Use an evolution item to choose a compatible Pokémon. Each item is single-use.</p><div className="route-inventory-grid">{evolutionBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} hasPendingAbilityChange={!!run.pendingAbilityChange} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} onStartAbilityItem={startAbilityFlow} />)}</div></>}
+        {tmBagItems.length > 0 && <><h3>Technical Machines</h3><p className="route-tm-help">Use a TM to choose a compatible Pokémon, then select a move to replace. Each TM is single-use.</p><div className="route-inventory-grid">{tmBagItems.map(({ item, count }) => <BagItemCard key={item} item={item} count={count} party={run.party} hasPendingAbilityChange={!!run.pendingAbilityChange} onStartTm={startTmFlow} onStartEvolutionItem={startEvolutionItemFlow} onStartAbilityItem={startAbilityFlow} />)}</div></>}
         {!bagItems.length && <p className="route-inventory-empty">Your bag is empty. Visit a Store node to buy items or TMs, or change a held item in Party to return it here.</p>}
         {equippedItems.length > 0 && <><h3>Held by team</h3><div className="route-inventory-equipped">{equippedItems.map(mon => <div key={mon.id}><img src={itemIcon(mon.item)} alt="" /><span><b>{mon.item}</b><small>{SPECIES[mon.species].name}</small></span></div>)}</div></>}
       </div>
@@ -578,7 +747,7 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
           <div className="route-party-heading"><span className="route-party-heading-icon"><PartyEmblem /></span><div><small>ROUTE · TEAM MANAGEMENT</small><h2 id="route-party-title">Travelling Team</h2></div></div>
           <div className="route-party-head-actions"><div className="route-party-owned"><b>{run.party.length}</b><span>/ {MAX_RUN_POKEMON} OWNED</span></div><button type="button" autoFocus aria-label="Close travelling team" onClick={closePanel}><PixelIcon name="close" /></button></div>
         </div>
-        <div className="route-party-intro"><p>Review active moves, manage held items and evolve here. New moves are chosen at level-up or taught from a TM in the Bag.</p><span>{run.party.filter(mon => mon.hp > 0).length} ready</span><span>{run.bag.length} in bag</span></div>
+        <div className="route-party-intro"><p>Review moves and abilities, manage held items and evolve here. Use TMs, Ability Capsules and Ability Patches from the Bag.</p><span>{run.party.filter(mon => mon.hp > 0).length} ready</span><span>{run.bag.length} in bag</span></div>
         <div className="route-party-grid">{run.party.map(mon => {
           const species = SPECIES[mon.species], maxHp = statsAtLevel(mon.species, mon.level)[0];
           const evolution = species.evolves && mon.level >= species.evolves.level ? species.evolves : undefined;
@@ -593,16 +762,16 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
                 <div className="route-party-health" role="progressbar" aria-label={`${species.name} HP`} aria-valuemin={0} aria-valuemax={maxHp} aria-valuenow={mon.hp}><i style={{ width: `${Math.max(0, Math.min(100, mon.hp / maxHp * 100))}%` }} /></div>
               </div>
             </div>
-            <div className="route-party-facts"><div><span aria-hidden="true"><PixelIcon name="spark" /></span><small>ABILITY</small><b>{species.ability}</b></div><div><span aria-hidden="true"><PixelIcon name="bag" /></span><small>HELD ITEM</small><b>{mon.item}</b></div></div>
+            <div className="route-party-facts"><div title={abilityFor(mon.givenAbility)?.description}><span aria-hidden="true"><PixelIcon name="spark" /></span><small>GIVEN ABILITY</small><b>{mon.givenAbility}</b></div><div className={`route-hidden-ability${mon.hiddenAbilityUnlocked ? '' : ' locked'}`} title={abilityFor(mon.hiddenAbility)?.description}><span aria-hidden="true"><PixelIcon name="spark" /></span><small>HIDDEN · {mon.hiddenAbilityUnlocked ? 'ACTIVE' : 'LOCKED'}</small><b>{mon.hiddenAbility}</b></div><div><span aria-hidden="true"><PixelIcon name="bag" /></span><small>HELD ITEM</small><b>{mon.item}</b></div></div>
             <div className="route-party-moves"><span>EQUIPPED MOVES</span><ul>{mon.equipped.map((id, index) => <li key={`${index}-${id}`}>{MOVES[id]?.name ?? id}</li>)}</ul></div>
             <details className="route-party-manage"><summary><span>Manage Pokémon</span><span>{evolution ? 'Evolution ready' : 'Held item'}</span></summary>
               <div className="route-party-controls">
                 <label className="route-party-item-control">Held item
-                  <select aria-label={`${species.name} held item`} value={mon.item} onChange={event => onEquipItem(mon.id, event.target.value)}>
+                  <select aria-label={`${species.name} held item`} value={mon.item} disabled={!!run.pendingAbilityChange} onChange={event => onEquipItem(mon.id, event.target.value)}>
                     {availableItems.map(item => <option value={item} key={item}>{item}</option>)}
                   </select>
                 </label>
-                {evolution && <button type="button" className="route-evolve-button" onClick={event => {
+                {evolution && <button type="button" className="route-evolve-button" disabled={!!run.pendingAbilityChange} onClick={event => {
                   event.currentTarget.blur();
                   onEvolve(mon.id);
                   setEvolutionScene({ monId: mon.id, fromSpecies: mon.species, intoSpecies: evolution.into, stage: 'charging' });
@@ -616,6 +785,7 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     {!backdropOnly && tmFlow && openPanel === 'inventory' && tmFlowMove && <TmTeachingDialog flow={tmFlow} moveId={tmFlowMove} eligible={tmFlowEligible} recipient={tmFlowRecipient}
       onChooseParty={chooseTmRecipient} onChooseMove={teachSelectedTm} onBack={returnToTmRecipients} onClose={closeTmFlow} />}
     {!backdropOnly && evolutionItemFlow && openPanel === 'inventory' && itemEvolutionFor(evolutionItemFlow.item) && <EvolutionItemDialog item={evolutionItemFlow.item} evolution={itemEvolutionFor(evolutionItemFlow.item)!} eligible={run.party.filter(mon => mon.species === itemEvolutionFor(evolutionItemFlow.item)!.from)} onChooseParty={useSelectedEvolutionItem} onClose={closeEvolutionItemFlow} />}
+    {!backdropOnly && abilityFlow && openPanel === 'inventory' && <AbilityItemDialog flow={abilityFlow} party={run.party} recipient={abilityFlowRecipient} pending={run.pendingAbilityChange} abilityOfferStatus={abilityOfferStatus} onRetryAbilityOffer={onRetryAbilityOffer} onCancelUnsavedAbilityOffer={onCancelUnsavedAbilityOffer} onChooseParty={chooseAbilityRecipient} onChooseSlot={chooseAbilitySlot} onChooseAbility={chooseAbility} onUnlock={unlockHiddenAbility} onBack={() => setAbilityFlow(current => current ? { ...current, step: 'party' } : current)} onClose={closeAbilityFlow} />}
     {!backdropOnly && evolutionScene && <EvolutionScene scene={evolutionScene} onClose={closeEvolution} onSkip={skipEvolution} />}
   </main>;
 }

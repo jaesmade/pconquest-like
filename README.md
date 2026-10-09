@@ -27,9 +27,10 @@ The [Battle Lab](docs/BATTLE_LAB.md) is a small 1v1 arena where you control both
 - Selecting a move highlights its range and affected area. Reachable enemies show type-effectiveness labels on the grid and matchup details in the action panel before confirmation.
 - [Ranked enemies and level-scaled teams](docs/PLAN.md#proposed-enemy-ranks-and-automatic-latest-four-movesets): 3–8 Normals, Elite teams of 1–3 Elites plus 3–5 Normals, and Boss teams of one Boss plus 0–2 Elites and 2–5 Normals. Elites receive 2× and Bosses 3× combat stats, including Speed, separate from temporary stages. Preparation lists ranks and actual moves; the current level-21 Boss fields eight enemies.
 - The supplied 18-type chart, dual-type multiplication, STAB, a 1-in-24 critical chance, abilities, terrain hazards, weather effects, basic statuses, line of sight, and enemy actions.
+- [Given and hidden abilities](docs/ABILITY_OVERHAUL_PLAN.md): Ability Patch unlocks a second passive; Ability Capsule replaces either eligible slot from three saved random choices. Hidden assignments reuse existing abilities for now. Each new run starts with one Capsule and one Patch in the route Bag for testing.
 - Enemy decisions and pathfinding yield between bounded work batches; one enemy action resolves at a time so the board can render its animation before the next action.
 - XP goes to deployed participants after a win, including fainted battlers; reserves receive none. New recruits and wild Pokémon start with their latest four level-eligible moves. Owned Pokémon keep chosen slots and manually accept or decline level-up moves; TMs and evolution remain available. Held items include Leftovers, Sitrus Berry, Assault Vest, X Attack, and Charmander's compatible Mega Stone.
-- IndexedDB preserves the current run and the win count after refresh. Save schema v27 stores enemy ranks and resumes new battles without rerolling or reapplying stat multipliers. Active older battles restart at preparation; owned progression, chosen/TM moves, route history, and pending level-up choices are retained.
+- IndexedDB preserves the current run and the win count after refresh. Save schema v28 stores ability choices, hidden unlocks, pending Capsule offers, and enemy ranks. Active v27 battles continue with their saved given abilities and locked hidden slots; active pre-v27 battles restart at preparation. Owned progression, chosen/TM moves, route history, and pending level-up choices are retained.
 
 ## Growing the game
 
@@ -50,5 +51,7 @@ New moves can use six [assignable visual placeholders](docs/MOVE_PLACEHOLDER_PRE
 The [audio asset guide](docs/AUDIO_ASSETS.md) lists original placeholder music, move sounds, item sounds, and shared cues, with replacement instructions. The runtime reads [audio-manifest.json](public/assets/audio/audio-manifest.json); the top bar has a persistent Sound On/Off control.
 
 ## Still planned
+
+The [starter unlock plan](docs/PARTY_BUILDER.md#recruitment-based-starter-unlocks-proposal) would begin new profiles with six fixed starters and permanently add Pokémon recruited during finished runs, after either victory or defeat. The current draft still makes all eight starter/recruit species available immediately.
 
 This is a first implementation pass. Enemy decisions are still basic, and special encounters currently offer one simple reward choice. See [the design plan](docs/PLAN.md) for the complete intended build and [the UI overhaul plan](docs/UI_OVERHAUL_PLAN.md) for the next interface pass.

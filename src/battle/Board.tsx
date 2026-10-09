@@ -64,6 +64,7 @@ class BattleScene extends Phaser.Scene {
   afterAttacksHp: HpVisualEvent[] = [];
   immediateHp: HpVisualEvent[] = [];
   hpPopups = new Map<string, Phaser.GameObjects.Text[]>();
+  feedbackPopups = new Map<string, { label: Phaser.GameObjects.Text; keys: string[]; hasAbility: boolean }>();
   pendingAttacks: AttackVisualEvent[] = [];
   playingAttack?: AttackVisualEvent;
   draining = false;
@@ -219,6 +220,7 @@ class BattleScene extends Phaser.Scene {
   resizeViewport(initial = false) {
     if (!this.battle || !this.cameras.main) return;
     const camera = this.cameras.main;
+    const previousCenter = { x: camera.worldView.centerX, y: camera.worldView.centerY };
     const width = Math.max(1, this.scale.width), height = Math.max(1, this.scale.height);
     camera.setSize(width, height);
     const world = worldSize(this.battle.map);
@@ -229,7 +231,10 @@ class BattleScene extends Phaser.Scene {
       const unit = this.battle.units.find(candidate => candidate.id === this.battle.current);
       if (fit >= 0.75 || !unit) camera.centerOn(world.width / 2, world.height / 2);
       else { const center = tileCenter(this.battle.map, unit.x, unit.y); camera.centerOn(center.x, center.y); }
-    } else camera.setZoom(Math.max(this.fitZoom(), camera.zoom));
+    } else {
+      camera.setZoom(Math.max(this.fitZoom(), camera.zoom));
+      camera.centerOn(previousCenter.x, previousCenter.y);
+    }
     this.setCameraBounds();
     this.emitView();
   }
@@ -273,7 +278,7 @@ class BattleScene extends Phaser.Scene {
     for (const id of this.seenAttacks) if (!recentIds.has(id)) this.seenAttacks.delete(id);
     const cues = (props.battle.feedbackEvents ?? []).filter(event => !this.seenFeedback.has(event.id));
     for (const event of cues) this.seenFeedback.add(event.id);
-    this.pendingFeedback = [...this.pendingFeedback, ...cues].slice(-4);
+    this.pendingFeedback.push(...cues);
     const currentFeedback = new Set((props.battle.feedbackEvents ?? []).map(event => event.id));
     for (const id of this.seenFeedback) if (!currentFeedback.has(id)) this.seenFeedback.delete(id);
     const retainedAttacks = new Set([...(this.playingAttack ? [this.playingAttack.id] : []), ...this.pendingAttacks.map(event => event.id)]);
@@ -309,17 +314,34 @@ class BattleScene extends Phaser.Scene {
   }
   private playFeedback() {
     if (!this.ground) return;
+    const grouped = new Map<string, FeedbackEvent[]>();
     for (const event of this.pendingFeedback.splice(0)) {
-      const unit = this.battle.units.find(candidate => candidate.id === event.unitId);
+      const events = grouped.get(event.unitId) ?? [];
+      events.push(event); grouped.set(event.unitId, events);
+    }
+    for (const [unitId, events] of grouped) {
+      const unit = this.battle.units.find(candidate => candidate.id === unitId);
       if (!unit) continue;
-      if (event.kind === 'ability') gameAudio.playAbility(event.key);
-      else gameAudio.playItem(event.key);
+      for (const event of events) {
+        if (event.kind === 'ability') gameAudio.playAbility(event.key);
+        else gameAudio.playItem(event.key);
+      }
+      // Keep one readable block per unit, including cues arriving during its fade.
+      const previous = this.feedbackPopups.get(unitId);
+      const keys = [...new Set([...(previous?.keys ?? []), ...events.map(event => event.key)])];
+      const hasAbility = !!previous?.hasAbility || events.some(event => event.kind === 'ability');
+      if (previous) { this.tweens.killTweensOf(previous.label); previous.label.destroy(); }
       const center = tileCenter(this.battle.map, unit.x, unit.y);
-      const label = this.add.text(center.x, center.y - 45, event.key, {
-        fontFamily: 'Pixelify Sans, monospace', fontSize: '16px', color: event.kind === 'ability' ? '#fff0a7' : '#b4f5d0',
+      const label = this.add.text(center.x, center.y - 45, keys.join('\n'), {
+        fontFamily: 'Pixelify Sans, monospace', fontSize: '16px', align: 'center', color: hasAbility ? '#fff0a7' : '#b4f5d0',
         backgroundColor: '#10262ddd', padding: { x: 5, y: 3 },
       }).setOrigin(0.5, 1).setDepth(5000);
-      this.tweens.add({ targets: label, y: label.y - 17, alpha: 0, duration: 850, onComplete: () => label.destroy() });
+      const popup = { label, keys, hasAbility };
+      this.feedbackPopups.set(unitId, popup);
+      this.tweens.add({ targets: label, y: label.y - 17, alpha: 0, duration: 850, onComplete: () => {
+        if (this.feedbackPopups.get(unitId) === popup) this.feedbackPopups.delete(unitId);
+        label.destroy();
+      } });
     }
   }
   private playHpCues(cues: HpVisualEvent[]) {
@@ -524,7 +546,7 @@ class BattleScene extends Phaser.Scene {
       if (moveHighlights.has(`${x},${y}`)) { this.ground.fillStyle(0x9fe4bd, 0.38); this.fillTile(this.ground, x, y); }
       const defender = defenders?.[y * width + x];
       if (attackMove?.power && defender && canHitWithMove(this.battle, current, this.chosenMove!, defender)) {
-        const absorbed = !!abilityAbsorption(defender.ability, attackMove.type);
+        const absorbed = !!abilityAbsorption(defender, attackMove.type);
         const multiplier = absorbed ? 0 : effectiveness(attackMove.type, defender.types);
         const color = multiplier === 0 ? 0xa7aeb3 : multiplier < 1 ? 0xeea47d : multiplier > 1 ? 0x7be3a6 : 0xf0d985;
         this.ground.lineStyle(3, color); this.strokeTile(this.ground, x, y);

@@ -499,3 +499,58 @@
   .growth-move-actions button small { font-size: .67rem; }
 }
 @media (prefers-reduced-motion: reduce) { .growth-meter > span { transition: none; } }
+
+/* Keep rewards visible when a phone-sized screen also has move choices. */
+@media (max-width: 680px), (max-height: 600px) {
+  .growth-frame { overflow-y: auto; }
+  .growth-header, .growth-move-choice, .growth-footer { flex: none; }
+  .growth-grid { flex: none; min-height: 244px; max-height: 340px; }
+  .growth-footer { max-height: none; overflow: visible; }
+}
+
+/* Ability item choices reuse the Bag's accessible nested dialog. */
+.ability-flow-dialog { color: #173540; }
+.ability-slot-choices { display: grid; gap: 10px; margin: 14px 0; }
+.ability-choice { display: grid; gap: 7px; width: 100%; min-height: 100px; padding: 15px; border: 2px solid #769b8d; border-radius: 0; background: #e7efdf; color: #173540; box-shadow: 3px 3px 0 #618574; text-align: left; cursor: pointer; }
+.ability-choice:hover:not(:disabled) { border-color: #be9233; background: #fff0bd; }
+.ability-choice small, .ability-unlock-preview > small { color: #637b70; font: .52rem/1.5 'Press Start 2P', monospace; }
+.ability-choice strong, .ability-unlock-preview > strong { font: .75rem/1.5 'Press Start 2P', monospace; }
+.ability-choice > span { color: #3d5c5d; font-family: var(--pixel-body-font); font-size: .95rem; line-height: 1.4; }
+.ability-choice > b { justify-self: end; font-family: var(--pixel-body-font); font-size: .85rem; color: #91542b; }
+.ability-choice:disabled { background: #d9ded5; color: #697772; border-color: #9ca99f; box-shadow: 2px 2px 0 #98a198; cursor: not-allowed; }
+.ability-choice:disabled > span { color: #697772; }
+.ability-current-slot { margin: 14px 0 0; color: #3d5c5d; font-family: var(--pixel-body-font); font-size: .93rem; }
+.ability-locked-slot { margin: 0; padding: 12px; border: 2px dashed #9aaa9d; background: #dfe5d9; color: #60736a; font-family: var(--pixel-body-font); font-size: .9rem; line-height: 1.45; }
+.ability-offer-save-status { display: grid; gap: 10px; margin: 15px 0; padding: 17px; border: 2px solid #719988; background: #e3eddb; color: #173540; font-family: var(--pixel-body-font); font-size: .95rem; line-height: 1.4; }
+.ability-offer-save-status strong { font-size: 1.05rem; }
+.ability-offer-save-status p { margin: 0; color: #3d5c5d; }
+.ability-offer-save-failed { border-color: #b77e50; background: #fff0ce; }
+.ability-offer-save-status button { justify-self: start; min-height: 44px; padding: 9px 12px; border: 2px solid #8d5d29; border-radius: 0; background: #ffcf58; color: #173540; box-shadow: 2px 2px 0 #8d5d29; font-family: var(--pixel-body-font); font-weight: 800; cursor: pointer; }
+.ability-offer-save-status button:hover:not(:disabled) { background: #ffe79c; }
+.ability-offer-save-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.ability-offer-save-status .ability-offer-cancel { border-color: #769b8d; background: #e7efdf; box-shadow: 2px 2px 0 #618574; }
+.ability-unlock-preview { display: grid; gap: 11px; margin-top: 15px; padding: 17px; border: 2px solid #719988; background: #e3eddb; box-shadow: 3px 3px 0 #6b8c7a; }
+.ability-unlock-preview p { margin: 0; color: #3d5c5d; font-family: var(--pixel-body-font); font-size: .95rem; line-height: 1.4; }
+.ability-unlock-preview > span { color: #56726a; font-family: var(--pixel-body-font); font-size: .88rem; }
+.ability-unlock-button, .ability-pending-notice button, .route-ability-pending button { min-height: 44px; padding: 9px 12px; border: 2px solid #8d5d29; border-radius: 0; background: #ffcf58; color: #173540; box-shadow: 2px 2px 0 #8d5d29; font-family: var(--pixel-body-font); font-weight: 800; cursor: pointer; }
+.ability-unlock-button:hover, .ability-pending-notice button:hover, .route-ability-pending button:hover { background: #ffe79c; }
+.ability-flow-dialog .tm-flow-actions > small { flex: 1 1 210px; font-family: var(--pixel-body-font); font-size: .83rem; line-height: 1.4; }
+.ability-flow-dialog .tm-party-choice-details small { display: block; line-height: 1.45; }
+.ability-pending-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 15px 0; padding: 14px; border: 2px solid #b69b51; background: #fff1c3; color: #173540; }
+.ability-pending-notice p { flex: 1 1 220px; margin: 0; font-family: var(--pixel-body-font); font-size: .95rem; line-height: 1.4; }
+.route-ability-pending { position: fixed; top: 118px; left: 50%; z-index: 35; display: grid; gap: 10px; width: min(430px, calc(100vw - 32px)); padding: 15px; transform: translateX(-50%); border: 3px solid #dfbd68; background: #173540; color: #fff5d5; box-shadow: 4px 4px 0 #071c28; text-align: center; font-family: var(--pixel-body-font); font-size: .95rem; line-height: 1.4; }
+.route-party-facts > .route-hidden-ability.locked { border-style: dashed; background: #e0e2d8; }
+.route-party-facts > .route-hidden-ability.locked small, .route-party-facts > .route-hidden-ability.locked b { color: #68766a; }
+.ability-flow-dialog button:focus-visible, .ability-pending-notice button:focus-visible, .route-ability-pending button:focus-visible { outline: 3px solid #ce8d23; outline-offset: 3px; }
+@media (min-width: 681px) {
+  .ability-random-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ability-random-choices .ability-choice { grid-template-rows: auto auto 1fr auto; padding: 12px; }
+  .ability-random-choices .ability-choice strong { overflow-wrap: anywhere; }
+}
+@media (max-width: 680px) {
+  .ability-choice { min-height: 95px; padding: 12px; }
+  .ability-choice small, .ability-unlock-preview > small { font-size: .45rem; }
+  .ability-choice strong, .ability-unlock-preview > strong { font-size: .64rem; }
+  .ability-pending-notice button { width: 100%; }
+  .route-ability-pending { top: 104px; font-size: .85rem; }
+}

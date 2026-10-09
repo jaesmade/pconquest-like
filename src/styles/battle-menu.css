@@ -199,6 +199,8 @@
   .turn-strip { order: 2; flex: 1 0 100%; max-width: 100%; padding: 3px; gap: 4px; }
   .turn-portrait { width: 48px; min-width: 48px; padding: 2px; }
   .turn-portrait .portrait, .turn-portrait .species-portrait { width: 32px; height: 32px; }
+  .turn-portrait > .species-portrait { display: inline-block; }
+  .turn-portrait > small { display: block; }
   .turn-portrait > small { font-size: 10px; }
   .turn-portrait .turn-level { font-size: 10px; top: 1px; right: 1px; padding: 1px 2px; }
   .turn-portrait .enemy-rank { display: none !important; }

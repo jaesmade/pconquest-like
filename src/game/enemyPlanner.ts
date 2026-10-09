@@ -1,4 +1,4 @@
-import { itemBlocksMove, MOVES } from '../content/data';
+import { activeAbilities, itemBlocksMove, MOVES } from '../content/data';
 import { active, affectedTiles, aimBoundsForTarget, canHitAtTarget, canHitWithMove, canUseMove, damagePreview, inMoveRange, type EnemyAction } from './engine';
 import { AttackPositionSearch } from './grid';
 import { scoreMoveEffects } from './moveEffects';
@@ -70,8 +70,8 @@ function* chooseImmediateAction(battle: Battle): Generator<void, Decision, void>
 
 function navigationKey(battle: Battle, enemy: Unit, { target, moveIds }: Pursuit): string {
   const otherUnits = battle.units.filter(unit => unit.id !== enemy.id && unit.hp > 0)
-    .map(unit => `${unit.id}:${unit.x},${unit.y}:${unit.hp}:${unit.ability}`).join('|');
-  return `${battle.map.id}:${battle.time}:${battle.weather}:${enemy.id}:${enemy.mobility.canFly}:${enemy.mobility.canSwim}:${target.id}:${moveIds.join(',')}:${otherUnits}`;
+    .map(unit => `${unit.id}:${unit.x},${unit.y}:${unit.hp}:${activeAbilities(unit).join(',')}`).join('|');
+  return `${battle.map.id}:${battle.time}:${battle.weather}:${enemy.id}:${activeAbilities(enemy).join(',')}:${enemy.mobility.canFly}:${enemy.mobility.canSwim}:${target.id}:${moveIds.join(',')}:${otherUnits}`;
 }
 
 function movementPrefix(enemy: Unit, route: GridPoint[]): GridPoint[] {

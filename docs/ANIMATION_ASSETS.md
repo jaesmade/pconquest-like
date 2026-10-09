@@ -1,5 +1,9 @@
 # Animation asset guide
 
+## Interface sprites (2026-10-06)
+
+HTML screens now use original species-specific 16×16 SVG pixel portraits in `src/ui/SpeciesPortrait.tsx`, including the battle HUD. These are independent of the shared on-map animation set and its `normal` portrait replacement point below. `src/ui/PixelIcon.tsx` supplies integer-grid command/navigation symbols. Item/status SVGs retain their named paths and 32px dimensions but now contain recognizable pixel sprites; `scripts/generate_placeholder_ui.py` preserves existing replacements by default and overwrites them only with `--force`. Local interface fonts and their OFL licenses are in `public/assets/fonts/`.
+
 For a start-to-finish workflow that covers unit sheets, move effects, and ability triggers, see the [unit, move, and ability authoring guide](UNIT_MOVE_ABILITY_ASSETS.md).
 
 ## Top-down battle environment and imported HUD art

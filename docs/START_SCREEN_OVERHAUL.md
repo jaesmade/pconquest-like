@@ -1,5 +1,11 @@
 # Start screen overhaul
 
+## Pixel polish (2026-10-06)
+
+The title uses hard checker layers, square beveled buttons/frames, locally bundled pixel fonts, a primary Continue/New Run action and a saved-run summary. Supporting screens compact the logo so controls remain reachable on phones and short windows. Battle Lab initially focuses the first species control. Sound remains the implemented option; the panel also explains device reduced-motion preferences.
+
+Starting over from an unfinished run opens an in-game confirmation instead of the native browser window. Keep current run is focused first; Escape cancels, Tab stays inside, and cancel restores focus to New Run. Completed runs start fresh directly. Exit reports save failures accurately.
+
 ## Purpose
 
 Give the game a distinct first impression before its existing run, Lab, and options flows. The supplied `1.png` and `2.png` are visual references: image 1 guides the title splash and image 2 guides the menu. Their text and layout are reference content; existing game commands and save behavior remain the source for what each button does.
@@ -34,7 +40,7 @@ The splash prompt pulse is removed under `prefers-reduced-motion`. Buttons retai
 - `src/app/App.tsx`: `splash` screen state, first-input transition, and menu action wiring.
 - `src/ui/TitleScreen.tsx`: menu semantics, Lab setup, Options, and Exit markup.
 - `src/styles/menus.css`: responsive layout, pixel palette, grid and color-wash layers, panels, and reduced-motion rules.
-- `src/styles/base.css`: Press Start 2P font import for wordmark and menu labels.
+- `src/styles/pixel-system.css` and `public/assets/fonts/`: local Press Start 2P and Pixelify Sans, shared controls and font licenses.
 - `docs/UI_OVERHAUL_PLAN.md`: overall screen flow and implementation progress.
 
 To adjust the backdrop, edit the `.title-screen`, `::before`, and `::after` rules. To tune the two-line logo, edit `.title-brand h1`; menu geometry and selected/hover styling live in `.title-menu` and `.menu-button`. Keep menu controls as HTML buttons so keyboard, touch, focus, and accessible names continue to work.

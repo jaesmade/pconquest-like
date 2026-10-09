@@ -1,4 +1,5 @@
-import { abilityFor, ENCOUNTERS, itemCanEquip, itemFor, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES, TYPES } from '../content/data';
+import { ABILITIES, ENCOUNTERS, itemCanEquip, itemFor, MAPS, MAX_EQUIPPED_MOVES, MOVES, SPECIES, TYPES } from '../content/data';
+import type { AbilityId } from '../content/abilities';
 import { defaultLoadoutAtLevel, effectiveSpeed, encounterDefinition, MAX_LEVEL, RUN_START_LEVEL, statsAtLevel, xpForLevel } from '../game/engine';
 import { newSeed } from '../game/rng';
 import { syncMobility } from '../game/mobility';
@@ -22,8 +23,8 @@ type MapSnapshot = { id: string; signature: string; objectSignature?: string; ch
 type UnitSnapshot = Omit<Unit, 'visual' | 'visualNonce' | 'visualFrom' | 'visualPath'>;
 type BattleSnapshot = Omit<Battle, 'map' | 'tileChanges' | 'units' | 'visualEvents' | 'feedbackEvents' | 'hpEvents'> & { map: MapSnapshot; units: UnitSnapshot[] };
 type RunSnapshot = Omit<Run, 'battle'> & { battle?: BattleSnapshot };
-type SaveV27 = { schemaVersion: 27; savedAt: string; run: RunSnapshot };
-type StoredSnapshot = SaveV27 | { schemaVersion: 26 | 25 | 24 | 23 | 22 | 21 | 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
+type SaveV28 = { schemaVersion: 28; savedAt: string; run: RunSnapshot };
+type StoredSnapshot = SaveV28 | { schemaVersion: 27 | 26 | 25 | 24 | 23 | 22 | 21 | 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7; savedAt: string; run: RunSnapshot };
 // Frozen pre-v9 HP bases let migration preserve each party member's health ratio.
 const LEGACY_HP_BASE: Record<string, number> = {
   bulbasaur: 84, ivysaur: 106, squirtle: 86, wartortle: 108, lapras: 120,
@@ -47,6 +48,37 @@ function isRun(value: unknown): value is Run {
 function hasExpectedRankedStats(unit: Unit): boolean {
   const expected = rankedStats(statsAtLevel(unit.species, unit.level), unit.rank);
   return unit.stats.every((value, index) => value === expected[index]);
+}
+
+function isAbilityId(value: unknown): value is AbilityId {
+  return typeof value === 'string' && Object.hasOwn(ABILITIES, value);
+}
+
+function hasValidAbilityProfile(unit: Unit, run: Run, version: number): boolean {
+  if (!isAbilityId(unit.ability) || (unit.hiddenAbility !== undefined
+    && (!isAbilityId(unit.hiddenAbility) || unit.hiddenAbility === unit.ability))) return false;
+  // Old battles keep the ability that was active when saved, including Mega forms.
+  if (version < 28) return unit.hiddenAbility === undefined;
+  const species = SPECIES[unit.species];
+  if (unit.side === 'enemy') return unit.ability === species.ability && unit.hiddenAbility === undefined;
+  const mon = run.party.find(candidate => candidate.id === unit.partyId);
+  if (!mon) return false;
+  if (species.form?.kind === 'mega') return species.form.from === mon.species
+    && unit.ability === species.ability
+    && unit.hiddenAbility === (mon.hiddenAbilityUnlocked ? species.hiddenAbility : undefined);
+  return unit.species === mon.species && unit.ability === mon.givenAbility
+    && unit.hiddenAbility === (mon.hiddenAbilityUnlocked ? mon.hiddenAbility : undefined);
+}
+
+function hasValidAbilityOffer(run: Run): boolean {
+  const offer = run.pendingAbilityChange;
+  if (!offer || typeof offer !== 'object' || Array.isArray(offer) || run.phase !== 'route'
+    || !run.bag.includes('Ability Capsule') || typeof offer.monId !== 'string'
+    || (offer.slot !== 'given' && offer.slot !== 'hidden') || !Array.isArray(offer.choices)
+    || offer.choices.length !== 3 || new Set(offer.choices).size !== 3) return false;
+  const mon = run.party.find(candidate => candidate.id === offer.monId);
+  return !!mon && (offer.slot !== 'hidden' || mon.hiddenAbilityUnlocked)
+    && Array.from(offer.choices).every(choice => isAbilityId(choice) && choice !== mon.givenAbility && choice !== mon.hiddenAbility);
 }
 
 function migrateRun(run: Run, version: number): Run {
@@ -83,6 +115,12 @@ function migrateRun(run: Run, version: number): Run {
   if (next.party.length > MAX_RUN_POKEMON || next.party.some(mon => !mon || typeof mon.id !== 'string' || !mon.id || !SPECIES[mon.species])
     || new Set(next.party.map(mon => mon.id)).size !== next.party.length) return freshRun(next.unlocks);
   for (const mon of next.party) {
+    if (version < 28) {
+      mon.givenAbility = SPECIES[mon.species].ability;
+      mon.hiddenAbility = SPECIES[mon.species].hiddenAbility;
+      mon.hiddenAbilityUnlocked = false;
+    } else if (!isAbilityId(mon.givenAbility) || !isAbilityId(mon.hiddenAbility)
+      || mon.givenAbility === mon.hiddenAbility || typeof mon.hiddenAbilityUnlocked !== 'boolean') return freshRun(next.unlocks);
     if (version < 9) {
       const oldLevel = Number.isInteger(mon.level) ? Math.max(1, Math.min(MAX_LEVEL, mon.level)) : 2;
       const oldMaxHp = Math.round((LEGACY_HP_BASE[mon.species] ?? SPECIES[mon.species].stats[0]) * (1 + 0.07 * (oldLevel - 2)));
@@ -112,6 +150,9 @@ function migrateRun(run: Run, version: number): Run {
   next.pendingMoves = version < 19 || next.phase !== 'intermission' || !Array.isArray(next.pendingMoves) ? []
     : next.pendingMoves.filter(choice => choice && typeof choice.monId === 'string' && typeof choice.moveId === 'string'
       && !!MOVES[choice.moveId] && next.party.some(mon => mon.id === choice.monId && mon.learned.includes(choice.moveId)));
+  if (version < 28 && next.battle && Array.isArray(next.battle.units)) for (const unit of next.battle.units) {
+    if (unit && typeof unit === 'object') delete unit.hiddenAbility;
+  }
   if (version < 17 && next.battle && Array.isArray(next.battle.units)) for (const unit of next.battle.units) {
     if (!unit || !SPECIES[unit.species]) continue;
     if (unit.side === 'player') {
@@ -165,6 +206,7 @@ function migrateRun(run: Run, version: number): Run {
     battle.turnIndex = 0;
   }
   next.bag = next.bag.filter(item => !!itemFor(item));
+  if (version < 28 || !hasValidAbilityOffer(next)) delete next.pendingAbilityChange;
   next.selected = [...new Set(next.selected.filter(id => next.party.some(mon => mon.id === id && mon.hp > 0)))].slice(0, 6);
   const definition = encounterDefinition(next);
   next.deployment = resolvePlayerDeployment({ ...next, deployment: next.deployment && typeof next.deployment === 'object' && !Array.isArray(next.deployment) ? next.deployment : {} }, MAPS[definition.mapId]);
@@ -231,7 +273,8 @@ function migrateRun(run: Run, version: number): Run {
       && Array.isArray(unit.stats) && unit.stats.length === 7 && unit.stats.every(value => Number.isInteger(value) && value > 0)
       && (version < 27 || hasExpectedRankedStats(unit))
       && Array.isArray(unit.types) && unit.types.length >= 1 && unit.types.length <= 2 && unit.types.every(type => TYPES.includes(type))
-      && !!abilityFor(unit.ability) && !!itemFor(unit.item)
+      && hasValidAbilityProfile(unit, next, version)
+      && itemCanEquip(unit.item, SPECIES[unit.species].form?.from ?? unit.species)
       && Number.isFinite(unit.itemAttackMultiplier) && unit.itemAttackMultiplier > 0
       && unit.status && typeof unit.status === 'object' && !Array.isArray(unit.status)
       && Object.values(unit.status).every(value => Number.isFinite(value) && value >= 0)
@@ -367,20 +410,20 @@ function snapshotMap(battle: Battle): MapSnapshot {
   return { id: map.id, signature: mapSignature(authored, true), objectSignature: objectSignature(authored), changes };
 }
 
-export function snapshotRun(run: Run): SaveV27 {
+export function snapshotRun(run: Run): SaveV28 {
   const battle = run.battle;
   const savedBattle: BattleSnapshot | undefined = battle && (({ visualEvents: _events, feedbackEvents: _feedback, hpEvents: _hpEvents, tileChanges: _changes, ...state }) => ({
     ...state,
     map: snapshotMap(battle),
     units: battle.units.map(({ visual: _visual, visualNonce: _visualNonce, visualFrom: _visualFrom, visualPath: _visualPath, ...unit }) => unit),
   }))(battle);
-  return { schemaVersion: 27, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
+  return { schemaVersion: 28, savedAt: new Date().toISOString(), run: { ...run, battle: savedBattle } };
 }
 
 export function restoreRun(value: unknown): Run | undefined {
   if (!value || typeof value !== 'object') return;
   const envelope = value as Partial<StoredSnapshot>;
-  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18 && envelope.schemaVersion !== 19 && envelope.schemaVersion !== 20 && envelope.schemaVersion !== 21 && envelope.schemaVersion !== 22 && envelope.schemaVersion !== 23 && envelope.schemaVersion !== 24 && envelope.schemaVersion !== 25 && envelope.schemaVersion !== 26 && envelope.schemaVersion !== 27) || !envelope.run || !isRun(envelope.run)) return;
+  if ((envelope.schemaVersion !== 7 && envelope.schemaVersion !== 8 && envelope.schemaVersion !== 9 && envelope.schemaVersion !== 10 && envelope.schemaVersion !== 11 && envelope.schemaVersion !== 12 && envelope.schemaVersion !== 13 && envelope.schemaVersion !== 14 && envelope.schemaVersion !== 15 && envelope.schemaVersion !== 16 && envelope.schemaVersion !== 17 && envelope.schemaVersion !== 18 && envelope.schemaVersion !== 19 && envelope.schemaVersion !== 20 && envelope.schemaVersion !== 21 && envelope.schemaVersion !== 22 && envelope.schemaVersion !== 23 && envelope.schemaVersion !== 24 && envelope.schemaVersion !== 25 && envelope.schemaVersion !== 26 && envelope.schemaVersion !== 27 && envelope.schemaVersion !== 28) || !envelope.run || !isRun(envelope.run)) return;
   const run = envelope.run as RunSnapshot;
   if (!run.battle) return migrateRun(run as Run, envelope.schemaVersion);
   const saved = run.battle;

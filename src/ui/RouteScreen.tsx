@@ -9,6 +9,9 @@ import { availableRouteNodes, routeNode, ROUTE_COLUMNS, type RouteNode, type Rou
 import type { PartyMon, Run } from '../game/types';
 import SpeciesPortrait from './SpeciesPortrait';
 import PixelIcon from './PixelIcon';
+import RouteMossNode from './RouteMossNode';
+import RouteStonePath from './RouteStonePath';
+import RoutePositionMarker from './RoutePositionMarker';
 
 function containDialogFocus(event: ReactKeyboardEvent<HTMLElement>) {
   if (event.key !== 'Tab' || event.defaultPrevented) return;
@@ -18,19 +21,6 @@ function containDialogFocus(event: ReactKeyboardEvent<HTMLElement>) {
   if (!first || !last) return;
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-}
-
-function RoutePyramid({ x, y }: { x: number; y: number }) {
-  return <g className="route-player" transform={`translate(${x} ${y})`} role="img" aria-label="Current route position">
-    <title>Current route position</title>
-    <g className="route-player-bob">
-      <path className="route-player-pyramid-outline" d="M0-46 40-23 0 38-40-23Z" />
-      <path className="route-player-pyramid-left" d="M-40-23 0-1 0 38Z" />
-      <path className="route-player-pyramid-right" d="M0-1 40-23 0 38Z" />
-      <path className="route-player-pyramid-top" d="M0-46 40-23 0-1-40-23Z" />
-      <path className="route-player-pyramid-glint" d="M0-40 29-23 0-7-29-23Z" />
-    </g>
-  </g>;
 }
 
 const names: Record<RouteNodeKind, string> = {
@@ -98,68 +88,6 @@ function EvolutionScene({ scene, onClose, onSkip }: { scene: EvolutionSceneState
         : <button type="button" className="evolution-skip" autoFocus onClick={onSkip}>Skip animation</button>}
     </section>
   </div>;
-}
-
-function Glyph({ kind }: { kind: RouteNodeKind }) {
-  if (kind === 'heal') return <path d="M-8-24H8V-8H24V8H8V24H-8V8H-24V-8H-8Z" />;
-  if (kind === 'special') return <g>
-    <path d="M-18-17-10-25H10L18-17V-4L5 7V13H-5V1L8-10V-15H-8V-8H-18Z" />
-    <path d="M-5 20H5V29H-5Z" />
-  </g>;
-  if (kind === 'recruit') return <g>
-    <circle cx="-5" cy="3" r="18" />
-    <path className="route-glyph-line" d="M-23 3H13" />
-    <circle className="route-glyph-detail" cx="-5" cy="3" r="6" />
-    <circle cx="-5" cy="3" r="2.5" />
-    <path d="M14-24H22V-16H30V-8H22V0H14V-8H6V-16H14Z" />
-  </g>;
-  if (kind === 'store') return <g>
-    <path d="M-18-7H18V22H-18Z" />
-    <path d="M-24-7-18-23H18L24-7V-1L16 3 8-1 0 3-8-1-16 3-24-1Z" />
-    <path className="route-glyph-line" d="M-8-20V-6M8-20V-6" />
-    <path className="route-glyph-detail" d="M-4 8H6V22H-4ZM-13 7H-8V13H-13Z" />
-  </g>;
-  if (kind === 'boss') return <g>
-    <path d="M-25-17-13-6 0-24 13-6 25-17 20 21H-20Z" />
-    <path className="route-glyph-line" d="M-20 13H20" />
-    <path className="route-glyph-detail" d="M0-5 5 1 0 7-5 1Z" />
-  </g>;
-  if (kind === 'elite') return <g>
-    <path d="M0-25 22-17V3L15 16 0 25-15 16-22 3V-17Z" />
-    <path className="route-glyph-detail" d="M0-14 4-5 14-4 7 3 9 13 0 8-9 13-7 3-14-4-4-5Z" />
-  </g>;
-  return <g>
-    <path d="M0-26 8-18V7H17V14H5V25H-5V14H-17V7H-8V-18Z" />
-    <path className="route-glyph-line" d="M0-16V5" />
-  </g>;
-}
-
-// Foreshorten upright marks so they sit within the diamond's surface.
-const GLYPH_SCALE = 'scale(1.15 .78)';
-function NodeEmblem({ kind }: { kind: RouteNodeKind }) {
-  return <g className="route-glyph" transform="translate(0 -28)" aria-hidden="true">
-    <g className="route-glyph-etch-light" transform="translate(0 1.2)">
-      <g transform={GLYPH_SCALE}><Glyph kind={kind} /></g>
-    </g>
-    <g className="route-glyph-face" transform={GLYPH_SCALE}><Glyph kind={kind} /></g>
-  </g>;
-}
-
-function TileLayers() {
-  return <g className="route-tile-art" transform="scale(1.4)">
-    <path className="route-node-shadow" d="M0 28 64-4 64 3 0 35-64 3-64-4Z" />
-    <path className="route-node-side" d="M-64-20 0 12 64-20 64-3 0 29-64-3Z" />
-    <path className="route-node-side-shade" d="M0 12 64-20 64-3 0 29Z" />
-    <path className="route-node-side-highlight" d="M-64-14 0 18 64-14 64-11 0 21-64-11Z" />
-    <path className="route-node-rim" d="M0-52 64-20 64-14 0 18-64-14-64-20Z" />
-    <path className="route-node-top" d="M0-50 62-20 0 11-62-20Z" />
-    <path className="route-node-top-light" d="M-56-20 0-47 56-20" />
-    <path className="route-node-inset" d="M0-45 52-20 0 6-52-20Z" />
-    <path className="route-node-bevel" d="M0-45 52-20 0-37-52-20Z" />
-    <path className="route-node-inset-shade" d="M52-20 0 6-52-20-44-20 0-2 44-20Z" />
-    <path className="route-node-texture" d="M0-45 52-20 0 6-52-20Z" />
-    <path className="route-node-inlay" d="M0-41 45-20 0 2-45-20Z" />
-  </g>;
 }
 
 function PartyEmblem() {
@@ -417,21 +345,32 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
   const abilityItemTriggerTargets = useRef(new Map<ItemId, HTMLButtonElement>());
   const drag = useRef<DragGesture | null>(null);
   const suppressClickUntil = useRef(0);
+  const nodePointerType = useRef('mouse');
   const [openPanel, setOpenPanel] = useState<'party' | 'inventory' | 'artifacts' | null>(run.pendingAbilityChange && !backdropOnly ? 'inventory' : null);
   const [evolutionScene, setEvolutionScene] = useState<EvolutionSceneState | null>(null);
   const [tmFlow, setTmFlow] = useState<TmFlowState | null>(null);
   const [evolutionItemFlow, setEvolutionItemFlow] = useState<EvolutionItemFlowState | null>(null);
   const [abilityFlow, setAbilityFlow] = useState<AbilityFlowState | null>(run.pendingAbilityChange && !backdropOnly ? { item: 'Ability Capsule', step: 'choices', monId: run.pendingAbilityChange.monId } : null);
   const [inspectedNodeId, setInspectedNodeId] = useState<string>();
+  const [previewNodeId, setPreviewNodeId] = useState<string>();
   const availableNodes = useMemo(() => availableRouteNodes(run.route), [run.route]);
   const available = useMemo(() => new Set(availableNodes.map(node => node.id)), [availableNodes]);
   const visited = useMemo(() => new Set(run.route.visited), [run.route.visited]);
   const currentNode = routeNode(run.route, run.route.visited.at(-1));
   const markerX = currentNode ? xOf(currentNode) : START_X;
   const markerY = (currentNode ? yOf(currentNode) : START_Y) - 72;
-  const inspectedNode = routeNode(run.route, inspectedNodeId) ?? availableNodes[0];
+  const previewNode = !run.pendingAbilityChange ? availableNodes.find(node => node.id === previewNodeId) : undefined;
+  const inspectedNode = routeNode(run.route, inspectedNodeId) ?? previewNode ?? availableNodes[0];
+  const showingPreview = previewNode && inspectedNode?.id === previewNode.id;
   const inspectedStatus = inspectedNode && (available.has(inspectedNode.id) ? 'AVAILABLE' : visited.has(inspectedNode.id) ? 'CLEARED' : 'AHEAD');
   const nextColumn = Math.min(ROUTE_COLUMNS, run.route.visited.length + 1);
+  const chooseNode = (id: string) => {
+    const restoreRouteFocus = document.activeElement?.classList.contains('route-guide-choose');
+    setPreviewNodeId(undefined);
+    setInspectedNodeId(undefined);
+    onChoose(id);
+    if (restoreRouteFocus) requestAnimationFrame(() => scroll.current?.querySelector<SVGGElement>('.route-node.available')?.focus());
+  };
   const bagCounts = useMemo(() => {
     const counts = new Map<ItemId, number>();
     for (const item of run.bag) counts.set(item, (counts.get(item) ?? 0) + 1);
@@ -558,12 +497,21 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     const placeFocus = () => {
       const map = viewport.querySelector('svg');
       const scale = map ? map.clientWidth / VIEW_WIDTH : 1;
-      const anchor = viewport.clientWidth < 600 ? .65 : .83;
-      viewport.scrollTop = Math.max(0, focusY * scale - viewport.clientHeight * anchor);
+      const bounds = viewport.getBoundingClientRect();
+      const guide = viewport.parentElement?.querySelector<HTMLElement>('.route-guide');
+      const guideBounds = guide?.getBoundingClientRect();
+      // A landscape sidebar does not obstruct the map; a bottom guide does.
+      const footerTop = guideBounds && guideBounds.left < bounds.right && guideBounds.right > bounds.left
+        ? guideBounds.top - bounds.top : viewport.clientHeight;
+      const currentBottom = Math.min(viewport.clientHeight - 18, footerTop - 18);
+      const currentY = Math.max(0, currentBottom - 54 * scale);
+      viewport.scrollTop = Math.max(0, focusY * scale - currentY);
     };
     placeFocus();
     const resize = new ResizeObserver(placeFocus);
     resize.observe(viewport);
+    const guide = viewport.parentElement?.querySelector<HTMLElement>('.route-guide');
+    if (guide) resize.observe(guide);
     window.addEventListener('resize', placeFocus);
     return () => { resize.disconnect(); window.removeEventListener('resize', placeFocus); };
   }, [run.route.visited.length, currentNode]);
@@ -641,7 +589,8 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
     }
     drag.current = null;
   };
-  return <main className={`route-screen${backdropOnly ? ' route-screen-backdrop' : ''}`} aria-hidden={backdropOnly}>
+  return <main className={`route-screen${backdropOnly ? ' route-screen-backdrop' : ''}`} aria-hidden={backdropOnly}
+    data-route-paused={backdropOnly || !!openPanel || !!run.pendingAbilityChange || undefined}>
     <header className="route-heading">
       <span>LAYER 1 · THE CAVERNS</span>
       <strong>Choose a Route</strong>
@@ -659,7 +608,7 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
         <BagEmblem /><b>Bag</b><small>{run.bag.length}</small>
       </button>
       <button className="route-artifact-button" ref={artifactButton} type="button" aria-label="Open Artifact Bag" aria-expanded={openPanel === 'artifacts'} onClick={() => setOpenPanel('artifacts')}>
-        <ArtifactEmblem /><b>Artifact Bag</b><small>SOON</small>
+        <ArtifactEmblem /><b>Artifacts</b><small>SOON</small>
       </button>
     </aside>}
     {!backdropOnly && <button className="route-back-button" type="button" aria-label="Return to title screen" inert={!!openPanel} onClick={onBack}><PixelIcon name="arrow-left" /></button>}
@@ -668,8 +617,16 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       <div className="route-guide-track" aria-label={`${run.route.visited.length} of ${ROUTE_COLUMNS} columns cleared`}>
         {Array.from({ length: ROUTE_COLUMNS }, (_, index) => <i key={index} className={index < run.route.visited.length ? 'cleared' : index === run.route.visited.length ? 'next' : ''} />)}
       </div>
-      {inspectedNode && <div className="route-guide-detail" aria-live="polite"><strong>{names[inspectedNode.kind]}</strong><span>{inspectedStatus} · COLUMN {inspectedNode.column}</span><p>{descriptions[inspectedNode.kind]}</p></div>}
-      <div className="route-guide-controls"><button type="button" onClick={() => pan(-1)} aria-label="Pan route up toward boss"><PixelIcon name="arrow-up" /></button><span>CLIMB TO THE BOSS</span><button type="button" onClick={() => pan(1)} aria-label="Pan route down toward start"><PixelIcon name="arrow-down" /></button></div>
+      {inspectedNode && <div className="route-guide-detail" aria-live="polite"><strong>{names[inspectedNode.kind]}</strong><span>{inspectedStatus} · COLUMN {inspectedNode.column}</span><p id="route-stop-description">{descriptions[inspectedNode.kind]}</p></div>}
+      <div className={`route-guide-action${showingPreview ? ' has-preview' : ''}`}>
+        {showingPreview
+          ? <button className="route-guide-choose" type="button" aria-label={`Choose ${names[previewNode.kind]} in column ${previewNode.column}`} aria-describedby="route-stop-description" onClick={() => chooseNode(previewNode.id)}>Choose this stop <PixelIcon name="arrow-right" /></button>
+          : <p className="route-guide-hint"><span className="route-guide-hint-touch">Tap a connected stop to preview.</span><span className="route-guide-hint-direct">Choose a connected stop to enter.</span></p>}
+      </div>
+      <div className="route-guide-controls">
+        <button type="button" onClick={() => pan(-1)} aria-label="Pan route up toward boss"><PixelIcon name="arrow-up" /><span>Boss</span></button>
+        <button type="button" onClick={() => pan(1)} aria-label="Pan route down toward start"><PixelIcon name="arrow-down" /><span>Start</span></button>
+      </div>
     </aside>}
 
     <div className="route-map-scroll" ref={scroll} inert={!!openPanel || backdropOnly} aria-label="Ten-column route map. Scroll or drag upward from the start to the boss."
@@ -683,32 +640,43 @@ export default function RouteScreen({ run, onChoose, onBack, onEquipItem, onEvol
       }}
       onDragStart={event => event.preventDefault()}>
       <svg className="route-map" viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} preserveAspectRatio="xMidYMin meet" aria-label="Vertical branching route climbing from column one at the bottom to the boss in column ten at the top">
-        <defs>
-          <pattern id="route-stone-grain" width="18" height="16" patternUnits="userSpaceOnUse"><path fill="#fff1c2" opacity=".32" d="M2 2h5v2H2zM12 11h4v2h-4z" /><path fill="#483018" opacity=".27" d="M9 5h4v2H9zM1 12h3v2H1z" /></pattern>
-        </defs>
-        <line className="route-start-link" x1={START_X} y1={START_Y - 28} x2={xOf(run.route.nodes[0])} y2={yOf(run.route.nodes[0]) - 28} />
+        <RouteStonePath start x1={START_X} y1={START_Y - 28} x2={xOf(run.route.nodes[0])} y2={yOf(run.route.nodes[0]) - 28}
+          reachable={available.has(run.route.nodes[0].id)} cleared={visited.has(run.route.nodes[0].id)} previewed={previewNode?.id === run.route.nodes[0].id} />
         <g className="route-links">{run.route.links.map(link => {
           const from = routeNode(run.route, link.from)!, to = routeNode(run.route, link.to)!;
           const connected = visited.has(from.id) && visited.has(to.id);
           const reachable = visited.has(from.id) && available.has(to.id);
-          return <line key={`${from.id}-${to.id}`} x1={xOf(from)} y1={yOf(from) - 28} x2={xOf(to)} y2={yOf(to) - 28} className={connected ? 'cleared' : reachable ? 'reachable' : ''} />;
+          return <RouteStonePath key={`${from.id}-${to.id}`} x1={xOf(from)} y1={yOf(from) - 28} x2={xOf(to)} y2={yOf(to) - 28}
+            cleared={connected} reachable={reachable} previewed={reachable && previewNode?.id === to.id} />;
         })}</g>
-        <g className="route-start" transform={`translate(${START_X} ${START_Y})`}><TileLayers /></g>
+        <g className="route-start" transform={`translate(${START_X} ${START_Y})`}>
+          <RouteMossNode kind="battle" available={false} visited current selected={false} animated={false} />
+        </g>
         {run.route.nodes.map(node => {
           const isAvailable = available.has(node.id) && !run.pendingAbilityChange, isVisited = visited.has(node.id), isCurrent = currentNode?.id === node.id;
-          return <g key={node.id} className={`route-node ${node.kind}${isAvailable ? ' available' : ''}${isVisited ? ' visited' : ''}${isCurrent ? ' current' : ''}`} transform={`translate(${xOf(node)} ${yOf(node)})`}
+          return <g key={node.id} className={`route-node ${node.kind}${isAvailable ? ' available' : ''}${isVisited ? ' visited' : ''}${isCurrent ? ' current' : ''}${previewNode?.id === node.id ? ' previewed' : ''}`} transform={`translate(${xOf(node)} ${yOf(node)})`}
             role={backdropOnly ? undefined : 'button'} tabIndex={backdropOnly ? -1 : isAvailable ? 0 : -1} aria-disabled={!isAvailable}
             aria-label={`Column ${node.column}: ${names[node.kind]}${isAvailable ? ', available' : isVisited ? ', completed' : ', locked'}`}
+            aria-pressed={previewNode?.id === node.id || undefined}
+            onPointerDown={event => { nodePointerType.current = event.pointerType; }}
             onPointerEnter={() => setInspectedNodeId(node.id)} onPointerLeave={() => setInspectedNodeId(undefined)}
             onFocus={() => setInspectedNodeId(node.id)} onBlur={() => setInspectedNodeId(undefined)}
-            onClick={() => { if (!backdropOnly && isAvailable) onChoose(node.id); }} onKeyDown={event => { if (!backdropOnly && isAvailable && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onChoose(node.id); } }}>
+            onClick={event => {
+              if (backdropOnly || !isAvailable) return;
+              const compactScreen = window.matchMedia('(max-width: 760px), (max-width: 1000px) and (max-height: 620px)').matches;
+              if (event.detail > 0 && (nodePointerType.current === 'touch' || compactScreen)) {
+                setPreviewNodeId(node.id);
+                setInspectedNodeId(node.id);
+              } else chooseNode(node.id);
+            }} onKeyDown={event => { if (!backdropOnly && isAvailable && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); chooseNode(node.id); } }}>
             <title>{`${names[node.kind]} · column ${node.column}`}</title>
-            <TileLayers />
-            {!isCurrent && <NodeEmblem kind={node.kind} />}
-            {isAvailable && <g className="route-choice-marker" transform="translate(0 -138)"><path d="M0 43-29-10 0-27 29-10Z" /><path className="route-choice-shine" d="M0-20-20-9 0 2 20-9Z" /></g>}
+            <rect className="route-node-hit-area" x="-100" y="-134" width="200" height="188" aria-hidden="true" />
+            <RouteMossNode kind={node.kind} available={isAvailable} visited={isVisited} current={isCurrent}
+              selected={previewNode?.id === node.id} animated={!backdropOnly && !openPanel && !run.pendingAbilityChange} />
+            <path className="route-node-focus-rim" d="M0-68 90-28 0 14-90-28Z" aria-hidden="true" />
           </g>;
         })}
-        <RoutePyramid x={markerX} y={markerY} />
+        <RoutePositionMarker x={markerX} y={markerY} />
       </svg>
     </div>
     {!backdropOnly && <p className="route-instruction"><span>◆</span> {run.pendingAbilityChange ? abilityOfferStatus === 'saving' ? 'Saving ability choices… · reopen the Bag for progress' : abilityOfferStatus === 'failed' ? 'Ability choices need saving · reopen the Bag to retry' : 'Ability Capsule choice pending · reopen the Bag to finish' : <>Select a glowing connected node <b>·</b> paths can branch into up to four choices</>}</p>}

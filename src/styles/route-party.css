@@ -521,3 +521,32 @@
   .route-screen .route-artifact-panel { width: calc(100vw - 24px); }
 }
 @media (max-width: 480px) { .tm-party-choice-portrait .species-portrait svg { width: 40px; height: 40px; } }
+
+/* Compact route toolbar; inventory and party dialogs keep their own layouts. */
+.route-screen .route-hud { top: max(16px, env(safe-area-inset-top)); left: max(16px, env(safe-area-inset-left)); width: 256px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.route-screen .route-hud .route-coins { grid-column: 1 / -1; height: 40px; padding: 5px 10px; gap: 8px; border: 2px solid #7f8c82; background: #293734; box-shadow: 2px 2px 0 #182723; }
+.route-screen .route-hud .route-coins > .pixel-icon { width: 22px; height: 22px; color: #e5c376; }
+.route-screen .route-hud .route-coins b { font-size: .88rem; text-shadow: none; }
+.route-screen .route-hud .route-coins span { align-self: center; margin: 0 0 0 auto; color: #c3ccbc; font: 14px/1 var(--pixel-body-font); }
+.route-screen .route-hud > button { grid-column: auto; width: 100%; min-height: 50px; display: grid; grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto auto; gap: 1px 4px; justify-items: start; align-content: center; padding: 5px; border: 2px solid #7f8c82; background: #293734; box-shadow: 2px 2px 0 #182723; }
+.route-screen .route-hud > button:hover { border-color: #e5c376; background: #3b4a40; }
+.route-screen .route-hud .route-party-button .route-party-emblem,
+.route-screen .route-hud .route-inventory-button .route-bag-emblem { grid-column: 1; grid-row: 1 / -1; align-self: center; width: 22px; height: 22px; filter: none; }
+.route-screen .route-hud > button b { grid-column: 2; grid-row: 1; color: #f5efdc; font: 700 14px/1.1 var(--pixel-body-font); text-shadow: none; }
+.route-screen .route-hud > button small { position: static; grid-column: 2; grid-row: 2; justify-self: start; min-width: 0; padding: 0; border: 0; background: transparent; color: #bdcbbf; font: 12px/1.1 var(--pixel-body-font); }
+.route-screen .route-hud .route-artifact-button { grid-template-columns: 1fr; justify-items: center; }
+.route-screen .route-hud .route-artifact-button .route-artifact-emblem { display: none; }
+.route-screen .route-hud .route-artifact-button b,
+.route-screen .route-hud .route-artifact-button small { grid-column: 1; justify-self: center; }
+.route-screen .route-hud .route-artifact-button b { font-size: 15px; }
+.route-screen .route-hud .route-artifact-button small { color: #adbaaf; font-size: 11px; }
+@media (max-width: 900px) {
+  .route-screen .route-hud { top: 12px; left: 12px; width: 230px; }
+  .route-screen .route-hud > button { grid-template-columns: 18px minmax(0, 1fr); min-height: 48px; padding: 4px; gap: 1px 3px; }
+  .route-screen .route-hud .route-party-button .route-party-emblem,
+  .route-screen .route-hud .route-inventory-button .route-bag-emblem { width: 18px; height: 18px; }
+  .route-screen .route-hud > button b { font-size: 13px; }
+  .route-screen .route-hud > button small { font-size: 12px; }
+  .route-screen .route-hud .route-artifact-button { grid-template-columns: 1fr; }
+  .route-screen .route-hud .route-artifact-button b { font-size: 14px; }
+}

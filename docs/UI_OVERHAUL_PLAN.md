@@ -1,5 +1,167 @@
 # UI overhaul plan
 
+## Implementation progress (stone position marker and compact route controls - 2026-10-12)
+
+The current-position pyramid now uses smaller code-native pixels with an ivory/gold top, bronze sides, a dark warm outline, and a tiny fixed glint. `src/ui/RoutePositionMarker.tsx` retains the route anchor and accessible name without rotating. A gentle four-world-unit stepped hover pauses during dialogs, pending Capsule choices, inactive backdrops, and reduced motion.
+
+The upper-left HUD has a compact wallet row above three equally sized Party, Bag, and Artifacts controls, with smaller icons and readable inline counts. Artifacts keeps its **SOON** label, original Artifact Bag accessible name, and placeholder modal. The guide now groups progress, consequences, confirmation, and labeled Boss/Start pan buttons. It forms a centered bottom strip on wide desktops, a stacked lower-left footer at widths up to 900px, and a 220px right sidebar on screens at least 480px wide and up to 620px high. The sidebar reserves map space; the compact footer reserves its action row so confirmation does not grow it. Hints follow the existing preview/direct-entry input rules. Map alignment observes guide resizing and keeps the occupied plinth clear of a footer.
+
+Main files are `src/ui/RoutePositionMarker.tsx`, `src/ui/RouteScreen.tsx`, `src/styles/route.css`, and `src/styles/route-party.css`. The exact background, graph/positions, clean plinths, encounter icons, paths, gameplay input, and phone preview/confirmation remain intact. See [marker and control authoring](ROUTE_OVERHAUL.md#position-marker-and-route-controls-2026-10-12) and the current checks in [PROJECT_MASTER.md](PROJECT_MASTER.md). Earlier stone/moss captures and phone-description reviews retain their historical styling.
+
+Production build, full gameplay/server-markup smoke checks, and independent browser review passed. The review covered both four-choice rows across seven desktop/portrait/short-window sizes, HUD text/count containment, direct and preview selection, Healing/focus, pan/drag, modal/Capsule locks, and reduced motion. Current [desktop](ROUTE_UI_CLEAN_DESKTOP_PREVIEW.png), [phone](ROUTE_UI_CLEAN_PHONE_PREVIEW.png), and [landscape](ROUTE_UI_CLEAN_LANDSCAPE_PREVIEW.png) captures show the completed presentation; the route guide and master record document check limits.
+
+## Implementation progress (stone route plinths and floating icons - 2026-10-12)
+
+The playable route uses raised limestone plinths, floating thick 3D pixel encounter symbols, and broken stepping-stone links derived from the approved Verdant treatment. A later refinement removed moss trim and green coloring from the node tiles. The exact existing `route-tiles.svg` background and its 112×56 repeat remain in use. No themed scene art or background ambience has been installed.
+
+All seven encounter kinds have distinct symbols. Visible available icons slowly spin and bob; future and completed icons stay still. Teal available rims, gold inspected/current rims, completed checks, and a separate keyboard-focus outline keep route states clear. The current pyramid is retained. Reduced motion freezes icons and the pyramid; icons also pause for hidden pages, offscreen nodes, dialogs, pending ability choices, and inactive route backdrops.
+
+Main files are `src/ui/RouteMossNode.tsx`, `src/ui/RouteStonePath.tsx`, `src/ui/RouteScreen.tsx`, and `src/styles/route.css`. Graph positions, legal choices, save data, encounter rules, drag suppression, desktop/keyboard entry, and touch/compact **Choose this stop** behavior remain as before. See [current route art and authoring](ROUTE_OVERHAUL.md#route-node-art-details), the [approved concept scope](NODE_SELECTION_BIOME_CONCEPTS.md#approved-production-scope-2026-10-12), and the dated production checks in [PROJECT_MASTER.md](PROJECT_MASTER.md).
+
+## Implementation progress (route descriptions on phones - 2026-10-12)
+
+- Route consequences stay visible on phones and short windows. A touch tap or a click in a compact viewport previews the selected stop without advancing the route; the guide retains its description, marks the node, and offers **Choose this stop**. Selecting another stop updates the preview. Confirmation clears it, and immediate Healing progression returns keyboard focus to the next available node. Ordinary desktop clicks and keyboard Enter/Space retain direct selection.
+- At that stage, the guide moved to the lower right on short, wide screens and compacts its spacing at 400px height or less, keeping it clear of Party/Bag and Back. Pan controls and mouse drag suppression remain available. Preview validity follows route availability and the pending ability-choice lock.
+- Main files: `src/ui/RouteScreen.tsx` and `src/styles/route.css`; behavior and the [phone preview](ROUTE_DESCRIPTION_PHONE_PREVIEW.png) are documented in [route descriptions](ROUTE_OVERHAUL.md#route-descriptions-and-compact-screen-selection-2026-10-12). Checked production build, scoped whitespace, and isolated route layouts at 320×568, 390×844, 568×320, 844×390, 1280×568, and 1280×900. Checked visible odds/healing copy, switching previews without progression, one-step confirmation, stale-preview clearing, keyboard/desktop selection, pan controls, drag suppression, and HUD/Back clearance. Compact pointer behavior was exercised in the browser; hardware touch scrolling was source-reviewed. Campaign saves were not used; the existing Phaser bundle warning remains.
+
+## Living isometric node concepts (2026-10-12; Verdant nodes/paths selected)
+
+The [four-concept comparison](node-selection-biome-concepts.html) presents **Verdant Ruins**, **Crystal Cavern**, **Lantern Garden**, and **Ember Citadel** as alternatives for a livelier pixel route selector. The user selected the Verdant mossy plinths, floating symbols, and stepping-stone paths for production, while explicitly preserving the background. The current production background, `public/assets/backgrounds/route-tiles.svg`, remains in use; all themed scene images are optional concept references for a later decision.
+
+**Verdant Ruins** supplied the initial node/path direction; production now uses clean stone nodes with its stepping-stone paths, while the original moss-edged platforms remain in the comparison. The other proposed directions use crystal sockets and mineral seams, shrine platforms and garden bridges, or basalt platforms and stone causeways. Each concept also proposes two restrained scenic motions; these remain preview-only.
+
+The user's floating-icon refinement is present in the comparison and the production Verdant renderer: thick shaded 3D pixel symbols hover and rotate above the platforms, replacing the upright box tops. Rest uses a mint plus, Shop a warm shopfront, Battle crossed swords, and Recruit a capture orb. Future icons stay still, and the current pyramid remains distinct. The comparison offers adjustable spin speed and motion; reduced motion freezes both preview and production animation. The [refinement notes](NODE_SELECTION_BIOME_CONCEPTS.md#floating-icon-refinement-2026-10-12-preview) record the preview behavior and [production scope](NODE_SELECTION_BIOME_CONCEPTS.md#approved-production-scope-2026-10-12) describes the installed treatment.
+
+The [concept specification](NODE_SELECTION_BIOME_CONCEPTS.md) records the node structures, paths, motion, phone requirements, and image provenance. Its approved Verdant node/path scope is implemented; other node treatments and all scene backgrounds remain proposals. The comparison itself retains local feedback and illustrative resources. Independent desktop/phone, selection, keyboard, preserved-floor, and reduced-motion preview checks passed; the guide records their scope and limitations separately from production verification.
+
+## Pixel node selection concepts (2026-10-12; proposed)
+
+These are proposed pixel layouts, not live gameplay changes. **Trail map** uses a top-down pixel route with a selected-stop preview and a separate **Enter [node name]** action. **Waypoint choices** offers large cards for currently connected stops. The [interactive concept preview](route-node-pixel-ui-preview.html) uses illustrative resources and local feedback.
+
+### Current baseline and proposed interaction
+
+The current phone-description fix keeps consequences visible and uses **Choose this stop** for touch/compact pointer input, while desktop/keyboard enter nodes directly. The proposed Trail map would use consistent inspection before entry across input modes, with readable pixel silhouettes and explicit connection states.
+
+1. Activate a node to select and inspect it. Selection does not call the engine or consume RNG. Show its name, column, connection status, immediate effect, and reward/cost or odds.
+2. Retain the preview until another node is selected. Use **Enter Healing**, **Enter Battle**, etc. to call the existing route-entry action exactly once. Enter/Space on a node selects; Enter/Space on the entry button commits.
+3. Allow keyboard and touch inspection of future, cleared, and disconnected nodes. Distinguish **Ahead**, **Cleared**, and **Disconnected**, and disable entry for all three. Inspection must not imply that a branch is legal.
+4. On phones, keep details accessible without hover. In the concept, selecting a node brings its preview into view and focuses **Back to choices**; that control returns to the selected node. For production, evaluate a compact docked preview with the map occupying the remaining viewport, while retaining this scroll-to-preview fallback for small or short screens. Do not cover the selectable row or hide consequences to fit the panel.
+
+### Strict pixel treatment
+
+- Author upright sword, star shield, cross, shopfront, question mark, Poké Ball-plus, and crown silhouettes on a native 16×16 or 24×24 grid. Display them at integer multiples with nearest-neighbor rendering; avoid fractional foreshortening and smooth icon curves.
+- Use square frames, hard offset shadows, opaque navy/paper panels, and a quiet tiled background. Reuse Press Start 2P headings, readable Pixelify Sans body copy, and the existing navy, aqua, raspberry, and gold palette. The preview embeds the project's licensed fonts without remote font requests.
+- Use cyan paths for connected choices and gold for selection. Pair color with labels, a selection marker, and dashed disconnected framing. Keep keyboard focus distinct from selection. Native button hit areas remain at least 44×44 CSS pixels, independent of sprite size.
+- Keep optional animation brief and discrete, respecting reduced motion. A stationary current-position marker is sufficient.
+
+### Decision information
+
+| Stop | Essential preview information |
+| --- | --- |
+| Battle | Standard fight; 10 coins on victory and XP for deployed participants. |
+| Elite battle | Stronger ranked foes; 20 coins on victory and participant XP. |
+| Healing | Full HP and revival for the entire owned roster, including reserves. |
+| Store | Purchases spend coins; held items and single-use TMs are available. |
+| Special | 75% reward / 25% setback; never reveal or roll the outcome before entry. |
+| Recruitment | Choose one of three free recruits; at 20 owned, release a Pokémon first. |
+| Boss | Defeat all foes and hold the capture tile; 30 coins on victory and participant XP. |
+
+Trail map preserves planning through visible future connections, with the preview on the right on desktop. Waypoint choices makes legal stops primary cards; a full-route overview would still be needed for planning beyond the next choice. Both should retain accessible Party/Bag controls and ten-column progress. Do not present the unimplemented Artifact Bag feature as a gameplay benefit.
+
+### Complete Trail map preview (2026-10-12; proposed)
+
+The [complete pixel map](route-full-pixel-map-preview.html) expands the selected Trail map concept to all ten columns, with the boss at the top and the start at the bottom. It uses the actual `createRoute(58)` graph: 28 nodes and 49 links, all seven kinds, and four nodes in columns 4 and 7. The displayed legal trail clears Battle → Store → Special; the next connected choices are Battle and Healing in column 4. An independent check confirmed `routeIsValid` and `availableRouteNodes` for this fixture. Resource counts remain illustrative.
+
+Future connections use muted pixel steps, the cleared trail uses stronger teal, available paths use cyan, and the selected choice adds a gold trace/frame. Passed-over nodes use dashed frames; the occupied node is labeled **You**. Keep all node names and icons visible while planning. Desktop details align beside the inspected row; on phones, selecting a node brings its details into view and **Back to selected stop** returns focus to the map. **Current stop** and **Boss** jump controls inspect their destinations without entering them.
+
+This is a complete map overview rather than a fixed-height game viewport. It flows vertically at a readable sprite/control size, including on phones; a production viewport would still need scrolling and a compact preview arrangement. Pixel sprites stay at integer scale and targets remain at least 44px across. Native keyboard activation selects a node; only the separate entry control can commit a legal next stop. Future, disconnected, skipped, and completed stops can be inspected but cannot be entered. Entry in the concept produces local feedback only.
+
+Checked the complete map at 1024, 704, 358, and 288px content widths (1056/736/390/320px browser widths), verifying ten ordered rows, 28 nodes, no horizontal overflow or overlapping targets, loaded fonts, integer canvas scale, keyboard inspection, disabled entry, boss/current navigation, mobile preview/return focus, and light/dark appearance. No production route generation, progression, or saves were changed by this follow-up.
+
+### Scope, constraints, and review
+
+Preserve all ten bottom-to-top progression columns, seven node kinds, the seeded graph, and `availableRouteNodes` legality. Presentation and tentative selection need no save migration; changing generated nodes or links does, because `routeIsValid` compares the saved graph with its seeded reconstruction. Keep tentative selection in UI state. Continue blocking entry during a pending Ability Capsule choice; keep covered map/HUD controls inert during dialogs and preserve focus containment/restoration.
+
+The original two-variant mockup uses illustrative coins/roster counts and a focused column 3–5 excerpt with two connected choices and two disconnected branches. The separate complete-map preview above uses a validated generated graph. Both entry buttons show local feedback only; no gameplay, save, inventory, or event roll changes. Party/Bag dialogs, actual recovery/preparation, and route advancement remain outside these concepts.
+
+Reviewed the route docs and current `RouteScreen.tsx`, `route.css`, `route-party.css`, `pixel-system.css`, and `route.ts`, including the concurrent compact-screen fix, with an independent UX review. Browser review covers both concepts at desktop and narrow widths, native keyboard selection, preview updates, local entry feedback, disabled future/disconnected entry, mobile preview/return navigation, local fonts, and light/dark appearance. Production acceptance must additionally cover a ten-column climb, four-node columns, dragging across nodes, pending Capsule saving/failure, modal focus, and exactly-once engine entry. Those production behaviors are not implemented by this proposal.
+
+## UI/UX improvement audit (2026-10-12; proposed)
+
+Reviewed the current UI after the pixel-interface and targeting fixes. The audit includes proposed follow-ups; completed items are marked resolved below. Priority reflects ability to complete a task and make an informed decision; effort is a rough implementation estimate, not a schedule.
+
+| Order | Improvement | Priority | Effort |
+| --- | --- | --- | --- |
+| 1 | Keep route consequences readable on phones (resolved) | High | Small |
+| 2 | Explain the boss capture objective before deployment | High | Small |
+| 3 | Complete battlefield keyboard navigation | High | Large |
+| 4 | Show campaign damage and hit forecasts | Medium | Medium |
+| 5 | Allow touch target inspection before committing | Medium | Medium |
+| 6 | Make move and ability explanations tappable | Medium | Small–medium |
+| 7 | Compare ally loadouts and recruits before choosing | Medium | Medium |
+| 8 | Make turn portraits inspectable and clearly identified | Medium | Small–medium |
+| 9 | Reduce deployment keyboard navigation to one grid stop | Medium | Medium |
+
+### 1. Preserve route decision information (resolved 2026-10-12)
+
+The audit found that phone/short-window rules hid the consequence description, and a tap immediately chose the stop. Those hide rules have been removed. Touch and compact-screen pointer selection now retain a noncommitting preview with visible odds/healing/recruitment copy and a **Choose this stop** action. The landscape guide also stays clear of the HUD and Back. See the implementation progress above for completed checks.
+
+Main files: [route styles](../src/styles/route.css) and [route screen](../src/ui/RouteScreen.tsx). The descriptions remain at lines 39–46; node activation now separates pointer preview from confirmation. The checked phone/landscape cases can be read before committing, and dragging preserves route progress.
+
+### 2. Teach the boss victory condition before battle
+
+The route Boss description only says to defeat the final boss, and preparation explains placement without showing the capture objective or marking the tile. Add the complete objective to the route description and a short preparation objective with a labeled capture marker: defeat all foes **and** move a living ally onto the capture tile. The battle HUD already states the combined objective; retain it. This audit item remains proposed work.
+
+Evidence: [route screen](../src/ui/RouteScreen.tsx), line 46; [preparation](../src/ui/PrepareScreen.tsx), lines 56–77; [deployment board](../src/ui/DeploymentBoard.tsx); [encounters](../src/content/encounters.ts), line 7; [victory check](../src/game/engine.ts), lines 249–257. Check the boss preparation screen and the transition after the final enemy faints while capture remains unoccupied.
+
+### 3. Let keyboard users finish Move and Attack
+
+Battle commands and cancellation support keyboard focus, but the Phaser board registers pointer/drag/wheel interactions without a focusable keyboard tile cursor. A keyboard user can choose a move but cannot select its target. Add one focusable board entry, arrow-key tile navigation, Enter/Space activation, Escape cancellation, and an announced tile/occupant/validity summary. Keep the cursor visible as the camera pans.
+
+Evidence: [battle board](../src/battle/Board.tsx), input handlers at lines 117–150 and wrapper at line 779. Validate a complete keyboard-only battle, including an out-of-range target, camera edges, animation lock, and unchanged AP after cancellation.
+
+### 4. Bring numerical forecasts into campaign targeting
+
+The bottom HUD's damage forecast is gated by `controlBoth`, so only Battle Lab receives it. Campaign targeting shows range and effectiveness but no expected HP damage or hit chance. The unused [MovePreview component](../src/ui/MovePreview.tsx) contains relevant preview calculations. Adapt the existing engine helpers into a compact forecast for the aimed enemy/area, including absorption and affected units; keep it inside the measured bottom HUD so it does not cover targets.
+
+Evidence: [battle screen](../src/ui/BattleScreen.tsx), line 357; `MovePreview.tsx`, lines 18–32; a source search found no uses of that component. Validate single-target, area, immune/absorbing, and status moves with the real target. A forecast must not consume AP or RNG.
+
+### 5. Separate touch preview from commitment
+
+Pointer hover updates path and affected-area previews, while a valid tile tap immediately executes movement or an attack. Touch players lack a dependable inspection step before spending AP. Trial a tap-to-preview flow with a compact **Move here / Use move** control, or an explicit preview mode. Keep dragging distinct from tapping and preserve quick desktop interaction. This is an interaction proposal; user testing should decide whether the added step earns its cost.
+
+Evidence: [battle board](../src/battle/Board.tsx), lines 123–146; [app actions](../src/app/App.tsx), lines 186–194. Check touch path/area review, changing the tentative target, cancellation, and exactly one committed command after confirmation.
+
+### 6. Keep move and ability explanations reachable
+
+Move details exist in a hover/focus tooltip that disappears when a move is selected. The targeting prompt retains the name and AP cost. Draft, Party, and inspected-unit ability descriptions use `title` attributes on text elements, which do not provide a reliable touch or keyboard disclosure. Add a tappable/focusable **Info** control or a short expandable description, including selected-move range, effects, and weather changes. Reuse one disclosure pattern across these screens.
+
+Evidence: [battle screen](../src/ui/BattleScreen.tsx), lines 327–334, 355, 391–398; [draft](../src/ui/PartyBuilder.tsx), line 91; [Party](../src/ui/RouteScreen.tsx), line 786. Check access without hovering and ensure closing Info restores focus without committing an action or hiding Back.
+
+### 7. Support squad comparison at the decision point
+
+Preparation lists enemy moves, but ally rows omit equipped moves, abilities, items, and tactical stats. Reserve focus buttons become disabled when six units are deployed. Recruitment cards show name/type and immediately recruit when there is room. Add a read-only ally inspector that remains available for reserves and a recruit preview with the actual incoming level, moves, abilities, and movement. Keep inspection separate from Add/Remove/Recruit. Loadout editing can remain on the route, as intended by the existing flow.
+
+Evidence: [preparation](../src/ui/PrepareScreen.tsx), lines 65–75; [recruitment](../src/ui/RouteStopScreen.tsx), line 63. Check a full six-unit deployment and three recruit choices without requiring a return to Route → Party. The preview must match the unit actually recruited.
+
+### 8. Make turn-order portraits useful controls
+
+Turn entries are nonfocusable `div`s; extra Speed/banked-AP information is only in `title`. Phone rules hide names and rank badges. Make portraits open read-only unit inspection, provide an explicit accessible name with side/rank/time to act, and retain a compact visible team/rank cue. This lets players compare upcoming threats directly from the queue.
+
+Evidence: [battle screen](../src/ui/BattleScreen.tsx), lines 347–350; [battle styles](../src/styles/battle.css), line 18; [battle menu styles](../src/styles/battle-menu.css), line 218. Check repeated species, ranked enemies, duplicate scheduled turns, phone widths, and focus restoration.
+
+### 9. Simplify deployment grid navigation
+
+Each legal deployment tile is a separate Tab stop and handles only Enter/Space. Use a roving grid focus with arrows between tiles, Enter/Space to place, and Tab to exit. Preserve the existing coordinate/occupant labels and focus styling. This is a navigation-efficiency improvement rather than a missing placement capability.
+
+Evidence: [deployment board](../src/ui/DeploymentBoard.tsx), line 77. Check selecting a unit, moving to a legal tile, swapping two allies, and leaving the grid without traversing every tile.
+
+### Scope and checks
+
+Read the documentation inventory, UI/start-screen plans, game description, Battle Lab, route, and party guidance before checking implementation. Reviewed title/settings, draft, route/Party, recruitment, preparation/deployment, battle targeting/inspection/turn order, growth, and result code. Confirmed the route-description breakpoint in the isolated Vite preview through DOM/accessibility observations at 390×844 and 1280×900; reviewed phone screenshots. Other findings are source-confirmed gaps or explicitly marked interaction proposals, not measured player outcomes.
+
+The existing targeting insets, mobile color legend, modal focus containment, save warnings, and reduced-motion support are already implemented and should be preserved. Broader Options controls and UI scale remain previously planned in this document; they were not newly validated here. The original audit changed documentation only and did not exercise a full campaign, live boss battle, or 32×32 keyboard playthrough. Later implementation and its checks are recorded separately above.
+
 ## Implementation progress (unobstructed target selection - 2026-10-12)
 
 - Choosing an attack move or Move now removes the unit-anchored action popup for the targeting step. The active Pokémon's bottom HUD replaces its readiness line with the selected move, AP cost, and target prompt, and replaces the action toggle with Back. Invalid-target feedback appears there too, so the targeting card no longer hides nearby enemies or tiles. Move descriptions still appear while hovering or focusing the move list before selection; range and matchup overlays remain on the board.
@@ -18,9 +180,11 @@ Checked the production build and rendered Battle Lab at 1280×720, 390×844, 320
 
 ## Implementation progress (carved route-node emblems - 2026-10-06)
 
+Historical treatment, superseded by the mossy plinths and floating symbols above.
+
 - The seven route symbols remain a sword, star shield, medical cross, shopfront, question mark, Poké Ball with plus, and boss crown. They now blend with the diamond faces as dark, category-tinted carvings with a subtle lit lower edge, replacing the cream fill and heavy outline. Upright silhouettes use gentle foreshortening to sit within the tile surface. Cutouts match each tile's actual surface color, including visited, hover, and focus states.
 - Decorative icon groups ignore pointer input and leave node names, available/locked state, and keyboard activation with the existing node controls. Reviewed the full set at desktop and 390px phone widths, including visited and gold keyboard-focus states; selecting Healing with Enter advanced the isolated route fixture.
-- The original symbol pass passed production build and campaign/Battle Lab smoke checks. The carved treatment passed production build and desktop/390px visual review of all seven symbols, visited marks, and keyboard-focus contrast; the [saved preview](ROUTE_NODE_PREVIEW.jpg) reflects the current treatment. Art geometry is documented in [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details).
+- The original symbol pass passed production build and campaign/Battle Lab smoke checks. The carved treatment passed production build and desktop/390px visual review of all seven symbols, visited marks, and keyboard-focus contrast; the [saved preview](ROUTE_NODE_PREVIEW.jpg) records that previous treatment. Current art geometry is documented in [route-node art details](ROUTE_OVERHAUL.md#route-node-art-details).
 
 ## Implementation progress (full-run pixel interface - 2026-10-06)
 
@@ -121,6 +285,8 @@ The top-down battle map keeps its environmental colors, while route stops use th
 - The layout uses responsive CSS, a scrollable roster/catalog, keyboard-operable controls, and a single-column narrow-screen mode. The current v17 save schema migrates earlier roster and route saves and fills four move slots.
 
 ## Implementation progress (route and preparation)
+
+This section records the initial route/preparation implementation. Current node artwork, position marker, controls, and event rules are documented in [ROUTE_OVERHAUL.md](ROUTE_OVERHAUL.md).
 
 - The route is a saved ten-column graph with a guaranteed boss in column ten. Middle columns contain two to four nodes, with four-node branches guaranteed in columns 4 and 7. React renders the full-screen repeating pale isometric tile board with raised and engraved node tiles, blue paths, glowing amber-marked choices, an original explorer marker, compact coin/Party/Bag controls on the left, an upper-right title return control, and translucent responsive overlays. Progression columns appear as rows climbing from the bottom start to the top boss, with choices spread across the board. Mouse dragging or touch and wheel scrolling reveals the boss above; the guide pans up toward the boss and down toward the start. Only the next connected nodes accept input. See [ROUTE_OVERHAUL.md](ROUTE_OVERHAUL.md).
 - Battle and elite nodes open preparation, healing fully restores and revives, stores sell held items for coins, and the initial special encounter offers one of two free recruits or a coin cache.

@@ -26,6 +26,8 @@ Each Pokémon has HP, Attack, Defense, Special Attack, Special Defense, Speed, a
 
 A run follows a seeded, branching route of ten progression columns. The route is shown as a map that climbs toward a boss in column ten. In each step, only connected nodes in the next column are available, so the player chooses among reachable opportunities rather than freely jumping ahead.
 
+The selector shows clean raised limestone plinths connected by broken stepping-stone paths over its existing repeating limestone background. Thick 3D pixel symbols identify each stop: swords, star shield, healing plus, shopfront, question mark, capture orb, and boss crown. Available symbols float and slowly turn; future and completed symbols remain still, while the current position uses a smaller ivory/gold pixel pyramid with a gentle hover and no rotation. Reduced motion freezes these animations. Touch and compact-screen clicks preview consequences before **Choose this stop** enters; ordinary desktop clicks and keyboard Enter/Space enter directly. A compact wallet and Party/Bag/Artifacts controls sit at the upper left. The responsive route guide groups progression, consequences, confirmation, and labeled Boss/Start pan buttons; Artifacts still opens a coming-soon placeholder. This artwork leaves the route graph, rewards, and saved progress unchanged. See the [route art details](ROUTE_OVERHAUL.md#route-node-art-details).
+
 The route combines several kinds of stop:
 
 - **Battle nodes** pit the team against 3–8 Normal opponents by level (3–5 on this floor). A win awards 65 XP to each Pokémon deployed in that battle, including battlers that faint; reserves receive no battle XP. The reward is 10 coins.

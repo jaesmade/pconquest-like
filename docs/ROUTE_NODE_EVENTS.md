@@ -9,8 +9,11 @@ This guide covers how to add or change route node types and the events they open
 | Node kinds and route graph | `src/game/route.ts` | `RouteNodeKind`, guaranteed node kinds, seeded generation, links, route validation, and graph migration. |
 | Run and event state | `src/game/types.ts` | `RouteEvent` and the optional saved `pendingRouteEvent` on `Run`. |
 | Node entry and outcomes | `src/game/engine.ts` | `selectRouteNode`, offer generation, reward validation, effects, and route advancement. |
-| Node labels and map icon | `src/ui/RouteScreen.tsx` | Names, short descriptions, SVG `Glyph`, and map selection UI. |
-| Node color and stop layout | `src/styles/route.css` | Kind-specific token colors and route-stop presentation. |
+| Node labels, connections, and input | `src/ui/RouteScreen.tsx` | Names, short descriptions, connection state, node focus, and map selection UI. |
+| Stepping-stone links | `src/ui/RouteStonePath.tsx` | Static pixel-cut stones, shadows, moss flecks, and a continuous bed along the existing saved connections. |
+| Pixel platforms and floating symbols | `src/ui/RouteMossNode.tsx` | `SYMBOLS` models, clean stone plinth artwork, cached projected icon frames, and visible available-icon animation. |
+| Current-position marker | `src/ui/RoutePositionMarker.tsx` | Warm ivory/gold pixel pyramid, cached server-compatible SVG artwork, and the existing route anchor. |
+| Route states and stop layout | `src/styles/route.css` | Connection colors, selection/focus feedback, and route-stop presentation; retains the existing stone background. |
 | Event and recruit screens | `src/ui/RouteStopScreen.tsx` | Shop, special-event result, and recruitment choices. |
 | Save compatibility | `src/persistence/save.ts` | Save schema version and migration for changed route graphs or event payloads. |
 
@@ -18,12 +21,24 @@ This guide covers how to add or change route node types and the events they open
 
 1. Add the kind to `RouteNodeKind` in `src/game/route.ts` and to `routeKinds` if the generator may place it randomly.
 2. If a column must contain the node, add it under `guaranteedKinds`. Keep the required kinds count at or below that column's generated node count. Columns 4 and 7 always have four slots; other columns have two to four.
-3. Add a player-facing name and short description in `src/ui/RouteScreen.tsx`. Add a distinct `Glyph` branch and a `.route-node.<kind>` palette in `src/styles/route.css` so the token is identifiable on the map.
+3. Add a player-facing name and short description in `src/ui/RouteScreen.tsx`. Add a distinct pixel silhouette, cell palette, and extrusion depth to `SYMBOLS` in `src/ui/RouteMossNode.tsx`. Keep the symbol readable at its static angle and throughout a complete turn; do not put labels or selection rims into the rotating image. Shared platform states and the parent node control preserve encounter names, availability, focus, and input.
 4. Add the node's entry behavior in `selectRouteNode` in `src/game/engine.ts`. Battle nodes continue into preparation; stops can use the existing `event` phase and render through `RouteStopScreen`.
 5. If it offers Pokémon or items, build choices from authoritative content IDs (`RECRUITS`, `SPECIES`, or `ItemId`) and validate the selected ID in the engine before changing the run. Preserve the 20-owned Pokémon cap and the existing full-roster replacement flow.
 6. Update the current rules and review targets in `ROUTE_OVERHAUL.md`, and add a dated implementation entry to `PROJECT_MASTER.md` after the change is complete.
 
 Route generation is seeded and `routeIsValid` compares the saved graph with a fresh graph for that seed. Changing node placement, guarantees, or the generation algorithm therefore requires a save migration: increment the save schema, rebuild the route with `migrateRoutePlan`, and remap `currentNodeId` to the corresponding migrated visited node. Do not silently change generated graphs while keeping the same schema.
+
+## Node artwork and motion
+
+The current selector uses clean limestone plinths and broken stepping-stone connections over the unchanged `route-tiles.svg` floor. Moss trim and the green platform palette were removed at the user's request; the renderer retains its existing `RouteMossNode` filename. Native canvas routines rasterize the raised platform and projected, thick 3D pixel symbols, cache the PNG data URLs, and display them as decorative images inside the existing SVG node controls. Edit this renderer rather than the historical `Glyph`/`NodeEmblem` treatment. The [route art details](ROUTE_OVERHAUL.md#route-node-art-details) list all seven symbols and state cues.
+
+`RouteStonePath` draws static crisp-edged SVG diamonds along each existing link, with a narrow continuous bed so the connection remains legible between stones. Its geometry is cached by endpoints. `reachable`, `cleared`, and `previewed` classes choose subdued future, brighter available, warm completed, and gold inspected-path colors in `route.css`; artwork does not create or remove a graph link.
+
+Keep `RouteMossNode` decorative: its groups are `aria-hidden` and ignore pointer input. The parent control owns the accessible name, description, available/disabled state, mouse and keyboard activation, and touch/compact preview. The occupied node omits its category symbol so the current-position pyramid remains clear. Completed nodes show a small check; available platforms have teal rims and an amber pointer; inspected/current platforms use gold. Future symbols remain visible and still.
+
+Only available, visible icons spin and bob. `animated=false` freezes them during inactive backdrops, pending ability choices, and dialogs; the shared scheduler also stops for hidden pages or when no animated icon is visible. Reduced-motion preferences reset the symbols to a readable static angle and stop the pyramid's bob. The renderer uses 64 projected frames, a roughly nine-second turn, and a one-logical-pixel bob; preserve the canvas padding when changing silhouettes so sword tips, roofs, and crowns cannot clip. Appearance changes need no save migration or encounter roll.
+
+The smaller current-position pyramid is authored separately in `RoutePositionMarker`, with `{ x, y }` props and a 34×36 logical pixel grid. Its pure pixel painter builds a cached SVG data URL without browser APIs, retaining matching server/browser first frames. It keeps its own **Current route position** accessible image and ignores pointer input. Edit its palette/facets there and its gentle nonrotating hover in `route.css`; `data-route-paused` and reduced motion freeze it. HUD layout belongs to `route-party.css`, while the responsive guide, confirmation/action slot, and labeled Boss/Start pan controls belong to `RouteScreen` and `route.css`. See [marker/control details](ROUTE_OVERHAUL.md#position-marker-and-route-controls-2026-10-12).
 
 ## Add or change an event outcome
 
@@ -89,6 +104,7 @@ Use `RouteStopScreen` for quest scenes and choices, and use `PrepareScreen` and 
 ## Review checklist
 
 - Every generated node kind has a readable name, description, icon, and palette.
+- Check all seven floating symbols, complete turns, available/inspected/current/completed/future states, four-choice rows, and reduced motion at desktop and 320/390px phone widths. Background pixels, graph positions, and legal links must remain unchanged when only node/path artwork changes.
 - Seeded route generation remains deterministic; guaranteed kinds fit the generated column size and every node remains connected.
 - Events roll once on entry, persist across save/load, and cannot be claimed twice.
 - Positive and negative probabilities add to 100%, and all reward ranges and rounding rules match the displayed copy.

@@ -30,11 +30,11 @@
 .title-brand h1 span:first-child { color: var(--ui-ink); }
 .title-brand h1 span:last-child { color: var(--ui-coral); text-shadow: 4px 4px 0 #b6194e; }
 .title-menu { width: min(350px, 86vw); display: grid; gap: 12px; }
-.menu-button { position: relative; min-height: 58px; display: grid; place-items: center; padding: 12px 14px; border: 3px solid var(--ui-berry); border-radius: 0; outline: 2px solid var(--ui-white); background: var(--ui-stone); color: var(--ui-ink); text-align: center; text-decoration: none; font-family: var(--pixel-font); font-size: clamp(.72rem, 1.4vw, 1.05rem); line-height: 1.55; box-shadow: inset 3px 3px 0 #f7f7f1, inset -3px -3px 0 #acaaa7, 0 4px 0 var(--ui-berry-shadow); cursor: pointer; transition: none; }
-.menu-button:hover { transform: translateY(-2px); background: #e0ddda; box-shadow: inset 3px 3px 0 #fff, inset -3px -3px 0 #bcbab6, 0 6px 0 var(--ui-berry-shadow); }
-.menu-button:active { transform: translateY(3px); box-shadow: inset 3px 3px 0 #a8a6a2, 0 1px 0 var(--ui-berry-shadow); }
+.menu-button { position: relative; min-height: 58px; display: grid; place-items: center; padding: 12px 14px; border: 3px solid var(--ui-berry); border-radius: 0; outline: none; background: var(--ui-stone); color: var(--ui-ink); text-align: center; text-decoration: none; font-family: var(--pixel-font); font-size: clamp(.72rem, 1.4vw, 1.05rem); line-height: 1.55; box-shadow: 0 4px 0 var(--ui-berry-shadow); cursor: pointer; transition: none; }
+.menu-button:hover { transform: translateY(-2px); background: #e0ddda; box-shadow: 0 6px 0 var(--ui-berry-shadow); }
+.menu-button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ui-berry-shadow); }
 .menu-button:focus-visible { outline: 4px solid var(--ui-gold); outline-offset: 5px; background: #eee6ce; }
-.menu-primary { background: var(--ui-gold); box-shadow: inset 3px 3px 0 #fff0a0, inset -3px -3px 0 #d99f24, 0 4px 0 var(--ui-berry-shadow); }
+.menu-primary { background: var(--ui-gold); }
 .menu-primary:hover { background: #ffe079; }
 .menu-exit { color: var(--ui-berry); }
 .title-continue-summary { margin: -3px 0 2px; padding: 8px 10px; border: 2px solid #92b6b0; background: var(--ui-paper); color: var(--ui-muted); font-size: 1rem; line-height: 1.2; text-align: center; }

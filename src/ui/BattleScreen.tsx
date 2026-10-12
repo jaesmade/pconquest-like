@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Board from '../battle/Board';
 import type { BoardView, CameraCommand } from '../battle/Board';
 import { TILE_SIZE, gridAtWorld, tileCenter, worldSize } from '../battle/topDown';
@@ -85,6 +85,9 @@ export default function BattleScreen(props: Props) {
   const { run, battle, mode, chosenMove, target, notice } = props;
   const current = battle.result ? undefined : active(battle);
   const move = chosenMove ? MOVES[chosenMove] : undefined;
+  const playerTurn = !!current && (current.side === 'player' || !!props.controlBoth) && !battle.result;
+  const targeting = playerTurn && (mode === 'move' || mode === 'attack' && !!chosenMove);
+  const [targetInsets, setTargetInsets] = useState({ top: 0, bottom: 0 });
   const [open, setOpen] = useState(true);
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [panelStep, setPanelStep] = useState<'main' | 'special' | 'end-confirm'>('main');
@@ -99,6 +102,7 @@ export default function BattleScreen(props: Props) {
   const stageRef = useRef<HTMLElement>(null);
   const popupRef = useRef<HTMLElement>(null);
   const actorToggleRef = useRef<HTMLButtonElement>(null);
+  const targetBackRef = useRef<HTMLButtonElement>(null);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const cameraSequence = useRef(0);
   const routes = useMemo(() => current && (current.side === 'player' || props.controlBoth) ? reachable(battle, current) : new Map(), [battle, current, props.controlBoth]);
@@ -125,9 +129,25 @@ export default function BattleScreen(props: Props) {
     setHoveredMove(undefined);
     requestAnimationFrame(() => actorToggleRef.current?.focus());
   };
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !targeting) return;
+    const topPanels = [...stage.querySelectorAll<HTMLElement>('.battle-top-hud')];
+    const bottomPanels = [...stage.querySelectorAll<HTMLElement>('.battle-actor-hud, .camera-hud')];
+    const measure = () => {
+      const area = stage.getBoundingClientRect();
+      const top = Math.ceil(Math.max(0, ...topPanels.map(panel => panel.getBoundingClientRect().bottom - area.top)) + 8);
+      const bottom = Math.ceil(Math.max(0, ...bottomPanels.map(panel => area.bottom - panel.getBoundingClientRect().top)) + 8);
+      setTargetInsets(previous => previous.top === top && previous.bottom === bottom ? previous : { top, bottom });
+    };
+    const observer = new ResizeObserver(measure);
+    [stage, ...topPanels, ...bottomPanels].forEach(panel => observer.observe(panel));
+    measure();
+    return () => observer.disconnect();
+  }, [targeting, weatherOpen, current?.id, notice]);
   const positionPopup = (snapshot = view.current) => {
     const stage = stageRef.current, canvas = stage?.querySelector<HTMLCanvasElement>('.board canvas');
-    if (!stage || !canvas || !current) return;
+    if (!stage || !canvas || !current || targeting) return;
     const board = canvas.getBoundingClientRect(), area = stage.getBoundingClientRect();
     const world = worldSize(battle.map), center = tileCenter(battle.map, current.x, current.y);
     const scaleX = snapshot ? snapshot.zoom * board.width / snapshot.width : board.width / world.width;
@@ -257,8 +277,11 @@ export default function BattleScreen(props: Props) {
     return () => window.removeEventListener('keydown', key);
   }, [mode, chosenMove, panelStep, open, inspected, props.paused, current?.id, props.onMode, props.onPause]);
   useEffect(() => {
-    if (!open || (current?.side !== 'player' && !props.controlBoth) || props.paused) return;
-    const frame = requestAnimationFrame(() => popupRef.current?.querySelector<HTMLButtonElement>('[data-popup-focus]')?.focus());
+    if ((!open && !targeting) || (current?.side !== 'player' && !props.controlBoth) || props.paused) return;
+    const frame = requestAnimationFrame(() => {
+      const button = targeting ? targetBackRef.current : popupRef.current?.querySelector<HTMLButtonElement>('[data-popup-focus]');
+      button?.focus();
+    });
     return () => cancelAnimationFrame(frame);
   }, [open, mode, panelStep, chosenMove, current?.id, props.paused]);
   const tile = (x: number, y: number) => {
@@ -271,7 +294,6 @@ export default function BattleScreen(props: Props) {
     }
     props.onTile(x, y);
   };
-  const playerTurn = !!current && (current.side === 'player' || !!props.controlBoth) && !battle.result;
   const attackReason = current?.attackedThisTurn ? 'Attack already used this turn'
     : !current || current.ap < 1 ? 'No AP remaining'
     : current.moves.every(id => current.ap < MOVES[id].apCost || itemBlocksMove(current, MOVES[id]))
@@ -294,6 +316,7 @@ export default function BattleScreen(props: Props) {
   };
   const chooseMode = (next: Mode) => { setInspected(undefined); setPanelStep('main'); setHoveredMove(undefined); props.onMode(next); };
   const back = () => {
+    setOpen(true);
     if (panelStep !== 'main') setPanelStep('main');
     else chooseMode(mode === 'attack' && chosenMove ? 'attack' : 'inspect');
   };
@@ -311,15 +334,15 @@ export default function BattleScreen(props: Props) {
       onClick={() => props.onChooseMove(id)}><span>{moveData.name}</span><small>{reason || `${moveData.apCost} AP · ${moveData.type}`}</small></button>;
   };
 
-  return <main className="battle-stage" ref={stageRef}>
-    <div className="battle-map-frame"><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
+  return <main className={`battle-stage${targeting ? ' is-targeting' : ''}`} ref={stageRef}>
+    <div className="battle-map-frame" style={targeting ? targetInsets : undefined}><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
     <header className="battle-top-hud">
       <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `COLUMN ${run.encounter + 1}`} · CYCLE {battle.round} · AV {Math.floor(battle.time)}</span><strong>{battle.map.name}</strong><small className="battle-objective">{battle.objective === 'defeat-and-capture' ? 'Defeat foes + hold capture point' : 'Defeat all opponents'}</small>
         {(weatherCycles > 0 || trickRoomCycles > 0) && <div className="battle-field-conditions" aria-label="Active field conditions">
-          {weatherCycles > 0 && <button type="button" className={`battle-field-condition weather-${battle.weather}`} aria-label={`${weatherLabels[battle.weather]} - ${weatherCycles} cycles left`} aria-expanded={weatherOpen} aria-controls="battle-weather-details" onClick={() => setWeatherOpen(value => !value)} title="Show current weather effects">({weatherLabels[battle.weather]} - {weatherCycles} cycles left)</button>}
+          {weatherCycles > 0 && <button type="button" className={`battle-field-condition weather-${battle.weather}`} aria-label={`${weatherLabels[battle.weather]} - ${weatherCycles} cycles left`} aria-expanded={weatherOpen && !targeting} aria-controls="battle-weather-details" disabled={targeting} onClick={() => setWeatherOpen(value => !value)} title={targeting ? 'Finish target selection to inspect weather effects' : 'Show current weather effects'}>({weatherLabels[battle.weather]} - {weatherCycles} cycles left)</button>}
           {trickRoomCycles > 0 && <span className="battle-field-condition trick-room-active" aria-label={`Trick Room - ${trickRoomCycles} cycles left`} title="Lower effective Speed acts more often.">(Trick Room - {trickRoomCycles} cycles left)</span>}
         </div>}
-        {weatherCycles > 0 && weatherOpen && <aside className="battle-weather-details" id="battle-weather-details" aria-label="Current weather preview"><b>{weatherLabels[battle.weather]} effects</b><span>{weatherEffects[battle.weather]}</span>{battle.weather === 'sandstorm' && <small>Next tick in {Math.max(0, battle.round * ACTION_VALUE_PER_CYCLE - battle.time).toLocaleString()} AV · resistant types avoid the 1/16 max HP damage.</small>}</aside>}
+        {weatherCycles > 0 && weatherOpen && !targeting && <aside className="battle-weather-details" id="battle-weather-details" aria-label="Current weather preview"><b>{weatherLabels[battle.weather]} effects</b><span>{weatherEffects[battle.weather]}</span>{battle.weather === 'sandstorm' && <small>Next tick in {Math.max(0, battle.round * ACTION_VALUE_PER_CYCLE - battle.time).toLocaleString()} AV · resistant types avoid the 1/16 max HP damage.</small>}</aside>}
       </div>
       <div className="turn-strip" aria-label="Turn order">{upcoming(battle).slice(0, 6).map((unit, index) =>
         <div key={`${unit.id}-${index}`} className={`turn-portrait ${unit.side} ${index === 0 ? 'now' : ''}`} title={index === 0 ? `${unit.name} · acting now · ${Math.floor(effectiveSpeed(unit, battle))} SPD` : `${unit.name} · ${Math.ceil(Math.max(0, unit.nextAction - battle.time))} AV until turn · ${unit.ap} AP banked · +${apGain(unit, battle)} next turn`}>
@@ -327,9 +350,18 @@ export default function BattleScreen(props: Props) {
         </div>)}</div>
       <button className="battle-pause" onClick={props.onPause}><PixelIcon name="menu" />{props.controlBoth ? 'Setup' : 'Menu'}</button>
     </header>
-    {current && !battle.result && <div className="battle-actor-hud"><SpeciesPortrait id={current.species} /><div><b title={statsLabel(current)}>{current.name} <small className="unit-level">Lv {current.level}</small> <RankBadge unit={current} /></b><span className="battle-actor-vitals"><strong>{current.hp}/{current.maxHp}</strong> HP <strong>{current.ap}</strong> AP</span><span className="battle-actor-readiness">{current.movedThisTurn ? 'Move used' : 'Move ready'} · {current.attackedThisTurn ? 'Attack used' : 'Attack ready'}</span><StatusIcons unit={current} time={battle.time} /></div>{playerTurn && <button ref={actorToggleRef} onClick={() => { setInspected(undefined); setPanelStep('main'); setOpen(value => !value); }} aria-expanded={open} aria-label={open ? 'Hide actions' : 'Show actions'}><PixelIcon name={open ? 'close' : 'menu'} /></button>}</div>}
+    {current && !battle.result && <div className="battle-actor-hud"><SpeciesPortrait id={current.species} /><div><b title={statsLabel(current)}>{current.name} <small className="unit-level">Lv {current.level}</small> <RankBadge unit={current} /></b><span className="battle-actor-vitals"><strong>{current.hp}/{current.maxHp}</strong> HP <strong>{current.ap}</strong> AP</span>
+      {playerTurn && targeting ? <>
+        <span className="battle-target-prompt">{mode === 'attack' ? `${move?.name} · ${move?.apCost} AP · choose a target` : `Move · 1 AP · choose a green tile · ${Math.max(0, current.ap - 1)} AP left`}</span>
+        {mode === 'attack' && <div className="battle-target-legend" aria-label="Targeting colors"><span className="range">Blue: range</span><span className="strong">Green: strong</span><span className="resisted">Orange: resisted</span><span className="immune">Gray: immune</span></div>}
+        {mode === 'attack' && props.controlBoth && move && labTarget && <span className="battle-target-damage">{labTarget.name}: {labAbsorption ? `absorbed by ${labAbsorption.ability} · 0 HP damage` : labDamage ? `${labDamage.min}–${labDamage.max} HP · crit ${labDamage.critMin}–${labDamage.critMax} · 1/24 critical chance` : 'Status move · no direct damage'}</span>}
+        {notice && <span className="battle-target-notice" role="status">{notice}</span>}
+      </> : <span className="battle-actor-readiness">{current.movedThisTurn ? 'Move used' : 'Move ready'} · {current.attackedThisTurn ? 'Attack used' : 'Attack ready'}</span>}
+      <StatusIcons unit={current} time={battle.time} /></div>{playerTurn && (targeting
+        ? <button ref={targetBackRef} className="battle-target-back" disabled={visualBusy} onClick={back} aria-label={mode === 'attack' ? 'Back to move selection' : 'Back to actions'} title="Back · Escape"><PixelIcon name="arrow-left" /></button>
+        : <button ref={actorToggleRef} onClick={() => { setInspected(undefined); setPanelStep('main'); setOpen(value => !value); }} aria-expanded={open} aria-label={open ? 'Hide actions' : 'Show actions'}><PixelIcon name={open ? 'close' : 'menu'} /></button>)}</div>}
     {!playerTurn && !battle.result && <div className="opponent-turn">Opponent acting…</div>}
-    {playerTurn && open && <section ref={popupRef} className={`action-popup glass-action-menu ${mode !== 'inspect' || panelStep !== 'main' ? 'submenu' : ''} ${mode === 'attack' && !chosenMove ? 'choosing-move' : ''} ${(mode === 'move' || mode === 'attack' && chosenMove) && !notice ? 'targeting' : ''}`} style={{ left: anchor.left, top: anchor.top }} aria-label={`${current.name} actions`} aria-busy={visualBusy}>
+    {playerTurn && open && !targeting && <section ref={popupRef} className={`action-popup glass-action-menu ${mode !== 'inspect' || panelStep !== 'main' ? 'submenu' : ''} ${mode === 'attack' && !chosenMove ? 'choosing-move' : ''}`} style={{ left: anchor.left, top: anchor.top }} aria-label={`${current.name} actions`} aria-busy={visualBusy}>
       {mode === 'inspect' && panelStep === 'main' && <div className="action-command-list">
         <button type="button" data-popup-focus={!attackReason || undefined} disabled={!!attackReason || visualBusy} title={attackReason || 'Choose one equipped move'} onClick={() => chooseMode('attack')}><PixelIcon className="action-command-icon" name="sword" /><b>Attack</b><small>{attackReason || 'Choose a move'}</small></button>
         <button type="button" data-popup-focus={!!attackReason && !moveReason || undefined} disabled={!!moveReason || visualBusy} title={moveReason || 'Choose a reachable tile'} onClick={() => chooseMode('move')}><PixelIcon className="action-command-icon" name="boot" /><b>Move</b><small>{moveReason || '1 AP · once per turn'}</small></button>
@@ -352,14 +384,6 @@ export default function BattleScreen(props: Props) {
             <button type="button" className="menu-back move-center" disabled={visualBusy} onClick={back} aria-label="Back to actions"><PixelIcon name="arrow-left" /></button>
             {moveButton(2)}{moveButton(3)}
           </div>
-        </div>}
-        {mode === 'attack' && chosenMove && <div className="action-target-choice">
-          <button type="button" className="menu-back" data-popup-focus disabled={visualBusy} onClick={back} aria-label="Back to move selection"><PixelIcon name="arrow-left" /></button>
-          <p><b>{move?.name}</b><span>Choose a target · {move?.apCost} AP</span><small>Blue: range · green: strong · orange: resisted · gray: immune</small></p>
-        </div>}
-        {mode === 'move' && <div className="action-target-choice">
-          <button type="button" className="menu-back" data-popup-focus disabled={visualBusy} onClick={back} aria-label="Back to actions"><PixelIcon name="arrow-left" /></button>
-          <p><b>Move · 1 AP</b><span>Choose a green tile</span><small>{Math.max(0, current.ap - 1)} AP after moving</small></p>
         </div>}
       </>}
       {notice && <p className="notice" role="status">{notice}</p>}

@@ -14,13 +14,53 @@ The checked [Pokemon reference CSV](../pokefiles/for%20checking/Pokemon%20Refere
 - `Available TMs` uses the project's 229 entries in `TM.csv`, matched by move name to PokeAPI machine compatibility. For each form, the export selects Scarlet/Violet records first, then Sword/Shield, then the latest earlier version group that records machine/TM compatibility and has a move record for that form. Games without TM compatibility data are skipped. Mega, Gigantamax, and battle-only forms with no eligible form-specific record inherit the default form's selected compatibility. The CSV records the source version group, reports forms with no eligible record explicitly, and flags selected source groups with no match in the project's TM list. TM numbers remain the project's `TM.csv` numbers; they are not remapped to each source game's numbering.
 - `Origin Region` is the species' main region based on its introduction generation. `Form Region` identifies Alola, Galar, Hisui, or Paldea regional forms separately.
 - `exp gain` records the species' experience growth curve for every form, using the pinned PokeAPI `pokemon_species.csv` and `growth_rates.csv` tables. Labels include Slow, Medium Fast, Fast, Medium Slow, Slow Then Very Fast, and Fast Then Very Slow. The export is reference-only; runtime XP still uses one shared threshold. See the [experience growth plan](EXP_GROWTH_PLAN.md) for the proposed species-aware runtime mapping, save migration, and reward rebalance.
-- The output includes evolution target, level, method, and condition columns; ability options preserve slot order and the hidden flag. Nine Mega forms have no ability records in the pinned PokeAPI snapshot, so those cells are empty and flagged instead of guessed.
+- The output includes evolution target, level, method, and condition columns; `Ability Options` preserves slot order and the hidden flag. As of 2026-10-12, the checked copy also fills its existing `1st Ability `, `2nd ability`, and `hidden ability` columns for all 1,351 rows. The first two columns select non-hidden slots 1 and 2 respectively; the hidden column selects the entry with `hidden: true`. An absent slot is written as `None`, without duplicating another slot's ability or inheriting the base form's ability.
+- Nine Mega forms have no ability records in the pinned PokeAPI snapshot: Zygarde, Heatran, Darkrai, Magearna, Original Magearna, Zeraora, and the Curly, Droopy, and Stretchy Tatsugiri Mega forms. Their `Ability Options` remains `[]`, and all three split columns use `None`. For these rows, `None` records an absent source assignment, not proof that an ability could never be assigned in another game or a later dataset. Simulator fallback assignments were not substituted for the missing source data.
 
 Regenerate the checked copy with [the reference CSV generator](../scripts/generate_pokemon_reference_csv.py), passing `--output "pokefiles/for checking/Pokemon Reference.csv"`. It fetches the pinned PokeAPI tables when no local source folder is passed.
+
+The checked copy has a manually selected review schema. The generator currently exports the full schema with `Ability Options` and source status fields; preserve or repopulate the three split ability columns when replacing the reviewed copy.
 
 ## Ability review CSV
 
 The checked [Abilities CSV](../pokefiles/for%20checking/Abilities.csv) is sorted A-Z by `Name` for review. All 314 rows retain their descriptions, proposals, and game implementation notes, including repeated names. This reference-file change does not register abilities in the runtime catalog.
+
+As of 2026-10-12, every row's `Exact Description` contains Pokémon reference mechanics, including applicable multipliers, percentages, HP thresholds, stat stages, durations, and activation conditions. The other four columns retain their original text and can intentionally differ from the reference effects.
+
+- Gen 9 battle mechanics are the baseline, including the Scarlet/Violet changes to Battle Bond, Protean/Libero, Transistor, and snow. Significant earlier-generation differences are labeled in the affected cells. Abilities absent from Scarlet/Violet retain their reference effects. The newer official abilities already in the CSV, including Dragonize, Eelevate, Fire Mane, Mega Sol, Piercing Drill, and Spicy Spray, have their own effects included.
+- The two `As One` rows follow their existing `Game Implementation` notes: Chilling Neigh identifies Ice Rider Calyrex's Attack boost, and Grim Neigh identifies Shadow Rider Calyrex's Special Attack boost. Their shared source `Description` text is preserved. The single `Embody Aspect` row describes all four mask-specific boosts.
+- Pickup includes its 10% post-battle item chance as well as its battle effect. Honey Gather includes all ten level bands, and Ball Fetch and Run Away describe their wild-battle functions. Immunities and other deterministic effects are described directly without inventing a probability.
+- Fractions remain alongside their percentages, and multipliers remain explicit. Stat stages are not additive percentage boosts: for ordinary battle stats, starting at stage 0, +1 means 1.5x, +2 means 2x, and +6 means 4x. Stages are capped at -6 and +6; accuracy and evasion use their own stage ratios.
+
+The main source is Pokémon Showdown's [ability descriptions](https://github.com/smogon/pokemon-showdown/blob/942cda71d14bf0618bd57991708a2e2734b6daba/data/text/abilities.ts), checked against its [ability rules](https://github.com/smogon/pokemon-showdown/blob/942cda71d14bf0618bd57991708a2e2734b6daba/data/abilities.ts), [move rules](https://github.com/smogon/pokemon-showdown/blob/942cda71d14bf0618bd57991708a2e2734b6daba/data/moves.ts), and [weather rules](https://github.com/smogon/pokemon-showdown/blob/942cda71d14bf0618bd57991708a2e2734b6daba/data/conditions.ts), pinned at `942cda71d14bf0618bd57991708a2e2734b6daba`. Nonbattle details were checked against the pinned [PokeAPI ability prose](https://github.com/PokeAPI/pokeapi/blob/89289e314ae20a34e8159a34a5fe646e656d6149/data/v2/csv/ability_prose.csv). Newer effects were also checked against official Pokémon pages for [Dragonize and Mega Sol](https://www.pokemon.com/uk/pokemon-news/pokemon-champions-is-now-available-on-nintendo-switch-and-nintendo-switch-2), [Eelevate](https://www.pokemon.com/uk/pokedex/eelektross), [Fire Mane](https://www.pokemon.com/uk/pokedex/pyroar), [Piercing Drill](https://www.pokemon.com/uk/pokedex/excadrill), and [Spicy Spray](https://www.pokemon.com/uk/features/pokemon-champions-regulation-m-b-double-battles-overview).
+
+The runtime still uses the nine definitions in `src/content/abilities.ts`. For example, runtime Blaze/Torrent activate below half HP and runtime Technician checks AP cost; the reference descriptions use the main-series one-third HP threshold and 60-power cutoff. Filling the review column does not change runtime rules or approve proposed mappings.
+
+<details>
+<summary>Pokémon Showdown attribution and license for the adapted reference descriptions</summary>
+
+The MIT License (MIT)
+
+Copyright (c) 2011-2026 Guangcong Luo and other contributors http://pokemonshowdown.com/
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+</details>
 
 ## Item reference export
 

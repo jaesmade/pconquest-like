@@ -1,8 +1,14 @@
 # Start screen overhaul
 
+## Button polish (2026-10-12)
+
+Title-menu and supporting-panel buttons use one raspberry border, a solid gold or stone fill, and a hard berry shadow. Removed the always-visible white outer outline and inset bevel highlights to simplify the button edges. Hover lifts the button and lightens its fill; pressing lowers it and shortens the shadow. Keyboard navigation retains the shared visible gold focus ring.
+
+Checked the production build and isolated title fixtures at 1280×900 and 390×844, including idle, hover, pressed, and keyboard-focus styles, arrow navigation, Options sound toggling, Lab/Exit/back navigation, and New Run opening the draft. Phone controls remained within the viewport with 58px targets. The fixture review did not write the campaign save.
+
 ## Pixel polish (2026-10-06)
 
-The title uses hard checker layers, square beveled buttons/frames, locally bundled pixel fonts, a primary Continue/New Run action and a saved-run summary. Supporting screens compact the logo so controls remain reachable on phones and short windows. Battle Lab initially focuses the first species control. Sound remains the implemented option; the panel also explains device reduced-motion preferences.
+The title uses hard checker layers, square framed buttons, locally bundled pixel fonts, a primary Continue/New Run action and a saved-run summary. Supporting screens compact the logo so controls remain reachable on phones and short windows. Battle Lab initially focuses the first species control. Sound remains the implemented option; the panel also explains device reduced-motion preferences.
 
 Starting over from an unfinished run opens an in-game confirmation instead of the native browser window. Keep current run is focused first; Escape cancels, Tab stays inside, and cancel restores focus to New Run. Completed runs start fresh directly. Exit reports save failures accurately.
 
@@ -15,7 +21,7 @@ Give the game a distinct first impression before its existing run, Lab, and opti
 - Fill the browser viewport with a pale cream-to-aqua background, a faint square grid/checker pattern, a cool teal glow at the lower left, and a coral glow at the lower right.
 - Set **Pokémon** in dark navy above **Tactics** in coral. Use the pixel font with large responsive sizing and tight line spacing.
 - On the splash, keep the two-line wordmark centered in the upper-middle area and place **Press any key to start** near the lower edge. A pointer press anywhere also continues.
-- On the title menu, align the wordmark in the upper area and stack gray buttons with white outer edges and raspberry borders: **Continue** (only when a run is resumable), **New Run**, **Lab**, **Options**, and **Exit**.
+- On the title menu, align the wordmark in the upper area and stack stone buttons with single raspberry borders and hard berry shadows: **Continue** (only when a run is resumable), **New Run**, **Battle Lab**, **Options**, and **Exit**. The primary Continue/New Run button has a gold fill.
 - Keep supporting screens over the same background. Put Lab setup, Options, and Exit text in a readable paper panel with navy body copy and the shared raspberry accents instead of returning to the former dark title card.
 
 The background is built from CSS gradients and grid layers in `src/styles/menus.css`; the title itself remains selectable HTML. The standalone island background documented in `ISOMETRIC_ASSETS.md` is not used in this screen design.

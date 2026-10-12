@@ -1,1 +1,17 @@
 Poison Type Pokemon are inherently immune to the poison status
+
+Strong winds have the following effects:
+
+    The weather stays active as long as the ability-bearer remains in battle, but stops when the Pokémon is switched out.
+    Electric-, Ice-, and Rock-type moves deal normal damage to any Flying-type Pokémon in battle instead of being super-effective.
+    The strong winds cannot be replaced by a regular weather condition - in other words the moves Hail, Rain Dance, Sunny Day, and Sandstorm, and the abilites Drizzle, Drought, Sand Stream, and Snow Warning will fail.
+
+The abilities Cloud Nine or Air Lock are still able to bypass the effects of Delta Stream, but Mold Breaker is not.
+
+Extremely harsh sunlight has the same effects as harsh sunlight but with some additions:
+
+    The weather stays active as long as the ability-bearer remains in battle, but stops when the Pokémon is switched out.
+    Water type attacks "evaporate" and have no effect.
+    The extremely harsh sunlight cannot be replaced by a regular weather condition - in other words the moves Hail, Rain Dance, Sunny Day, and Sandstorm, and the abilites Drizzle, Drought, Sand Stream, and Snow Warning will fail.
+
+The abilities Cloud Nine or Air Lock are still able to bypass the effects of Desolate Land, but Mold Breaker is not.

@@ -31,6 +31,42 @@ For every future task that changes code, assets, behavior, or project documentat
 
 ## Recent changes
 
+### 2026-10-12 - Simplified start-screen button edges
+
+- Removed the always-visible white outline and inset bevel highlights from title-menu and supporting-panel buttons. Buttons now use a single raspberry border, a solid gold or stone fill, and a hard berry shadow; hover/press still change elevation and the shared gold keyboard-focus ring remains visible.
+- Main file: `src/styles/menus.css`; updated the [start-screen guide](START_SCREEN_OVERHAUL.md#button-polish-2026-10-12). Button geometry, labels, navigation, and save behavior retain their existing implementation.
+- Checked production build, scoped whitespace, and isolated fixtures at 1280×900 and 390×844: idle/hover/pressed outlines, keyboard focus and arrow navigation, Options sound toggling, Lab/Exit/back navigation, New Run opening the draft, and phone touch navigation. All buttons retained at least 44px targets and no browser page errors occurred. Campaign saves were not used; the existing Phaser bundle-size warning remains.
+
+### 2026-10-12 - Filled Pokémon reference ability slots
+
+- Filled the existing first, second, and hidden ability columns in `pokefiles/for checking/Pokemon Reference.csv` for all 1,351 species/form rows from their `Ability Options` slot numbers and hidden flags. Used `None` for absent slots, including all three slots for the nine Mega forms with no source assignment. Preserved form-specific assignments without copying base-form abilities into Mega rows.
+- Preserved the current review schema, headers, row order, all other cells, original field quoting, UTF-8 BOM, and record separators. Updated the [Pokefile reference guidance](POKEFILE_CONTENT_IMPLEMENTATION_PLAN.md#consolidated-pokefile-reference-export) with the slot mapping, source gaps, and regeneration caveat. Runtime catalogs and the export generator were not changed.
+- Checked all 4,053 target cells are populated, every ability matches its recorded slot, absent slots use `None`, parsed CSV round trips, and exact preservation of unrelated fields. Reviewed the changed columns in a rendered preview and checked scoped documentation whitespace. No game build or playthrough was needed for this reference-data edit.
+
+### 2026-10-12 - Closed the targeting HUD gap review
+
+- Reserved measured canvas space between the top HUD and actor/camera controls during targeting, including wrapped errors and status content. Temporarily collapsed Damage lab, the campaign log, the minimap, and expanded weather details; kept camera buttons and the lab's damage/critical forecast available in the bottom HUD. Restored the visible targeting color legend at all widths.
+- Main files: `src/ui/BattleScreen.tsx` and `src/styles/battle-menu.css`. Marked the three findings resolved in the [targeting follow-up review](UI_OVERHAUL_PLAN.md#follow-up-targeting-gap-review-2026-10-12-resolved) and updated [Battle Lab instructions](BATTLE_LAB.md).
+- Checked production build, scoped whitespace, and rendered Battle Lab at 1280×720, 390×844, 320×568, 768×1024, and 844×390. Reproduced the old covered-target/error cases and confirmed a successful Rock Throw attack, movement through the resized canvas, visible Back/legend/camera controls, cancellation without AP cost, and panel restoration, including expanded Sandstorm details. No full campaign or 32×32 visual review was performed; the existing Phaser bundle warning remains.
+
+### 2026-10-12 - Added numerical Pokémon ability reference descriptions
+
+- Filled `Exact Description` for all 314 rows in `pokefiles/for checking/Abilities.csv` with Pokémon reference effects, including percentages, multipliers, HP thresholds, stat stages, trigger conditions, and durations. Included significant generation differences, all four Embody Aspect masks, each As One variant, newer official abilities, and the nonbattle functions of Pickup, Honey Gather, Ball Fetch, and Run Away.
+- Preserved the other four columns, row order, duplicate names, original field quoting, UTF-8 BOM, and record separators. Updated the [ability review reference guidance](POKEFILE_CONTENT_IMPLEMENTATION_PLAN.md#ability-review-csv) with the scope, pinned sources, attribution, and distinction from the nine runtime abilities. This changes reference data only.
+- Checked all 314 descriptions are populated, parsed CSV round trips with independent readers, exact preservation of every unrelated field, and representative numeric effects against source rules. Reviewed the rendered changed rows. Documentation whitespace checks passed; existing trailing spaces in the CSV's game implementation notes were retained. No runtime code changed; game build and playthrough checks were not needed for this CSV/documentation edit.
+
+### 2026-10-12 - Audited remaining targeting layout gaps
+
+- Recorded three P2 findings in the [targeting follow-up review](UI_OVERHAUL_PLAN.md#follow-up-targeting-gap-review-2026-10-12-resolved): Damage lab could cover a legal ranged target, invalid-target feedback could grow the actor HUD underneath the diagnostics, and screens up to 1000px lost the color legend. No runtime code or behavior changed in that audit; the later entry above records their fixes.
+- Reviewed `src/ui/BattleScreen.tsx`, `src/styles/battle-menu.css`, and the camera framing in `src/battle/Board.tsx`. Reproduced the obstruction and notice overlap in the built Battle Lab at 390×844 with level-1 Geodude and Squirtle; checked DOM hit receivers, panel dimensions, and the responsive legend rule.
+- Checked scoped documentation whitespace. The previous build and gameplay checks were not repeated for this documentation-only review; campaign HUD target obstruction was not exercised.
+
+### 2026-10-12 - Kept nearby enemies visible during targeting
+
+- Removed the unit-anchored card during attack and movement targeting. The bottom actor HUD now holds the selected move/AP prompt, Back control, and invalid-target messages, keeping nearby tiles visible and available for selection. Move-list descriptions remain available before choosing a move.
+- Main files: `src/ui/BattleScreen.tsx` and `src/styles/battle-menu.css`; updated [UI progress](UI_OVERHAUL_PLAN.md) and [Battle Lab instructions](BATTLE_LAB.md). Back and Escape retain cancellation without AP cost, with keyboard focus on the new Back control.
+- Checked production build and Battle Lab at desktop and 390×844 phone sizes with an adjacent opponent: movement targeting, attack and self-targeting status selection, Back/Escape focus and unchanged AP, invalid-target feedback, and a successful tile-click attack. Scoped whitespace checks passed. The existing Phaser bundle-size warning remains.
+
 ### 2026-10-06 - Reviewed and closed ability overhaul gaps
 
 - Corrected four gaps found in the follow-up audit: Capsule names appearing before the offer save completed, overlapping/truncated battle feedback, Bag-only items accepted as saved battle equipment, and direct evolution/TM calls bypassing pending offers. New offers save immediately before display; failed writes retain the same hidden offer for retry or allow cancellation without consuming an item. Main files: `src/app/App.tsx`, `src/ui/RouteScreen.tsx`, `src/styles/route-overlays.css`, `src/battle/Board.tsx`, `src/persistence/save.ts`, and `src/game/engine.ts`.

@@ -63,6 +63,13 @@
 .battle-stage::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(#07181faa,transparent 19%,transparent 76%,#07181f88)}
 .battle-map-frame{inset:0;padding:0;display:block}.battle-map-frame .board{width:100%;height:100%;max-width:none;max-height:none;border:0;border-radius:0;box-shadow:none;aspect-ratio:auto}
 .battle-map-frame .board canvas{width:100%;height:100%;object-fit:fill;cursor:grab;touch-action:none}
+/* The supplied APNG carries its own 64-frame timing and seamless tile loop. */
+.board{position:relative;isolation:isolate}
+.board.weather-rain::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background-image:var(--battle-rain-image);background-repeat:repeat;background-size:128px 128px;image-rendering:pixelated}
+@media(prefers-reduced-motion:reduce){.board.weather-rain::after{background-image:var(--battle-rain-still)}}
+/* Directional sunlight fills the viewport once; it is not a repeating tile. */
+.board.weather-sun::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background-image:var(--battle-sun-image);background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated}
+@media(prefers-reduced-motion:reduce){.board.weather-sun::after{background-image:var(--battle-sun-still)}}
 .battle-top-hud{padding:calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 10px calc(12px + env(safe-area-inset-left))}
 .turn-portrait.player{background:#285347 url('/assets/ui/hud/hud-portrait-ally-32px.png') center/100% 100% no-repeat}.turn-portrait.enemy{background:#653c39 url('/assets/ui/hud/hud-portrait-enemy-32px.png') center/100% 100% no-repeat}
 .turn-portrait.now{border-color:#fff0ae;filter:brightness(1.2)}.turn-portrait .portrait{filter:drop-shadow(0 2px 1px #081921)}

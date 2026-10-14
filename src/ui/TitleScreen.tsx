@@ -13,6 +13,7 @@ type Props = {
   continueSummary?: string;
   saveFailed: boolean;
   soundMuted: boolean;
+  weatherAnimationsEnabled: boolean;
   labConfig: LabConfig;
   setLabConfig: Dispatch<SetStateAction<LabConfig>>;
   onViewChange: (view: TitleView) => void;
@@ -20,9 +21,10 @@ type Props = {
   onNewRun: () => void;
   onStartLab: () => void;
   onSoundMutedChange: (muted: boolean) => void;
+  onWeatherAnimationsChange: (enabled: boolean) => void;
 };
 
-export default function TitleScreen({ view, canContinue, continueSummary, saveFailed, soundMuted, labConfig, setLabConfig, onViewChange, onContinue, onNewRun, onStartLab, onSoundMutedChange }: Props) {
+export default function TitleScreen({ view, canContinue, continueSummary, saveFailed, soundMuted, weatherAnimationsEnabled, labConfig, setLabConfig, onViewChange, onContinue, onNewRun, onStartLab, onSoundMutedChange, onWeatherAnimationsChange }: Props) {
   return <main className={`title-screen ${view === 'splash' ? 'splash-screen' : ''}${view !== 'splash' && view !== 'title' ? ' title-detail-screen' : ''}`} onClick={view === 'splash' ? () => onViewChange('title') : undefined}>
     <div className={`title-layout ${view === 'splash' ? 'splash-layout' : ''}`}>
       <header className="title-brand" aria-label="Pokémon Tactics"><h1><span>Pokémon</span><span>Tactics</span></h1></header>
@@ -53,7 +55,7 @@ export default function TitleScreen({ view, canContinue, continueSummary, saveFa
           <label>Seed<input type="number" min="1" max="4294967295" step="1" value={labConfig.seed} onChange={event => setLabConfig(previous => ({ ...previous, seed: Math.max(1, Math.min(4294967295, Math.floor(Number(event.target.value) || 1))) }))} /></label></div>
         <div className="title-actions"><button className="menu-button" onClick={onStartLab}>Start Battle Lab</button><button className="menu-button" onClick={() => onViewChange('title')}>Back to title</button></div>
       </section>}
-      {view === 'options' && <section className="title-panel"><h2>Options</h2><p>Toggle music and battle sounds. This preference is saved in this browser.</p><div className="title-actions"><button className="menu-button" autoFocus data-audio-toggle aria-pressed={!soundMuted} onClick={() => onSoundMutedChange(!soundMuted)}>Sound: {soundMuted ? 'Off' : 'On'}</button><button className="menu-button" onClick={() => onViewChange('title')}>Back to title</button></div><p className="title-setting-note">Animations follow your device’s reduced motion setting.</p></section>}
+      {view === 'options' && <section className="title-panel"><h2>Options</h2><p>Toggle sound and weather animations. These preferences are saved in this browser.</p><div className="title-actions"><button className="menu-button" autoFocus data-audio-toggle aria-pressed={!soundMuted} onClick={() => onSoundMutedChange(!soundMuted)}>Sound: {soundMuted ? 'Off' : 'On'}</button><button className="menu-button" aria-pressed={weatherAnimationsEnabled} aria-describedby="weather-animation-note" onClick={() => onWeatherAnimationsChange(!weatherAnimationsEnabled)}>Weather animations: {weatherAnimationsEnabled ? 'On' : 'Off'}</button><button className="menu-button" onClick={() => onViewChange('title')}>Back to title</button></div><p className="title-setting-note" id="weather-animation-note">Turn off rain, sunlight, snow, and sandstorm visuals. Weather still affects battles. When enabled, weather visuals follow your device’s reduced motion setting.</p></section>}
       {view === 'exit' && <section className="title-panel"><h2>See you next run</h2><p>{saveFailed ? 'Progress could not be saved. Keep this tab open to keep playing your current run.' : 'Your progress is saved in this browser. You can close this tab and return here later.'}</p><div className="title-actions"><button className="menu-button" autoFocus onClick={() => onViewChange('title')}>Back to title</button></div></section>}
       {saveFailed && view !== 'splash' && <p className="title-save-warning" role="alert">Progress could not be saved in this browser.</p>}
     </div>

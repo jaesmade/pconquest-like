@@ -107,7 +107,7 @@ export async function runBrowserBench() {
     scenarios: {},
   };
   await wait(500);
-  for (const [name, action] of Object.entries(scenarios)) {
+  for (const [name, action] of new URLSearchParams(location.search).has('snow-checks') ? [] : Object.entries(scenarios)) {
     results.scenarios[name] = [];
     for (let pass = 1; pass <= 3; pass++) {
       status.textContent = `Profiling ${name}, pass ${pass}/3`;
@@ -135,7 +135,8 @@ export async function runBrowserBench() {
     }
   }
   results.rendererChecks = checkRendererReuse(scene);
-  document.getElementById('renderer-checks').textContent = `${results.rendererChecks.assertions} renderer checks passed.`;
+  results.snowChecks = checkSnowOverlay(scene);
+  document.getElementById('renderer-checks').textContent = `${results.rendererChecks.assertions} renderer checks and ${results.snowChecks.assertions} snow checks passed.`;
   status.textContent = 'Profiling complete';
   output.textContent = JSON.stringify(results);
 }
@@ -195,5 +196,62 @@ function checkRendererReuse(scene) {
     scene.displayedHp = original.displayedHp;
     scene.pendingAttacks = original.pendingAttacks; scene.playingAttack = original.playingAttack;
     scene.renderBattle();
+  }
+}
+
+/** Exercise the real TileSprite with synchronous updates independent of browser timing. */
+function checkSnowOverlay(scene) {
+  let assertions = 0;
+  const assert = (condition, message) => { if (!condition) throw new Error(`Snow check: ${message}`); assertions++; };
+  const snow = scene.snow, camera = scene.cameras.main;
+  assert(!!snow, 'persistent snow TileSprite exists');
+  const original = { battle: scene.battle, reducedMotion: scene.reducedMotion, elapsed: scene.snowElapsed, frame: scene.snowFrame,
+    visible: snow.visible, setFrame: snow.setFrame, width: camera.width, height: camera.height, zoomX: camera.zoomX, zoomY: camera.zoomY,
+    scrollX: camera.scrollX, scrollY: camera.scrollY, bounds: camera.getBounds(), useBounds: camera.useBounds,
+    sandstormStartedAt: scene.sandstormStartedAt, sandstormFrame: scene.sandstormFrame };
+  const weather = value => { scene.battle = { ...original.battle, weather: value }; scene.renderBattle(); };
+  const update = delta => scene.update(scene.time.now, delta);
+  let frameChanges = 0;
+  try {
+    const frames = scene.textures.get('weather-snow').getFrameNames();
+    assert(frames.length === 256 && Array.from({ length: 256 }, (_, index) => scene.textures.get('weather-snow').get(index))
+      .every((frame, index) => frame.name === index && frame.width === 128 && frame.height === 128), '256 numbered native 128px frames load');
+    snow.setFrame = function (...args) { frameChanges++; return original.setFrame.apply(this, args); };
+    scene.reducedMotion = { matches: false }; weather('clear'); weather('snow');
+    const before = frameChanges; update(39);
+    assert(snow.visible && scene.snowFrame === 0 && frameChanges === before, 'frame zero remains until 40ms without texture updates');
+    update(1); assert(scene.snowFrame === 1 && snow.displayFrame.name === 1, '40ms advances one frame at 25fps');
+    const changed = frameChanges; update(5);
+    assert(frameChanges === changed, 'updates within the same frame do not call setFrame');
+    scene.renderBattle(); assert(scene.snowElapsed === 45 && scene.snowFrame === 1, 'ordinary redraw preserves playback');
+    update(10155); assert(scene.snowFrame === 255, 'last frame starts at 10200ms');
+    update(40); assert(scene.snowFrame === 0 && scene.snowElapsed === 0, '256 frames loop at 10240ms');
+    for (const value of ['rain', 'clear', 'sun', 'sandstorm']) {
+      weather(value); update(40); assert(!snow.visible && scene.snowElapsed === 0, `${value} hides and stops snow`);
+      weather('snow'); assert(snow.visible && scene.snowFrame === 0 && scene.snowElapsed === 0, `reentering snow after ${value} starts at zero`);
+    }
+    update(40); scene.reducedMotion = { matches: true }; update(40);
+    const paused = scene.snowElapsed; update(1000);
+    assert(scene.snowFrame === 0 && snow.displayFrame.name === 0 && scene.snowElapsed === paused, 'reduced motion keeps a static first frame');
+    for (const [width, height] of [[579, 671], [801, 603]]) for (const zoom of [scene.fitZoom(), 2.5]) {
+      camera.setSize(width, height).setZoom(zoom); scene.emitView(); camera.preRender();
+      assert(snow.width === width + 8 && snow.height === height + 8 && Math.abs(snow.scaleX * zoom - 1) < 1e-9
+        && Math.abs(snow.scaleY * zoom - 1) < 1e-9 && snow.tileScaleX === 1 && snow.tileScaleY === 1, 'odd viewport and zoom retain padded native tile size');
+      const center = camera.matrix.transformPoint(Math.floor(snow.x), Math.floor(snow.y));
+      assert(center.x - snow.width / 2 <= 0 && center.x + snow.width / 2 >= width
+        && center.y - snow.height / 2 <= 0 && center.y + snow.height / 2 >= height, 'rounded camera transform covers every viewport edge');
+      camera.scrollX += 173; camera.scrollY += 119; camera.preRender();
+      const panned = camera.matrix.transformPoint(Math.floor(snow.x), Math.floor(snow.y));
+      assert(snow.scrollFactorX === 0 && snow.scrollFactorY === 0 && panned.x === center.x && panned.y === center.y, 'panning keeps snow fixed to the screen');
+    }
+    return { passed: true, assertions };
+  } finally {
+    snow.setFrame = original.setFrame; scene.battle = original.battle; scene.reducedMotion = original.reducedMotion;
+    camera.setSize(original.width, original.height).setZoom(original.zoomX, original.zoomY)
+      .setBounds(original.bounds.x, original.bounds.y, original.bounds.width, original.bounds.height);
+    camera.useBounds = original.useBounds; camera.setScroll(original.scrollX, original.scrollY); camera.preRender(); scene.emitView(); scene.renderBattle();
+    scene.snowElapsed = original.elapsed; scene.snowFrame = original.frame; snow.setFrame(original.frame).setVisible(original.visible);
+    scene.sandstormStartedAt = original.sandstormStartedAt; scene.sandstormFrame = original.sandstormFrame;
+    scene.sandstormOverlay?.setFrame(original.sandstormFrame);
   }
 }

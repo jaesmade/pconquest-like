@@ -21,6 +21,15 @@ Regenerate the checked copy with [the reference CSV generator](../scripts/genera
 
 The checked copy has a manually selected review schema. The generator currently exports the full schema with `Ability Options` and source status fields; preserve or repopulate the three split ability columns when replacing the reviewed copy.
 
+## Learnset review CSV
+
+The checked [Pokemon Learnset CSV](../pokefiles/for%20checking/Pokemon%20Learnset.csv) has exactly three columns: `Dex No.`, `Pokemon`, and `Learnset (level-learned;move)`. It has one row for every entry in `Pokemon Stats.csv` (1,351 rows), with the national dex number and form-explicit names such as `Raichu Alola`; regional forms remain separate rows and share their species' number. Each learnset cell lists `level;move` pairs separated by ` | `; an empty cell means the pinned source has no positive-level record for that entry or its default form.
+
+- The export includes only level-up method records with a positive learned level. Egg, machine/TM, tutor, reminder/evolution level-zero, and other acquisition methods are excluded.
+- For each exact PokeAPI Pokémon ID, the generator uses the latest version group in the pinned snapshot that contains positive-level records. It does not merge levels from different games. If a form has no such records, its row inherits the same National Dex entry's default-form learnset when available; the form still has its own explicit row and name.
+- This is a review reference, not a single-game runtime chronology: the required three-column schema does not store the selected source version group, and different rows may use different latest available groups. Choose and record a canonical game/version before importing these levels into runtime progression.
+- Regenerate with [the learnset CSV generator](../scripts/generate_pokemon_learnset_csv.py). It joins `Pokemon Stats.csv` to the checked Pokemon reference by Dex/Form key and fetches the same pinned PokeAPI CSV snapshot as the reference generator unless `--source-dir` is supplied.
+
 ## Ability review CSV
 
 The checked [Abilities CSV](../pokefiles/for%20checking/Abilities.csv) is sorted A-Z by `Name` for review. All 314 rows retain their descriptions, proposals, and game implementation notes, including repeated names. This reference-file change does not register abilities in the runtime catalog.
@@ -74,7 +83,7 @@ The generated [Pokemon Items Reference CSV](../pokefiles/output/Pokemon%20Items%
 ## Decisions for the testing rollout
 
 1. Use the six original base stats and the ordered one or two types in [Pokemon Stats.csv](../pokefiles/Pokemon%20Stats.csv). Append **Movement = 4** as the seventh stat for every PokÃ©mon and form during testing. Movement is tile range, not Speed or AP gain. Keep the source base stats unchanged.
-2. Give every battle-ready PokÃ©mon **four distinct equipped moves**. The four CSVs do not provide species move sets, learnsets, or TM compatibility, so author those links in reviewed supplemental content. Keep the current limit of one Attack command per turn and 3 AP gained per turn; four slots are four choices, not four attacks.
+2. Give every battle-ready PokÃ©mon **four distinct equipped moves**. The four source CSVs do not provide species move sets, learnsets, or TM compatibility; the supplemental [Pokemon Learnset CSV](../pokefiles/for%20checking/Pokemon%20Learnset.csv) now provides level-up reference records, but starting sets, reviewed move links, and TM compatibility still need authored mappings. Keep the current limit of one Attack command per turn and 3 AP gained per turn; four slots are four choices, not four attacks.
 3. Preserve every `Power` value in [Moves.csv](../pokefiles/Moves.csv). Its numeric value is the target for a migrated ordinary damaging move. Blank, zero, inherited, fixed-damage, and variable-power entries require an explicit rule before activation. The CSV's AP, range, target, delivery, and implementation prose are proposed game mappings that need validation against the actual rule engine.
 4. Preserve saved species, move, ability, and item IDs through explicit aliases or a save migration. An existing playable entry retains its current behavior until its CSV mapping and balance change are reviewed and released together. Record intentional runtime exceptions beside the mapping; never silently replace an existing move's power, area, AP cost, or availability.
 

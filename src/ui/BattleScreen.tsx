@@ -17,6 +17,7 @@ import PixelIcon from './PixelIcon';
 type Mode = 'inspect' | 'move' | 'attack';
 type Props = {
   run: Run; battle: Battle; mode: Mode; chosenMove: string; target?: [number, number]; notice: string; paused: boolean;
+  weatherAnimationsEnabled: boolean;
   controlBoth?: boolean; labSeed?: number; onLabReset?: () => void;
   onTile: (x: number, y: number) => void; onHoverTile: (x: number, y: number) => void; onAnimationState: (playing: boolean) => void;
   onMode: (mode: Mode) => void; onChooseMove: (id: string) => void;
@@ -335,7 +336,7 @@ export default function BattleScreen(props: Props) {
   };
 
   return <main className={`battle-stage${targeting ? ' is-targeting' : ''}`} ref={stageRef}>
-    <div className="battle-map-frame" style={targeting ? targetInsets : undefined}><Board key={battle.map.id} battle={battle} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
+    <div className="battle-map-frame" style={targeting ? targetInsets : undefined}><Board key={battle.map.id} battle={battle} weatherAnimationsEnabled={props.weatherAnimationsEnabled} mode={mode} controlBoth={props.controlBoth} chosenMove={chosenMove} target={target} moveRoutes={routes} onTile={tile} onHover={props.onHoverTile} onAnimationState={animationState} onViewChange={onViewChange} cameraAction={cameraAction} /></div>
     <header className="battle-top-hud">
       <div className="battle-location"><span className="eyebrow">{props.controlBoth ? 'BATTLE LAB' : `COLUMN ${run.encounter + 1}`} · CYCLE {battle.round} · AV {Math.floor(battle.time)}</span><strong>{battle.map.name}</strong><small className="battle-objective">{battle.objective === 'defeat-and-capture' ? 'Defeat foes + hold capture point' : 'Defeat all opponents'}</small>
         {(weatherCycles > 0 || trickRoomCycles > 0) && <div className="battle-field-conditions" aria-label="Active field conditions">

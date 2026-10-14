@@ -349,7 +349,7 @@ Current-catalog initial-loadout examples: a newly recruited or wild level-11 Pik
 
 Keep existing TM compatibility, recipient/slot selection, consumption, shop stock, and starting-bag items. The latest-four selector uses only starting and level-up moves to generate an initial default; it must not erase subsequently taught TM moves or override player choices. No TM disablement or inventory conversion is part of this plan.
 
-When fewer than four moves are eligible, the Attack menu shows only available choices. Catalog validation accepts one or more distinct starting moves and positive integer unlock levels; initialization and save validation limit equipped moves to four distinct IDs. For imported data, define an authoritative game/version learnset before ordering unlocks: the current reference CSV merges levels across versions and is not an authoritative single-game chronology.
+When fewer than four moves are eligible, the Attack menu shows only available choices. Catalog validation accepts one or more distinct starting moves and positive integer unlock levels; initialization and save validation limit equipped moves to four distinct IDs. The supplemental [Pokemon Learnset CSV](../pokefiles/for%20checking/Pokemon%20Learnset.csv) selects one latest available version group per exact form and does not merge levels, but its three-column review schema omits the selected game. Choose and record a canonical game/version before importing its entries as runtime unlocks; the consolidated Pokemon Reference CSV still merges levels across versions and is not a single-game chronology.
 
 ### Implemented integration and main files
 

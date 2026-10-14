@@ -1,5 +1,11 @@
 # Start screen overhaul
 
+## Weather animations option (2026-10-13)
+
+Options includes **Weather animations: On/Off**, enabled by default. `src/persistence/preferences.ts` stores the choice in the browser's `pokemon-tactics-weather-animations` localStorage key, separately from campaign saves and the Sound setting. If browser storage is unavailable, the choice still applies for the current session.
+
+Off hides the rain, sunlight, snow, and Sandstorm overlays in campaign battles and Battle Lab, along with cosmetic bursts from weather-changing moves. Weather rules, duration, HUD details, the unit's Charge strip, audio, and action timing continue as usual. On keeps the existing device reduced-motion fallbacks: static rain/sun images and frame zero for snow/Sandstorm. See the [animation guide](ANIMATION_ASSETS.md#weather-animations-preference-2026-10-13) for renderer details.
+
 ## Button polish (2026-10-12)
 
 Title-menu and supporting-panel buttons use one raspberry border, a solid gold or stone fill, and a hard berry shadow. Removed the always-visible white outer outline and inset bevel highlights to simplify the button edges. Hover lifts the button and lightens its fill; pressing lowers it and shortens the shadow. Keyboard navigation retains the shared visible gold focus ring.
@@ -8,7 +14,7 @@ Checked the production build and isolated title fixtures at 1280×900 and 390×8
 
 ## Pixel polish (2026-10-06)
 
-The title uses hard checker layers, square framed buttons, locally bundled pixel fonts, a primary Continue/New Run action and a saved-run summary. Supporting screens compact the logo so controls remain reachable on phones and short windows. Battle Lab initially focuses the first species control. Sound remains the implemented option; the panel also explains device reduced-motion preferences.
+The title uses hard checker layers, square framed buttons, locally bundled pixel fonts, a primary Continue/New Run action and a saved-run summary. Supporting screens compact the logo so controls remain reachable on phones and short windows. Battle Lab initially focuses the first species control. Options provides Sound and Weather animations controls; the panel also explains device reduced-motion preferences.
 
 Starting over from an unfinished run opens an in-game confirmation instead of the native browser window. Keep current run is focused first; Escape cancels, Tab stays inside, and cancel restores focus to New Run. Completed runs start fresh directly. Exit reports save failures accurately.
 
@@ -34,7 +40,7 @@ The background is built from CSS gradients and grid layers in `src/styles/menus.
 | Continue | Resumes the saved, unfinished run. Hidden during starter selection and after a completed run. |
 | New Run | Starts a fresh run; asks before replacing an existing unfinished run. |
 | Lab | Opens the existing Battle Lab configuration screen. |
-| Options | Opens the existing sound preference control. |
+| Options | Opens Sound and Weather animations toggles, saved separately in this browser. |
 | Exit | Shows the existing saved-progress message; the browser cannot reliably close a tab it did not open. |
 | Keyboard menu | Tab and Shift+Tab move through native buttons; Enter/Space activate. Up/Down move focus; Home/End select the first/last available button. |
 
@@ -45,6 +51,7 @@ The splash prompt pulse is removed under `prefers-reduced-motion`. Buttons retai
 - `src/main.tsx`: validates the catalog, loads the saved run, and mounts the app.
 - `src/app/App.tsx`: `splash` screen state, first-input transition, and menu action wiring.
 - `src/ui/TitleScreen.tsx`: menu semantics, Lab setup, Options, and Exit markup.
+- `src/persistence/preferences.ts`: browser-local weather animation preference, enabled by default.
 - `src/styles/menus.css`: responsive layout, pixel palette, grid and color-wash layers, panels, and reduced-motion rules.
 - `src/styles/pixel-system.css` and `public/assets/fonts/`: local Press Start 2P and Pixelify Sans, shared controls and font licenses.
 - `docs/UI_OVERHAUL_PLAN.md`: overall screen flow and implementation progress.
@@ -56,5 +63,6 @@ To adjust the backdrop, edit the `.title-screen`, `::before`, and `::after` rule
 - At 1920×1080, the logo and prompt have the same broad vertical spacing as the references, and the main menu buttons read as a centered vertical stack.
 - At narrow mobile widths and short browser heights, the logo does not clip, menu buttons remain reachable, and Lab setup can scroll.
 - Mouse/touch activation, any-key splash transition, arrow navigation, Tab navigation, and Enter/Space activation all work.
-- Continue/New Run still preserve the current save confirmation behavior; Lab, sound options, and Exit message still open their prior screens.
+- Continue/New Run still preserve the current save confirmation behavior; Lab, Options, and Exit message still open their prior screens.
+- Sound and Weather animations toggle independently; the weather choice survives reload and applies to campaign battles and Battle Lab without changing weather rules or HUD details.
 - Reduced motion disables the prompt pulse without hiding it or blocking input.

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import Phaser from 'phaser';
 import manifest from '../../public/assets/animations/animation-manifest.json';
 import battleAssets from '../../public/assets/battle-asset-manifest.json';
@@ -18,7 +18,7 @@ import { RANK_LABELS } from '../game/enemyRanks';
 
 export type BoardView = { left: number; top: number; zoom: number; width: number; height: number };
 export type CameraCommand = 'zoom-in' | 'zoom-out' | 'fit' | 'center' | 'focus';
-type Props = { battle: Battle; mode: 'move' | 'attack' | 'inspect'; controlBoth?: boolean; chosenMove?: string; target?: [number, number]; moveRoutes?: Map<string, MovementPath>; onTile: (x: number, y: number) => void; onHover?: (x: number, y: number) => void; onAnimationState?: (playing: boolean) => void; onViewChange?: (view: BoardView) => void; cameraAction?: { id: number; command: CameraCommand; point?: [number, number] } };
+type Props = { battle: Battle; mode: 'move' | 'attack' | 'inspect'; weatherAnimationsEnabled?: boolean; controlBoth?: boolean; chosenMove?: string; target?: [number, number]; moveRoutes?: Map<string, MovementPath>; onTile: (x: number, y: number) => void; onHover?: (x: number, y: number) => void; onAnimationState?: (playing: boolean) => void; onViewChange?: (view: BoardView) => void; cameraAction?: { id: number; command: CameraCommand; point?: [number, number] } };
 const MOVE_STEP_MS = 375;
 type UnitMarkers = { shadow: Phaser.GameObjects.Ellipse; ripple: Phaser.GameObjects.Ellipse; artShadow?: Phaser.GameObjects.Sprite };
 
@@ -26,6 +26,7 @@ class BattleScene extends Phaser.Scene {
   battle!: Battle;
   mode: Props['mode'] = 'inspect';
   controlBoth = false;
+  weatherAnimationsEnabled = true;
   chosenMove?: string;
   target?: [number, number];
   moveRoutes?: Map<string, MovementPath>;
@@ -39,6 +40,9 @@ class BattleScene extends Phaser.Scene {
   hoverPointer?: { x: number; y: number };
   hoverScheduled = false;
   terrainTexture?: Phaser.GameObjects.RenderTexture;
+  sandstormOverlay?: Phaser.GameObjects.TileSprite;
+  sandstormStartedAt = 0;
+  sandstormFrame = 0;
   scenery: Phaser.GameObjects.Image[] = [];
   terrain!: Phaser.GameObjects.Graphics;
   ground!: Phaser.GameObjects.Graphics;
@@ -70,6 +74,10 @@ class BattleScene extends Phaser.Scene {
   draining = false;
   catchingUp = false;
   movingUnits = new Set<string>();
+  snow?: Phaser.GameObjects.TileSprite;
+  snowElapsed = 0;
+  snowFrame = 0;
+  reducedMotion?: MediaQueryList;
   constructor() { super('battle'); }
   preload() {
     for (const asset of battleAssets.assets) this.load.image(asset.id, asset.url);
@@ -92,6 +100,10 @@ class BattleScene extends Phaser.Scene {
     }
     for (const [id, url] of Object.entries(manifest.effects)) this.load.spritesheet(`effect-${id}`, url, { frameWidth: 32, frameHeight: 32 });
     for (const [id, asset] of visuals) this.load.spritesheet(`attack-${id}`, asset.url, { frameWidth: 32, frameHeight: 32 });
+    const sandstorm = manifest.weather.sandstorm;
+    this.load.spritesheet('weather-sandstorm', sandstorm.url, { frameWidth: sandstorm.frameWidth, frameHeight: sandstorm.frameHeight });
+    const snow = manifest.weather.snow;
+    this.load.spritesheet('weather-snow', snow.url, { frameWidth: snow.frameWidth, frameHeight: snow.frameHeight });
   }
   create() {
     const world = worldSize(this.battle.map);
@@ -101,6 +113,10 @@ class BattleScene extends Phaser.Scene {
     this.attackRange = this.add.graphics().setDepth(2000);
     this.ground = this.add.graphics().setDepth(2001);
     this.targetOverlay = this.add.graphics().setDepth(2002);
+    this.sandstormOverlay = this.add.tileSprite(0, 0, 1, 1, 'weather-sandstorm', 0)
+      .setScrollFactor(0).setDepth(2500).setVisible(false);
+    this.snow = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'weather-snow', 0).setScrollFactor(0).setDepth(4000).setVisible(false);
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.drawTerrain();
     const unitIds = new Set(this.battle.units.flatMap(unit => [unit.species, megaFormFor(unit.species, unit.item)?.id].filter((id): id is string => !!id)).map(unitSetId));
     const visualIds = new Set(this.battle.units.flatMap(unit => unit.moves).map(moveId => moveVisualFor(moveId).id));
@@ -157,6 +173,21 @@ class BattleScene extends Phaser.Scene {
     void this.playNextAttack();
     this.updateAnimationState();
   }
+  update(time: number, delta: number) {
+    if (this.sandstormOverlay?.visible) {
+      const spec = manifest.weather.sandstorm;
+      const frame = this.reducedMotion?.matches ? 0 : Math.floor((time - this.sandstormStartedAt) * spec.fps / 1000) % spec.frames;
+      if (frame !== this.sandstormFrame) {
+        this.sandstormOverlay.setFrame(frame);
+        this.sandstormFrame = frame;
+      }
+    }
+    if (!this.snow?.visible) return;
+    const spec = manifest.weather.snow;
+    if (!this.reducedMotion?.matches) this.snowElapsed = (this.snowElapsed + delta) % (spec.frames * 1000 / spec.fps);
+    const frame = this.reducedMotion?.matches ? 0 : Math.floor(this.snowElapsed * spec.fps / 1000);
+    if (frame !== this.snowFrame) { this.snow.setFrame(frame); this.snowFrame = frame; }
+  }
   drawTerrain() {
     if (!this.terrainTexture) return;
     for (const image of this.scenery) image.destroy();
@@ -209,6 +240,20 @@ class BattleScene extends Phaser.Scene {
   }
   private emitView() {
     const camera = this.cameras.main;
+    // Inverse zoom keeps the repeating 128px weather tile fixed to the viewport.
+    if (this.sandstormOverlay) {
+      // A small overscan also covers rounded camera edges at fractional zoom.
+      if (this.sandstormOverlay.width !== camera.width + 8 || this.sandstormOverlay.height !== camera.height + 8) {
+        this.sandstormOverlay.setSize(camera.width + 8, camera.height + 8);
+      }
+      this.sandstormOverlay.setPosition(camera.width / 2, camera.height / 2).setScale(1 / camera.zoom);
+    }
+    // Cancel camera zoom around its center so snow repeats at native screen pixels.
+    if (this.snow) {
+      // Overscan covers rounding at fractional camera zooms and odd viewport sizes.
+      if (this.snow.width !== camera.width + 8 || this.snow.height !== camera.height + 8) this.snow.setSize(camera.width + 8, camera.height + 8);
+      this.snow.setPosition(camera.width / 2, camera.height / 2).setScale(1 / camera.zoom);
+    }
     const corner = camera.getWorldPoint(0, 0);
     this.onViewChange?.({ left: corner.x, top: corner.y, zoom: camera.zoom, width: camera.width, height: camera.height });
   }
@@ -263,7 +308,9 @@ class BattleScene extends Phaser.Scene {
   }
   setProps(props: Props) {
     const activeChanged = this.battle?.current !== props.battle.current;
-    const boardChanged = this.battle !== props.battle || this.mode !== props.mode || this.chosenMove !== props.chosenMove || this.controlBoth !== !!props.controlBoth;
+    const weatherAnimationsEnabled = props.weatherAnimationsEnabled ?? true;
+    const boardChanged = this.battle !== props.battle || this.mode !== props.mode || this.chosenMove !== props.chosenMove || this.controlBoth !== !!props.controlBoth || this.weatherAnimationsEnabled !== weatherAnimationsEnabled;
+    this.weatherAnimationsEnabled = weatherAnimationsEnabled;
     const targetChanged = this.target?.[0] !== props.target?.[0] || this.target?.[1] !== props.target?.[1];
     if (this.mode !== props.mode || this.chosenMove !== props.chosenMove) this.hovered = undefined;
     this.battle = props.battle; this.mode = props.mode; this.controlBoth = !!props.controlBoth; this.chosenMove = props.chosenMove; this.target = props.target; this.moveRoutes = props.moveRoutes; this.onTile = props.onTile; this.onHover = props.onHover ?? (() => {}); this.onAnimationState = props.onAnimationState; this.onViewChange = props.onViewChange;
@@ -482,7 +529,11 @@ class BattleScene extends Phaser.Scene {
       await new Promise<void>(resolve => this.tweens.add({ targets: projectile, x: tx, y: ty, duration, ease: 'Sine.easeInOut', onComplete: () => { projectile.destroy(); resolve(); } }));
     }
     const width = mapWidth(this.battle.map), height = mapHeight(this.battle.map);
-    const tiles: [number, number][] = asset?.style === 'weather'
+    // Sandstorm's persistent overlay replaces the old scattered move bursts.
+    // Sun uses the viewport overlay instead of scattered cast bursts.
+    const castsSun = move?.effects?.some(effect => effect.kind === 'weather' && effect.weather === 'sun');
+    const hideWeatherCast = !this.weatherAnimationsEnabled && move?.effects?.some(effect => effect.kind === 'weather');
+    const tiles: [number, number][] = event.moveId === 'sandstorm' || castsSun || hideWeatherCast ? [] : asset?.style === 'weather'
       ? [[0.2, 0.2], [0.45, 0.3], [0.7, 0.55], [0.8, 0.8]].map(([x, y]) => [Math.min(width - 1, Math.floor(x * width)), Math.min(height - 1, Math.floor(y * height))])
       : event.tiles.length ? event.tiles : [event.to];
     const unique = [...new Map(tiles.map(tile => [tile.join(','), tile])).values()];
@@ -525,6 +576,18 @@ class BattleScene extends Phaser.Scene {
   }
   renderBattle() {
     if (!this.battle || !this.ground) return;
+    const sandstorm = this.weatherAnimationsEnabled && this.battle.weather === 'sandstorm';
+    if (sandstorm && !this.sandstormOverlay?.visible) {
+      this.sandstormStartedAt = this.time.now;
+      this.sandstormFrame = 0;
+      this.sandstormOverlay?.setFrame(0);
+    }
+    this.sandstormOverlay?.setVisible(sandstorm);
+    const snowVisible = this.weatherAnimationsEnabled && this.battle.weather === 'snow';
+    if (this.snow && this.snow.visible !== snowVisible) {
+      this.snowElapsed = 0; this.snowFrame = 0;
+      this.snow.setFrame(0).setVisible(snowVisible);
+    }
     this.ground.clear();
     let matchupCount = 0;
     const current = active(this.battle);
@@ -776,5 +839,15 @@ export default function Board(props: Props) {
     return () => { observer.disconnect(); holder.current?.removeEventListener('contextmenu', preventMenu); game.destroy(true); scene.current = null; if (import.meta.env.MODE === 'profile') delete (window as Window & { __profileBattleScene?: BattleScene }).__profileBattleScene; };
   }, [width, height]);
   useEffect(() => { scene.current?.setProps(props); }, [props]);
-  return <div className="board" ref={holder} aria-label={`${width} by ${height} battle board`} />;
+  const weatherAnimationsEnabled = props.weatherAnimationsEnabled ?? true;
+  const raining = weatherAnimationsEnabled && props.battle.weather === 'rain';
+  const sunny = weatherAnimationsEnabled && props.battle.weather === 'sun' && props.battle.weatherUntil > props.battle.time;
+  const weatherStyle = raining ? {
+    '--battle-rain-image': `url("${manifest.weather.rain}")`,
+    '--battle-rain-still': `url("${manifest.weatherStill.rain}")`,
+  } as CSSProperties : sunny ? {
+    '--battle-sun-image': `url("${manifest.weather.sun}")`,
+    '--battle-sun-still': `url("${manifest.weatherStill.sun}")`,
+  } as CSSProperties : undefined;
+  return <div className={`board${raining ? ' weather-rain' : sunny ? ' weather-sun' : ''}`} style={weatherStyle} ref={holder} aria-label={`${width} by ${height} battle board`} />;
 }

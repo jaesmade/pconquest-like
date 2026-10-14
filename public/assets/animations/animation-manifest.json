@@ -188,10 +188,26 @@
     }
   },
   "weather": {
-    "sun": "/assets/animations/weather/weather-sun-32px.png",
-    "rain": "/assets/animations/weather/weather-rain-32px.png",
-    "snow": "/assets/animations/weather/weather-snow-32px.png",
-    "sandstorm": "/assets/animations/weather/weather-sandstorm-32px.png"
+    "sun": "/assets/animations/weather/weather-sun-128px.png",
+    "rain": "/assets/animations/weather/constant-rain-animated.png",
+    "snow": {
+      "url": "/assets/animations/weather/constant-snow-sheet.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "frames": 256,
+      "fps": 25
+    },
+    "sandstorm": {
+      "url": "/assets/animations/weather/weather-sandstorm-128px.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "frames": 128,
+      "fps": 25
+    }
+  },
+  "weatherStill": {
+    "sun": "/assets/animations/weather/weather-sun-peak-128px.png",
+    "rain": "/assets/animations/weather/constant-rain-tile.png"
   },
   "effectFrameCount": 4,
   "effectFps": 12,

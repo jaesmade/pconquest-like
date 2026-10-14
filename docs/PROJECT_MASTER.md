@@ -31,6 +31,36 @@ For every future task that changes code, assets, behavior, or project documentat
 
 ## Recent changes
 
+### 2026-10-13 - Imported the supplied constant snow animation
+
+- Replaced the Snow manifest entry with the unchanged `constant-snow-sheet.png` from `D:\Projects\asset-test\outputs\constant-snow`. Snow now repeats 256 transparent 128×128 frames at 25 fps across the battle viewport in a 10.24-second loop. Added native-pixel camera compensation, rounding overscan, weather-transition visibility, continuous playback across state redraws, and a static first frame for reduced motion.
+- Main files: `src/battle/Board.tsx`, `public/assets/animations/animation-manifest.json`, the imported weather sheet, and `scripts/profile/browserBench.js`. Updated the [snow asset guide](ANIMATION_ASSETS.md#persistent-snow-overlay-2026-10-13), including the `?snow-checks` renderer-fixture path, and saved the [Battle Lab preview](SNOW_WEATHER_PREVIEW.jpg). Preserved concurrent rain, sunlight, Sandstorm, and learnset changes in shared files.
+- Production build passed using an isolated output folder to avoid concurrent build conflicts; source/import SHA256 matched. The browser passed all 11 existing renderer checks and 29 focused snow checks covering loaded frames, timing/looping, weather switching, reduced motion, redraw continuity, and camera coverage. Production Battle Lab passed Snow rendering, zoom/fit, targeting readability, and a successful tile-click attack. Scoped whitespace and documentation links checked. OS preference toggling and a full campaign playthrough were not repeated; the existing Phaser bundle-size warning remains.
+
+### 2026-10-13 - Replaced sunlight with the supplied rays and lens-flare loop
+
+- Imported the unchanged `harsh-sunlight` APNG and peak still from `D:\Projects\asset-test\outputs`. Sun now plays the 100-frame, 25-fps, 4-second loop once across the battle viewport, with the static still for reduced motion. Sun-setting moves skip the old scattered bursts while keeping their Charge strip, audio, costs, and queue timing.
+- Main files: `src/battle/Board.tsx`, `src/styles/battle.css`, the animation manifest, and `public/assets/animations/weather/weather-sun*-128px.png`. Updated the [animation guide](ANIMATION_ASSETS.md#persistent-sunlight-overlay-2026-10-13) and saved an [in-game preview](SUN_ANIMATION_PREVIEW.jpg).
+- Production build, asset byte/dimension/frame/timing/alpha checks, independent integration review, and scoped whitespace checks passed. Battle Lab at 674×892 confirmed initial Sun, rays/flares, readable HUD/HP bars, camera zoom/drag, expiry at AV 30,000, and Sunny Day restoring Sun for 4 AP; no browser errors or warnings. Reduced-motion selection was source-reviewed; no full campaign playthrough was run. The existing Phaser bundle-size warning remains.
+
+### 2026-10-13 - Replaced Sandstorm with the supplied looping weather art
+
+- Imported the exact `D:\Projects\asset-test\outputs\sandstorm\sandstorm-sheet.png` as `public/assets/animations/weather/weather-sandstorm-128px.png`: 128 transparent 128×128 frames at 25 fps, repeating every 5.12 seconds. Added per-weather metadata in the animation manifest and persistent viewport tiling in `src/battle/Board.tsx`; the loop replaces the scattered Sandstorm move bursts and hides on weather change/expiry. Camera inverse zoom and edge overscan preserve coverage; reduced motion holds frame zero, and weather playback does not lock commands.
+- Updated the [animation guide](ANIMATION_ASSETS.md#persistent-sandstorm-overlay-2026-10-13) and [asset authoring workflow](UNIT_MOVE_ABILITY_ASSETS.md#persistent-weather-artwork) with the source, sheet layout, playback, and replacement instructions. Preserved concurrent rain, snow, sunlight, and reference-data work.
+- Checked exact source SHA256, RGBA dimensions/alpha, all 128 row-major frame rectangles and 40ms durations, production build, existing campaign/Battle Lab/ranked-encounter/ability smoke suite, and scoped whitespace. Browser review confirmed initial Sandstorm, a successful tile-click Quick Attack, canvas resizing for targeting, zoom/fit, Sunny Day replacement, Sandstorm recast, and natural expiry without console errors. Reduced motion was source-reviewed; no full campaign visual playthrough was run. The existing Phaser bundle-size warning remains.
+
+### 2026-10-13 - Imported the supplied constant rain animation
+
+- Replaced the rain manifest URL with the supplied transparent `constant-rain` APNG from `D:\Projects\asset-test\outputs\constant-rain`, and imported its matching still frame. The 128×128 overlay repeats across the battlefield in a 64-frame, 25-fps loop while rain is active; the old registered rain placeholder had no persistent renderer. Camera pan/zoom preserve its screen size, pointer input reaches the canvas, and reduced motion selects the static frame.
+- Main files: `src/battle/Board.tsx`, `src/styles/battle.css`, `public/assets/animations/animation-manifest.json`, and the two `constant-rain-*.png` runtime assets. Updated the [animation guide](ANIMATION_ASSETS.md#persistent-rain-overlay-2026-10-13) with playback, replacement instructions, and source provenance. Existing concurrent weather and learnset work was preserved.
+- Production build and scoped whitespace checks passed. Independent review verified byte-identical imports and APNG dimensions, frame replacement, timing, transparency, and infinite looping. Production Battle Lab checks at 1280×900 and 390×844 passed animation changes, coverage, tile clicks, camera drag/zoom, weather expiry removal, and Replay Seed restoration, with no browser errors. Reduced-motion selection was source-reviewed; OS preference toggling and a full campaign playthrough were not repeated. The existing Phaser bundle-size warning remains.
+
+### 2026-10-13 - Completed the form-level Pokémon learnset reference
+
+- Replaced the one-row draft in [Pokemon Learnset.csv](../pokefiles/for%20checking/Pokemon%20Learnset.csv) with three columns and one row for each of the 1,351 species/form keys. Level-up entries use `level;move` pairs, regional and other forms stay explicit, and each row uses one latest available source version group rather than merged levels.
+- Added [the learnset CSV generator](../scripts/generate_pokemon_learnset_csv.py) and documented its source selection, form fallback, limitations, and regeneration in the [Pokefile plan](POKEFILE_CONTENT_IMPLEMENTATION_PLAN.md) and [learnset progression rules](PLAN.md#latest-four-initial-movesets-manual-progression-after-joining).
+- Checked the generated row count, exact three-column header, form coverage, and that all learnset pairs use positive levels. Runtime species catalogs were not changed.
+
 ### 2026-10-12 - Matched the position pyramid and cleaned route controls
 
 - Replaced the smooth cyan position pyramid with smaller ivory/gold pixel facets, bronze sides, a warm outline, and a fixed glint. Its nonrotating stepped hover pauses for dialogs, pending Capsule choices, inactive backdrops, and reduced motion. Simplified the wallet/Party/Bag/Artifacts HUD and grouped route progress, consequences, confirmation, and labeled Boss/Start controls in a responsive guide.

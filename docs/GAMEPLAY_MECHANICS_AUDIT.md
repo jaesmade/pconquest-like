@@ -2,6 +2,20 @@
 
 Static review of the early build on 2026-09-27. Compared `PLAN.md` and `BALANCE.md` with battle rules, map authoring, items, abilities, AI, previews, and the run flow. No gameplay session or automated test was run for this audit. The examples below follow the current code paths; they are not measured play outcomes.
 
+## 2026-10-14 weather implementation gap review
+
+Reviewed the four persistent weather overlays, their imported assets, combat modifiers, AV lifecycle, abilities, AI, previews, save restoration, and the weather visual preference. No combat, asset, or renderer defect was confirmed. The findings below remain open; this review does not change gameplay or move descriptions.
+
+| Priority | Confirmed gap | Evidence and next step |
+| --- | --- | --- |
+| P2 | **The Weather specification uses obsolete AV values.** It says Sandstorm ticks every 2,000 AV and starting weather lasts 6,000 AV, contradicting the current scheduler and the battle HUD. | `PLAN.md` Weather section; `src/game/actionValue.ts` `BATTLE_CYCLE`; `src/game/engine.ts` initial weather duration. Update that section to **10,000 AV per cycle and 30,000 AV for three cycles**. The current engine follows these larger values. |
+| P3 | **Sunny Day and Sandstorm descriptions expose the old duration scale.** Move selection reads “300 battle time,” while the field forecast correctly says three cycles. This can be mistaken for a 300-AV duration. | `src/content/moves.ts` `sunnyDay`/`sandstorm`; `src/ui/BattleScreen.tsx` move description and button title. Describe both as lasting **three cycles**; keep the authored `duration: 300`, which the engine converts to 30,000 AV. |
+| P2 verification gap | **Weather regression coverage is uneven.** The retained renderer assertions test Snow directly; the gameplay smoke suite checks Sandstorm casting and AI, but does not retain numerical weather modifier, expiry, save restoration, or preference assertions. | `scripts/profile/browserBench.js`, `scripts/playthrough-smoke-entry.ts`, `src/persistence/preferences.ts`. Add focused checks for Sandstorm playback/coverage, Rain/Sun CSS visibility and still selection, all-weather expiry/restoration, and the saved visual preference. These are missing checks, not observed failures. |
+
+The production build and existing campaign/Battle Lab/ranked-encounter/ability smoke suite passed. The browser fixture passed **11 renderer assertions and 29 Snow assertions**, with no captured browser errors. Temporary rule checks passed Sun/Rain damage modifiers, Snow Defense, Sandstorm Special Defense and damage immunity, three starting Sandstorm ticks, Chlorophyll rescheduling/expiry, unchanged type immunities, and campaign weather timestamp save/restore. Those temporary checks were not added to the repository. All six weather image files matched their source exports; decoded frame dimensions, timing, alpha, and sheet layouts matched the manifest.
+
+Desktop Battle Lab spot checks confirmed initial Sun/Rain, readable external HUD, and rain coverage after map zoom. The rendered rain-expiry sequence was interrupted and is not counted as verified. OS reduced-motion toggling, physical devices, a complete visual campaign, and browser persistence/toggle interaction were not exercised in this review. See the [animation review](ANIMATION_ASSETS.md#2026-10-14-weather-integration-review) for renderer and asset validation limitations.
+
 ## Resolved since the review
 
 - **Ability overhaul follow-up (2026-10-06):** New Capsule offers now save before random names are revealed, with retry and failed-use cancellation. Simultaneous ability callouts are grouped, battle saves reject Bag-only held items, and engine evolution/TM actions wait for pending Capsule choices. See the [ability gap review](ABILITY_OVERHAUL_PLAN.md#2026-10-06-implementation-gap-review) for corrected gaps, regression checks, and remaining content/testing work.

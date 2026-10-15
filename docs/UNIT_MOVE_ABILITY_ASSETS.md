@@ -79,6 +79,8 @@ For a brand-new move, add its rules to [moves.ts](../src/content/moves.ts) and t
 
 ### Persistent weather artwork
 
+Rain and Snow currently use the sparse original exports from `scripts/generate_simple_weather.py`: short single-color rain dashes and plain snow squares. Run it with Python/Pillow to recreate missing files; use `--force` only when intentionally replacing those generated exports. Rain is a 64-frame 128×128 APNG at 40ms per frame plus a matching still PNG; Snow is a 16×16 sheet of 128×128 tiles, 256 frames at 25 fps. The active filenames, manifest entries, and checks are in the [simplified weather guide](ANIMATION_ASSETS.md#simplified-rain-and-snow-2026-10-15).
+
 Persistent weather overlays use their own formats rather than the four-frame 32×32 move cue above. Sandstorm uses a 16×8 sheet of 128×128 tiles, 128 total frames at 25 fps, registered under `weather.sandstorm` in the animation manifest. The board repeats it across the viewport while that weather is active and suppresses the legacy Sandstorm cast bursts. Update the URL, frame dimensions, total frame count, and fps when replacing the sheet. The complete format, source, reduced-motion behavior, and replacement checks are in the [animation guide](ANIMATION_ASSETS.md#persistent-sandstorm-overlay-2026-10-13).
 
 ## 3. Make or replace an ability

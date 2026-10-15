@@ -189,9 +189,9 @@
   },
   "weather": {
     "sun": "/assets/animations/weather/weather-sun-128px.png",
-    "rain": "/assets/animations/weather/constant-rain-animated.png",
+    "rain": "/assets/animations/weather/weather-rain-simple-128px.png",
     "snow": {
-      "url": "/assets/animations/weather/constant-snow-sheet.png",
+      "url": "/assets/animations/weather/weather-snow-simple-128px.png",
       "frameWidth": 128,
       "frameHeight": 128,
       "frames": 256,
@@ -207,7 +207,7 @@
   },
   "weatherStill": {
     "sun": "/assets/animations/weather/weather-sun-peak-128px.png",
-    "rain": "/assets/animations/weather/constant-rain-tile.png"
+    "rain": "/assets/animations/weather/weather-rain-simple-still-128px.png"
   },
   "effectFrameCount": 4,
   "effectFps": 12,

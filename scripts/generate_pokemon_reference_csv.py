@@ -34,8 +34,29 @@ COLUMNS = (
     "Ability Data Status", "Learnset Moves (all recorded versions)",
     "Learnset Rules (methods/levels merged across versions)", "Learnset Data Status",
     "Available TMs (project TM list)", "TM Compatibility Source Version Group",
-    "TM Compatibility Data Status", "Data Notes", "exp gain",
+    "TM Compatibility Data Status", "Data Notes", "exp gain", "Gender Distribution",
 )
+# Form restrictions from Pokemon Showdown's pinned data/pokedex.ts snapshot
+# 942cda71d14bf0618bd57991708a2e2734b6daba. Other forms use PokeAPI species rates.
+FORM_GENDER_OVERRIDES = {
+    "pikachu-rock-star": "female",
+    "pikachu-belle": "female",
+    "pikachu-pop-star": "female",
+    "pikachu-phd": "female",
+    "pikachu-libre": "female",
+    "pikachu-cosplay": "female",
+    "pikachu-original-cap": "male",
+    "pikachu-hoenn-cap": "male",
+    "pikachu-sinnoh-cap": "male",
+    "pikachu-unova-cap": "male",
+    "pikachu-kalos-cap": "male",
+    "pikachu-alola-cap": "male",
+    "pikachu-partner-cap": "male",
+    "pikachu-world-cap": "male",
+    "greninja-battle-bond": "male",
+    "greninja-ash": "male",
+    "ursaluna-bloodmoon": "male",
+}
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -108,6 +129,28 @@ def form_category(form: str, metadata: dict[str, str] | None) -> str:
     if normalized in {"male", "female"}:
         return "Gender"
     return "Alternate"
+
+
+def gender_distribution(gender_rate: str, form: str, pokemon_identifier: str = "") -> str:
+    """Format species female eighths, honoring explicitly gendered source forms."""
+    try:
+        female_eighths = int(gender_rate)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"Invalid PokeAPI gender rate: {gender_rate!r}") from error
+    if female_eighths not in range(-1, 9):
+        raise ValueError(f"Invalid PokeAPI gender rate: {gender_rate!r}")
+
+    gender_tokens = set(re.findall(r"[a-z]+", form.casefold())) & {"male", "female"}
+    if len(gender_tokens) > 1:
+        raise ValueError(f"Ambiguous gendered source form: {form!r}")
+    if gender_tokens:
+        female_eighths = 8 if "female" in gender_tokens else 0
+    elif pokemon_identifier in FORM_GENDER_OVERRIDES:
+        female_eighths = 8 if FORM_GENDER_OVERRIDES[pokemon_identifier] == "female" else 0
+    if female_eighths == -1:
+        return "Genderless"
+    female_percent = female_eighths * 12.5
+    return f"Male: {100 - female_percent:g}%; Female: {female_percent:g}%"
 
 
 def load_tables(directory: Path) -> dict[str, list[dict[str, str]]]:
@@ -673,6 +716,9 @@ def build(source_dir: Path, output: Path) -> tuple[int, int, int]:
             "TM Compatibility Data Status": tm_status,
             "Data Notes": " ".join(notes),
             "exp gain": growth_rate_names[growth_rate_id],
+            "Gender Distribution": gender_distribution(
+                species_by_id[sid]["gender_rate"], form, pokemon_row["identifier"]
+            ),
         })
 
     output.parent.mkdir(parents=True, exist_ok=True)
